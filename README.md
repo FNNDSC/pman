@@ -23,12 +23,15 @@ GET pman.com/api/v1/
 for a list of all running jobs, while specific detail about a given job can be queried with
 
 ```
-GET pman.com/api/v1/pid
-GET pman.com/api/v1/status
-
+GET pman.com/api/v1/1/pid
+GET pman.com/api/v1/1/status
+GET pman.com/api/v1/1/cmd
 ... 
 
 ```
+
+for the pid and status of job "1", for example
+
 ## Dependencies
 
 On Ubuntu, 'pman' relies on <tt>webob</tt> and <tt>zmq</tt>
