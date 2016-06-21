@@ -13,6 +13,7 @@ import  time
 from    queue           import  Queue
 import  json
 import  datetime
+import  pprint
 
 def synopsis(ab_shortOnly = False):
     str_scriptName  = os.path.basename(sys.argv[0])
@@ -92,12 +93,15 @@ class crunner(object):
         :param kwargs:
         """
 
-        self.b_waitForChild     = True
         self.b_shell            = True
         self.b_showStdOut       = True
         self.b_showStdErr       = True
 
+        # Toggle special handling of "compound" jobs
         self.b_splitCompound    = True
+        self.b_syncMasterSlave  = True      # If True, sub-commands will pause after
+                                            # complete and need to be explicitly told
+                                            # to continue by master.
 
         # Queue for communicating between threads
         self.queue              = Queue()
@@ -106,22 +110,16 @@ class crunner(object):
         # Each job executed is stored in a list of
         # dictionaries.
         self.jobCount           = -1
-        self.l_job              = []
-
-        # Job template
-        self.d_jobInfoTemplate  =  {
-            'cmd':          '',
-            'status':       'undefined',
-            'proc':         None,
-            'pid':          -1,
-            'returncode':   -1111,
-            'stdout':       '',
-            'stderr':       ''
-        }
+        self.jobTotal           = -1
+        self.d_job              = {}
+        self.b_currentJobDone   = False
+        self.b_synchronized     = False
 
         # Threads for job control and execution
         self.t_ctl              = None      # Controller thread
         self.t_exe              = None      # Exe thread
+
+        self.pp                 = pprint.PrettyPrinter(indent=4)
 
     def __call__(self, str_cmd, **kwargs):
         """
@@ -154,24 +152,42 @@ class crunner(object):
         :return:
         """
         print("In ctl thread...")
+        timeout = 1
 
-        self.jobCount           += 1
-        self.l_job.append(self.jobCount)
-        # Populate the jobInfo with template data
-        self.l_job[self.jobCount]   = self.d_jobInfoTemplate.copy()
 
-        self.t_exe     =   threading.Thread(target = self.exe,
-                                            args   = (str_cmd,),
-                                            kwargs = kwargs)
-        self.t_exe.start()
-        self.t_exe.join()
+        l_cmd   = []
+        if self.b_splitCompound:
+            l_cmd       = str_cmd.split(";")
+        else:
+            l_cmd.append(str_cmd)
 
-        self.l_job[self.jobCount]   = self.queue.get()
+        self.jobTotal   = len(l_cmd)
 
-        # self.d_jobInfo = self.queue.get()
-        # print(self.d_jobInfo)
-        # print(json.dumps(self.l_job))
-        print(self.l_job)
+        for job in l_cmd:
+            # This thread runs independently of the master, so set
+            # an unsynchronized flag
+            self.b_synchronized         = False
+
+            # Track the job count
+            self.jobCount               += 1
+
+            # Declare the structure
+            self.d_job[self.jobCount]   = {}
+
+            self.t_exe                  =   threading.Thread(   target = self.exe,
+                                                                args   = (job,),
+                                                                kwargs = kwargs)
+            self.t_exe.start()
+            self.t_exe.join()
+
+            self.d_job[self.jobCount]   = self.queue.get()
+
+            self.pp.pprint(self.d_job)
+
+            # Now, "block" until the parent thread says we can continue...
+            while self.b_syncMasterSlave and not self.b_synchronized:
+                print("waiting for master sync... b_synchronized = %d" % self.b_synchronized)
+                time.sleep(timeout)
 
     def exe(self, str_cmd, **kwargs):
         """
@@ -191,7 +207,9 @@ class crunner(object):
         print("In exe thread...")
         print("About to run << %s >> " % str_cmd)
 
-        self.l_job[self.jobCount]['startdate']      = '%s' % datetime.datetime.now()
+        self.b_currentJobDone   = False
+
+        self.d_job[self.jobCount]['startstamp']        = '%s' % datetime.datetime.now()
         proc = subprocess.Popen(
             str_cmd,
             stdout              = subprocess.PIPE,
@@ -209,35 +227,89 @@ class crunner(object):
                 # self.d_jobInfo['pid']  = proc.pid
                 # if b_ssh:
                 #     self.remotePID    += proc.stdout.readline().strip()
-                self.l_job[self.jobCount]['pid']    = proc.pid
+                self.d_job[self.jobCount]['pid']    = proc.pid
+
+        self.d_job[self.jobCount]['endstamp']       = '%s' % datetime.datetime.now()
+        self.d_job[self.jobCount]['status']         = 'done'
+        self.d_job[self.jobCount]['proc']           = proc
+        self.d_job[self.jobCount]['pid']            = proc.pid
+        self.d_job[self.jobCount]['returncode']     = proc.returncode
+        self.d_job[self.jobCount]['stdout']         = o[0]
+        self.d_job[self.jobCount]['stderr']         = o[1]
+        self.d_job[self.jobCount]['cmd']            = str_cmd
+
+        self.queue.put(self.d_job[self.jobCount])
 
         print("exe complete")
-
-        self.l_job[self.jobCount]['enddate']        = '%s' % datetime.datetime.now()
-        self.l_job[self.jobCount]['status']         = 'done'
-        self.l_job[self.jobCount]['proc']           = proc
-        self.l_job[self.jobCount]['pid']            = proc.pid
-        self.l_job[self.jobCount]['returncode']     = proc.returncode
-        self.l_job[self.jobCount]['stdout']         = o[0]
-        self.l_job[self.jobCount]['stderr']         = o[1]
-        self.l_job[self.jobCount]['cmd']            = str_cmd
-
-        # d_data = {
-        #     'status':       'done',
-        #     'proc':         proc,
-        #     'pid':          proc.pid,
-        #     'returncode':   proc.returncode,
-        #     'stdout':       o[0],
-        #     'stderr':       o[1]
-        # }
-
-        self.queue.put(self.l_job[self.jobCount])
+        self.b_currentJobDone   = True
 
     def exe_stillRunning(self):
         """
         Checks if the exe thread is still running.
         """
         return self.t_exe.isAlive()
+
+    def tag_print(self, **kwargs):
+        """
+        Simply print the current jobID
+        :param kwargs:
+        :return:
+        """
+        str_tag = 'pid'
+
+        for key, val in kwargs.items():
+            if key == 'tag':    str_tag = val
+
+        print("%s = %s" % (str_tag, self.d_job[self.jobCount][str_tag]))
+
+    def currentJob_waitUntilDone(self, **kwargs):
+        """
+        Waits until the current job is done. This method
+        monitors both the self.b_currentJobDone flag and
+        also checks that the exe thread is alive.
+
+        :param kwargs:
+        :return:
+        """
+
+        timeout     = 1
+
+        for key,val in kwargs.items():
+            if key == 'timeout':    timeout = val
+
+        while not self.b_currentJobDone and self.exe_stillRunning():
+            print("in waitUntilDone....")
+            time.sleep(timeout)
+
+    def allJobs_waitUntilDone(self, **kwargs):
+        """
+        Waits until *all* jobs are done.
+
+        :param kwargs:
+        :return:
+        """
+
+        timeout         = 1
+        betweenJobsDo   = None
+        b_betweenJobsDo = False
+
+        for key,val in kwargs.items():
+            if key == 'timeout':        timeout         = val
+            if key == 'betweenJobsDo':
+                betweenJobsDo    = val
+                b_betweenJobsDo  = True
+
+        print("jobCount = %d, jobTotal = %d, b_betweenJobsDo = %d, betweenJobsDo = " %
+              (self.jobCount, self.jobTotal, b_betweenJobsDo), end='')
+        print(betweenJobsDo)
+        while self.jobCount < self.jobTotal:
+            self.currentJob_waitUntilDone(**kwargs)
+            self.b_synchronized     = True
+            print("in parent.. b_synchronized = %d" % self.b_synchronized)
+            if b_betweenJobsDo:
+                print("betweenJobsDo = ", end='')
+                print(betweenJobsDo)
+                eval(betweenJobsDo)
 
     def exe_waitUntilDone(self, **kwargs):
         """
@@ -274,10 +346,10 @@ class crunner(object):
                                     returncode          = val
         self.exe_waitUntilDone(timeout = timeout)
         if not b_overrideReturn:
-            returncode  = self.l_job[self.jobCount]['returncode']
+            returncode  = self.d_job[self.jobCount]['returncode']
 
         if self.b_showStdOut:
-            print(self.l_job[self.jobCount]['stdout'])
+            print(self.d_job[self.jobCount]['stdout'])
 
         sys.exit(returncode)
 
@@ -382,9 +454,12 @@ if __name__ == '__main__':
     # Once sub-theads have been spawned, execution returns here,
     # even if the threads are still running. The caller can
     # now query the crunner shell for information on its
-    # subprocess.
+    # subprocesses.
     print("CLI << %s >>" % args.command)
-    print('PID from spawned job on localhost: %s' % shell.l_job[shell.jobCount]['pid'])
+    # print('PID from spawned job on localhost: %s' % shell.d_job[shell.jobCount]['pid'])
+
+    shell.allJobs_waitUntilDone(betweenJobsDo = "self.tag_print(tag = 'pid')")
+
     if len(args.ssh):
         shell.waitForRemotePID()
         print('PID of process on remote host: %s' % shell.remotePID)
