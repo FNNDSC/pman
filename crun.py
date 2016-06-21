@@ -1,30 +1,36 @@
 #!/usr/bin/env python
-# 
-# NAME
-#
-#        crun
-#
-# DESCRIPTION
-#
-#        'crun' is functor family of scripts for running command line
-#        apps on a cluster.
-#
-# HISTORY
-#
-# 25 January 2012
-# o Initial design and coding.
-#
+"""
+
+NAME
+
+       crun
+
+DESCRIPTION
+
+       'crun' is functor family of scripts for running command line
+       apps in a variety of different contexts.
+
+HISTORY
+
+25 January 2012
+o Initial design and coding.
+
+16 June 2016
+o Clean up (remove all explicit FS noise)
+
+"""
 
 # System imports
-import os
-import sys
-import getpass
-import argparse
-from random import randint
+import  os
+import  sys
+import  getpass
+import  argparse
+from    random      import randint
+import  time
 
 # FNNDSC imports
-import systemMisc as misc
-import C_mail
+import  C_mail
+import  popen2, fcntl, select
 
 class crun(object):
     """
@@ -69,30 +75,6 @@ class crun(object):
             self._str_desc = args[0]
         else:
             return self._str_desc
-    
-    def FreeSurferUse(self, *args):
-        if len(args):
-            self._b_FreeSurferUse = args[0]
-        else:
-            return self._b_FreeSurferUse
-
-    def FSversion(self, *args):
-        if len(args):
-            self._str_FSversion = args[0]
-        else:
-            return self._str_FSversion
-
-    def FSdevsource(self, *args):
-        if len(args):
-            self._str_FSdevsource = args[0]
-        else:
-            return self._str_FSdevsource
-
-    def FSdevsource(self, *args):
-        if len(args):
-            self._str_FSdevsource = args[0]
-        else:
-            return self._str_FSdevsource
 
     def sourceEnv(self, *args):
         self._b_sourceEnv       = True
@@ -105,98 +87,12 @@ class crun(object):
         else:
             return self._str_sourceEnvCmd
 
-    def FSinit(self, **kwargs):
-        '''
-        Get / set the FS related initialization parameters.
-
-        Returns a dictionary of internal values if called as
-        as getter. This allows for one crun object to be FSinit'd
-        by another:
-
-            crun1.FSinit(**crun2.FSinit())
-
-        will assign <crun1> the FS internals of <crun2>. This assumes,
-        obviously, that <crun2> has been initializes already with
-        appropriate values  FS values.
-        '''
-        numArgs = 0
-        for key, val in kwargs.iteritems():
-            numArgs += 1
-            if key == 'FSversion'       : self._str_FSversion           = val
-            if key == 'FSdevsource'     : self._str_FSdevsource         = val
-            if key == 'FSstablesource'  : self._str_FSstablesource      = val
-        if not numArgs:
-            return {
-                'FSversion'             : self._str_FSversion,
-                'FSdevsource'           : self._str_FSdevsource,
-                'FSstablesource'        : self._str_FSstablesource
-                }
-
-    def FSsubjDir(self, **kwargs):
-        '''
-        This method is responsible for translating FS subject dirs 
-        defined in a local filesystem to a corresponding dir on
-        a remote filesystem that might have a different user
-        home directory.
-        '''
-        numArgs = 0
-        for key, val in kwargs.iteritems():
-            numArgs += 1
-            if key == 'localSubjDir':   str_localSubjdir = val
-            if key == 'remoteHome':     str_remoteHome   = val
-        if not numArgs:
-            return self._str_FSsubjDir
-        str_whoami      = getpass.getuser()
-        l_dir = str_localSubjdir.split(str_whoami)
-        if len(l_dir) > 1:
-            str_rest = str_whoami.join(l_dir[1:])
-            self._str_FSsubjDir = str_remoteHome + "/" + str_rest
-        else:
-            self._str_FSsubjDir = str_localSubjdir
-
-    def FS_cmd(self, astr_cmd):
-        '''
-        Wraps the passed <astr_cmd> in FS-aware wrapping.
-        This assumes that astr_cmd is fully qualified, i.e.
-        if a scheduler prefix is required, this should already
-        have been generated.
-
-        <astr_cmd> is essentially the command just before
-        a non-FS shell would have executed it.
-        '''
-        self._str_FScmd = "(cd %s ; " % self._str_FSsubjDir
-        if self._str_FSversion  == 'dev':
-            if len(self._str_FSdevsource):
-                self._str_FScmd += self._str_FSdevsource + "; "
-        else:
-            if len(self._str_FSstablesource):
-                self._str_FScmd += self._str_FSstablesource + "; "
-        self._str_FScmd += astr_cmd + ")"
-        return self._str_FScmd
-
-        
     def __init__(self, **kwargs):
 
         #
         # Object desc block
         #
         self._str_desc                  = ''
-
-        # FreeSurfer block. If "True", then each crun command will
-        # be prefixed by a call to source the appropriate environment
-        # and will also change directory to the FSsubjDir.
-        #
-        # Note that the FSsubjDir needs particular logic to deal with
-        # cases where local and remote filesystem space have different
-        # user home directories -- but the assumption is that remote
-        # processes can access local directory space via some 
-        # intermediate mechanism (NFS, ssh-tunnels, etc).
-        self._b_FreeSurferUse           = False
-        self._str_FSversion             ='dev'
-        self._str_FSsubjDir             = ''
-        self._str_FSdevsource           = '. ~/arch/scripts/chb-fs dev >/dev/null'
-        self._str_FSstablesource        = '. ~/arch/scripts/chb-fs stable >/dev/null'
-        self._str_FScmd                 = ''
 
         # Working directory spec. In what directory should the command
         # be executed? Depending on sub-classing (esp HPC subclassing)
@@ -298,8 +194,6 @@ class crun(object):
         else:                   str_embeddedDetach      = ""
         if self._b_sshDetach:   str_sshDetach           = "&"
         else:                   str_sshDetach           = ""
-        if self._b_FreeSurferUse:
-            self._str_shellCmd = self.FS_cmd(self._str_shellCmd)
         if self._b_sourceEnv:
             self._str_shellCmd  = "%s ; %s" % ( self._str_sourceEnvCmd,
                                                 self._str_shellCmd)
@@ -327,13 +221,12 @@ class crun(object):
 
         if self._b_disassociate:
             self._str_shellCmd  = "( %s ) &" % self._str_shellCmd
-        ret                     = 0
 
         if self._b_echoCmd: sys.stdout.write('%s\n' % self._str_shellCmd)
         if self._b_runCmd:
             kwargs['waitForChild'] = self._b_waitForChild
             self._str_stdout, self._str_stderr, self._exitCode    = \
-                    misc.shell(self._str_shellCmd, **kwargs)
+                    terminal(self._str_shellCmd, **kwargs)
         if self._b_echoStdOut: 
             sys.stdout.write(self._str_stdout)
             sys.stdout.flush()
@@ -599,7 +492,7 @@ class crun_hpc(crun):
     def saveScheduledJobIDs(self, fpath):
         # expand string list into a single string
         ids_str = '\n'.join(self._jobID_list)
-        misc.file_writeOnce(os.path.join(fpath, str(os.getpid()) + '.crun.joblist'), ids_str)
+        file_writeOnce(os.path.join(fpath, str(os.getpid()) + '.crun.joblist'), ids_str)
 
     def _buildKillCmd(self, killCmd, jobID=None):
         # Here we build a list of kill commands
@@ -630,9 +523,6 @@ class crun_hpc_launchpad(crun_hpc):
     def __init__(self, **kwargs):
         crun_hpc.__init__(self, **kwargs)
         
-        self._str_FSdevsource           = '. ~/arch/scripts/nmr-fs dev >/dev/null'
-        self._str_FSstablesource        = '. ~/arch/scripts/nmr-fs stable >/dev/null'
-
         self._str_clusterName           = "launchpad"
         self._str_clusterType           = "torque-based"
         self._str_clusterScheduler      = 'qsub'
@@ -722,9 +612,6 @@ class crun_hpc_launchpad(crun_hpc):
         cmd_list = super(crun_hpc_launchpad, self)._buildKillCmd('qdel ', jobID)
         for cmd in cmd_list:
             self.__call__(cmd)
-
-            
-            
 
 class crun_hpc_slurm(crun_hpc):
 
@@ -924,9 +811,6 @@ class crun_hpc_lsf(crun_hpc):
     def __init__(self, **kwargs):
         crun_hpc.__init__(self, **kwargs)
 
-        self._str_FSdevsource           = '. ~/arch/scripts/nmr-fs dev  >/dev/null'
-        self._str_FSstablesource        = '. ~/arch/scripts/nmr-fs stable >/dev/null'
-
         self._str_clusterName           = "erisone"
         self._str_clusterType           = "HP-LSF"
         self._str_clusterScheduler      = 'bsub'
@@ -1030,9 +914,6 @@ class crun_hpc_lsf_crit(crun_hpc_lsf):
     def __init__(self, **kwargs):
         crun_hpc_lsf.__init__(self, **kwargs)
 
-        self._str_FSdevsource           = '. ~/arch/scripts/chb-fs dev centos >/dev/null'
-        self._str_FSstablesource        = '. ~/arch/scripts/chb-fs stable >/dev/null'
-
         self._str_clusterName           = "HP-crit"
         self._str_clusterType           = "HP-LSF"
         self._str_clusterScheduler      = 'bsub'
@@ -1054,9 +935,6 @@ class crun_hpc_mosix(crun_hpc):
 
     def __init__(self, **kwargs):
         crun_hpc.__init__(self, **kwargs)
-
-        self._str_FSdevsource           = '. ~/arch/scripts/chb-fs dev >/dev/null'
-        self._str_FSstablesource        = '. ~/arch/scripts/chb-fs stable >/dev/null'
 
         self._str_clusterName           = "PICES"
         self._str_clusterType           = "MOSIX"
@@ -1209,9 +1087,6 @@ class crun_hpc_mosix_HPtest(crun_hpc_mosix):
     def __init__(self, **kwargs):
         crun_hpc_mosix.__init__(self, **kwargs)
 
-        self._str_FSdevsource           = '. ~/arch/scripts/chb-fs dev >/dev/null'
-        self._str_FSstablesource        = '. ~/arch/scripts/chb-fs stable >/dev/null'
-
         self._str_clusterName           = "HPtest"
 
         self._b_emailWhenDone           = False
@@ -1237,6 +1112,95 @@ class crun_mosixbash(crun):
         
     def __call__(self, str_cmd):
         return crun.__call__(self, str_cmd)
+
+def file_writeOnce(astr_fileName, astr_val, **kwargs):
+    '''
+    Simple "one-shot" writer. Opens <astr_fileName>
+    and saves <astr_val> to file, then closes
+    file.
+    '''
+
+    _str_mode = 'w'
+    for key, val in kwargs.iteritems():
+        if key == 'mode':   _str_mode   = val
+
+    FILE = open(astr_fileName, _str_mode)
+    FILE.write(astr_val)
+    FILE.close()
+
+def tic():
+    """
+        Port of the MatLAB function of same name
+    """
+    global Gtic_start
+    Gtic_start = time.time()
+
+def toc(*args, **kwargs):
+    """
+        Port of the MatLAB function of same name
+
+        Behaviour is controllable to some extent by the keyword
+        args:
+
+
+    """
+    global Gtic_start
+    f_elapsedTime = time.time() - Gtic_start
+    for key, value in kwargs.iteritems():
+        if key == 'sysprint':   return value % f_elapsedTime
+        if key == 'default':    return "Elapsed time = %f seconds." % f_elapsedTime
+    return f_elapsedTime
+
+## start of http://code.activestate.com/recipes/52296/ }}}
+## Some mods by RP
+def makeNonBlocking(fd):
+    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+    try:
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NDELAY)
+    except AttributeError:
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NDELAY)
+
+
+def terminal(command, **kwargs):
+    """
+        Runs 'command' on the underlying shell terminal and keeps the stdout and
+        stderr stream separate.
+
+        Returns [stdout, stderr, exitCode]
+    """
+    b_stdoutflush       = False
+    b_stderrflush       = False
+    b_waitForChild      = True
+    for key, val in kwargs.iteritems():
+        if key == 'stdoutflush':        b_stdoutflush   = val
+        if key == 'stderrflush':        b_stderrflush   = val
+        if key == 'waitForChild':       b_waitForChild  = val
+    child = popen2.Popen3(command, 1) # capture stdout and stderr from command
+    child.tochild.close()             # don't need to talk to child
+    outfile = child.fromchild
+    outfd = outfile.fileno()
+    errfile = child.childerr
+    errfd = errfile.fileno()
+    makeNonBlocking(outfd)            # don't deadlock!
+    makeNonBlocking(errfd)
+    outdata = errdata = ''
+    outeof = erreof = 0
+    while b_waitForChild:
+        ready = select.select([outfd,errfd],[],[]) # wait for input
+        if outfd in ready[0]:
+            outchunk = outfile.read()
+            if b_stdoutflush: sys.stdout.write(outchunk)
+            if outchunk == '': outeof = 1
+            outdata = outdata + outchunk
+        if errfd in ready[0]:
+            errchunk = errfile.read()
+            if b_stderrflush: sys.stderr.write(errchunk)
+            if errchunk == '': erreof = 1
+            errdata = errdata + errchunk
+        if outeof and erreof: break
+        select.select([],[],[],.1) # give a little time for buffers to fill
+    err = child.wait()
+    return outdata, errdata, err
 
 
 if __name__ == '__main__':
@@ -1326,7 +1290,7 @@ if __name__ == '__main__':
     if args.blockOnChild: shell.blockOnChild()
 
     # And now run it!
-    misc.tic()
+    tic()
     if args.kill:
         shell.killJob(args.kill)
     elif not args.command:
@@ -1337,7 +1301,7 @@ if __name__ == '__main__':
         if args.saveJobID:
             shell.saveScheduledJobIDs(args.saveJobID) 
     #print shell.stdout()
-    if args.printElapsedTime: print("Elapsed time = %f seconds" % misc.toc())
+    if args.printElapsedTime: print("Elapsed time = %f seconds" % toc())
     
 
 

@@ -35,6 +35,7 @@ from    urlparse    import  urlparse
 import  argparse
 import  datetime
 from    webob       import Response
+import  psutil
 
 import  C_snode
 import  message
@@ -184,6 +185,10 @@ class pman(object):
                 **  'listener' threads are used to process input from external
                     processes. In turn, 'listener' threads can thread out
                     'crunner' threads that actually "run" the job.
+            * Instantiate a job poller thread
+                **  'poller' examines the internal DB entries and regularly
+                    queries the system process table, tracking if jobs
+                    are still running.
         """
 
         self.col2_print('Starting Listener threads', self.listeners)
@@ -207,6 +212,9 @@ class pman(object):
                                     DB          = self._ptree,
                                     http        = self.b_http)
             listener.start()
+
+        # Start the 'poller' worker
+        poller  = Poller()
 
         # Use built in queue device to distribute requests among workers.
         # What queue device does internally is,
@@ -240,8 +248,53 @@ class pman(object):
         """STree Getter"""
         self._stree = value
 
+class Poller(threading.Thread):
+    """
+    The Poller checks for running processes based on the internal
+    DB and system process table. Jobs that are no longer running are
+    removed from the internal DB.
+    """
+    def log(self, *args):
+        """
+        get/set the poller log object.
+
+        Caller can further manipulate the log object with object-specific
+        calls.
+        """
+        if len(args):
+            self._log = args[0]
+        else:
+            return self._log
+
+    def name(self, *args):
+        """
+        get/set the descriptive name text of this object.
+        """
+        if len(args):
+            self.__name = args[0]
+        else:
+            return self.__name
+
+    def __init__(self, **kwargs):
+        self.debug              = message.Message(logTo = './debug.log')
+        self.debug._b_syslog    = True
+        self._log               = message.Message()
+        self._log._b_syslog     = True
+        self.__name             = "Poller"
+
+        self.pollTime           = 10
+
+        for key,val in kwargs.iteritems():
+            if key == 'pollTime':       self.pollTime       = val
+
+        threading.Thread.__init__(self)
+
+    def run(self):
+        """ Main execution. """
+
+
 class Listener(threading.Thread):
-    """ 'listener's accept computation requests from front facing server.
+    """ Listeners accept computation requests from front facing server.
         Parse input text streams and act accordingly. """
 
     def log(self, *args):
