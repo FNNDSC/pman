@@ -12,6 +12,7 @@ import  threading
 import  time
 from    queue           import  Queue
 import  json
+import  inspect
 import  datetime
 import  pprint
 
@@ -47,6 +48,51 @@ def synopsis(ab_shortOnly = False):
     else:
         return str_shortSynopsis + str_description
 
+
+class debug(object):
+    """
+        A simple class that provides some helper debug functions. Mostly
+        printing function/thread names and checking verbosity level
+        before printing.
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Constructor
+        """
+
+        self.verbosity  = 0
+
+        for k, v in kwargs.items():
+            if k == 'verbosity':    self.verbosity  = v
+
+    def print(self, *args, **kwargs):
+        """
+        The "print" command for this object.
+
+        :param kwargs:
+        :return:
+        """
+
+        self.level  = 0
+        self.msg    = ""
+
+        for k, v in kwargs.items():
+            if k == 'level':    self.level  = v
+            if k == 'msg':      self.msg    = v
+
+        if len(args):
+            self.msg    = args[0]
+
+        if self.level <= self.verbosity:
+
+            print('%26s | Current thread = %50s | Current function = %30s |' % (
+                datetime.datetime.now(),
+                threading.current_thread(),
+                inspect.stack()[1][3]
+            ), end='')
+            for t in range(0, self.level): print("\t", end='')
+            print(self.msg)
 
 class crunner(object):
     """
@@ -97,11 +143,18 @@ class crunner(object):
         self.b_showStdOut       = True
         self.b_showStdErr       = True
 
+        # Debugging
+        self.verbosity          = 0
+        self.debug              = debug(verbosity = 10)
+
         # Toggle special handling of "compound" jobs
         self.b_splitCompound    = True
-        self.b_syncMasterSlave  = True      # If True, sub-commands will pause after
-                                            # complete and need to be explicitly told
-                                            # to continue by master.
+        self.b_syncMasterSlave  = True      # If True, sub-commands will pause
+                                            # after complete and need to be
+                                            # explicitly told to continue by
+                                            # master. The master needs to monitor
+                                            # internal state to know when a thread
+                                            # is waiting to be told to continue.
 
         # Queue for communicating between threads
         self.queue              = Queue()
@@ -134,8 +187,8 @@ class crunner(object):
         :return:
         """
 
-        l_args  = shlex.split(str_cmd)
-        self.t_ctl     =   threading.Thread(target = self.ctl,
+        l_args          = shlex.split(str_cmd)
+        self.t_ctl      = threading.Thread(target = self.ctl,
                                             args   = (str_cmd,),
                                             kwargs = kwargs)
         self.t_ctl.start()
@@ -151,9 +204,9 @@ class crunner(object):
         :param q:
         :return:
         """
-        print("In ctl thread...")
-        timeout = 1
 
+        self.debug.print(msg = 'start ctl', level=2)
+        timeout = 1
 
         l_cmd   = []
         if self.b_splitCompound:
@@ -186,8 +239,12 @@ class crunner(object):
 
             # Now, "block" until the parent thread says we can continue...
             while self.b_syncMasterSlave and not self.b_synchronized:
-                print("waiting for master sync... b_synchronized = %d" % self.b_synchronized)
+                self.debug.print(msg    = "waiting for master sync... b_synchronized = %r" % self.b_synchronized,
+                                 level  = 2)
                 time.sleep(timeout)
+                self.debug.print(msg    = "waiting for master sync... b_synchronized = %r" % self.b_synchronized,
+                                 level  = 2)
+        self.debug.print(msg = 'done ctl', level=2)
 
     def exe(self, str_cmd, **kwargs):
         """
@@ -204,8 +261,8 @@ class crunner(object):
         for key,val in kwargs.items():
             if key == 'ssh':    b_ssh   = bool(val)
 
-        print("In exe thread...")
-        print("About to run << %s >> " % str_cmd)
+        self.debug.print(msg    = "start << %s >> " % str_cmd,
+                         level  = 3)
 
         self.b_currentJobDone   = False
 
@@ -240,8 +297,8 @@ class crunner(object):
 
         self.queue.put(self.d_job[self.jobCount])
 
-        print("exe complete")
         self.b_currentJobDone   = True
+        self.debug.print(msg = "done << %s >> " % str_cmd, level=3)
 
     def exe_stillRunning(self):
         """
@@ -278,7 +335,8 @@ class crunner(object):
             if key == 'timeout':    timeout = val
 
         while not self.b_currentJobDone and self.exe_stillRunning():
-            print("in waitUntilDone....")
+            self.debug.print(msg    = "in waitUntilDone....",
+                             level  = 0)
             time.sleep(timeout)
 
     def allJobs_waitUntilDone(self, **kwargs):
@@ -299,20 +357,19 @@ class crunner(object):
                 betweenJobsDo    = val
                 b_betweenJobsDo  = True
 
-        print("jobCount = %d, jobTotal = %d, b_betweenJobsDo = %d, betweenJobsDo = " %
-              (self.jobCount, self.jobTotal, b_betweenJobsDo), end='')
-        print(betweenJobsDo)
-        while self.jobCount+1 < self.jobTotal:
+        # print("jobCount = %d, jobTotal = %d, b_betweenJobsDo = %d, betweenJobsDo = " %
+        #       (self.jobCount, self.jobTotal, b_betweenJobsDo), end='')
+        self.debug.print(msg = betweenJobsDo, level = 1)
+        self.debug.print("jobCount = %d, jobTotal = %d" % (self.jobCount, self.jobTotal), level=1)
+        while self.jobCount < self.jobTotal:
             self.currentJob_waitUntilDone(**kwargs)
-            self.b_synchronized     = True
             time.sleep(timeout)
-            print("in parent... jobCount = %d, jobTotal = %d,  b_synchronized = %d" %
-                  (self.jobCount,
+            self.b_synchronized     = True
+            self.debug.print(msg = "jobCount = %d, jobTotal = %d,  -->b_synchronized = %r<--" %
+                  (self.jobCount+1,
                    self.jobTotal,
-                   self.b_synchronized))
+                   self.b_synchronized), level = 1)
             if b_betweenJobsDo:
-                print("betweenJobsDo = ", end='')
-                print(betweenJobsDo)
                 eval(betweenJobsDo)
 
     def exe_waitUntilDone(self, **kwargs):
@@ -341,7 +398,7 @@ class crunner(object):
         will force exit to system with passed code, otherwise will
         pass to system exitcode of spawned subprocess.
         """
-        timeout             = 1
+        timeout             = 0.1
         b_overrideReturn    = False
         for key,val in kwargs.items():
             if key == 'timeout':    timeout = val
@@ -444,6 +501,9 @@ if __name__ == '__main__':
         default = ''
     )
 
+    d   = debug(verbosity = 10)
+    d.print('start module')
+
     args = parser.parse_args()
 
     # Create a crunner shell
@@ -459,10 +519,10 @@ if __name__ == '__main__':
     # even if the threads are still running. The caller can
     # now query the crunner shell for information on its
     # subprocesses.
-    print("CLI << %s >>" % args.command)
-    # print('PID from spawned job on localhost: %s' % shell.d_job[shell.jobCount]['pid'])
+    d.print(msg = "CLI << %s >>" % args.command, level = 0)
 
     shell.allJobs_waitUntilDone(betweenJobsDo = "self.tag_print(tag = 'pid')")
+    # shell.pp.pprint(shell.d_job)
 
     if len(args.ssh):
         shell.waitForRemotePID()
@@ -471,5 +531,6 @@ if __name__ == '__main__':
     # This exits to the system, but only once all threads have completed.
     # The exitcode of the subprocess is returned to the system by this
     # call.
+    d.print(msg = 'done module')
     shell.exitOnDone()
 
