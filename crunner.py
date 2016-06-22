@@ -182,7 +182,7 @@ class crunner(object):
 
             self.d_job[self.jobCount]   = self.queue.get()
 
-            self.pp.pprint(self.d_job)
+            # self.pp.pprint(self.d_job)
 
             # Now, "block" until the parent thread says we can continue...
             while self.b_syncMasterSlave and not self.b_synchronized:
@@ -302,10 +302,14 @@ class crunner(object):
         print("jobCount = %d, jobTotal = %d, b_betweenJobsDo = %d, betweenJobsDo = " %
               (self.jobCount, self.jobTotal, b_betweenJobsDo), end='')
         print(betweenJobsDo)
-        while self.jobCount < self.jobTotal:
+        while self.jobCount+1 < self.jobTotal:
             self.currentJob_waitUntilDone(**kwargs)
             self.b_synchronized     = True
-            print("in parent.. b_synchronized = %d" % self.b_synchronized)
+            time.sleep(timeout)
+            print("in parent... jobCount = %d, jobTotal = %d,  b_synchronized = %d" %
+                  (self.jobCount,
+                   self.jobTotal,
+                   self.b_synchronized))
             if b_betweenJobsDo:
                 print("betweenJobsDo = ", end='')
                 print(betweenJobsDo)
