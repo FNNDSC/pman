@@ -86,7 +86,7 @@ class debug(object):
 
         if self.level <= self.verbosity:
 
-            print('%26s | Current thread = %50s | Current function = %30s |' % (
+            print('%26s | Current thread = %50s | Current function = %30s | ' % (
                 datetime.datetime.now(),
                 threading.current_thread(),
                 inspect.stack()[1][3]
@@ -162,10 +162,10 @@ class crunner(object):
         # Job info
         # Each job executed is stored in a list of
         # dictionaries.
-        self.jobCount           = -1
+        self.jobCount           = 0
         self.jobTotal           = -1
         self.d_job              = {}
-        self.b_currentJobDone   = False
+        # self.b_currentJobDone   = False
         self.b_synchronized     = False
 
         # Threads for job control and execution
@@ -206,7 +206,7 @@ class crunner(object):
         """
 
         self.debug.print(msg = 'start ctl', level=2)
-        timeout = 1
+        timeout = 0.1
 
         l_cmd   = []
         if self.b_splitCompound:
@@ -221,8 +221,6 @@ class crunner(object):
             # an unsynchronized flag
             self.b_synchronized         = False
 
-            # Track the job count
-            self.jobCount               += 1
 
             # Declare the structure
             self.d_job[self.jobCount]   = {}
@@ -235,15 +233,20 @@ class crunner(object):
 
             self.d_job[self.jobCount]   = self.queue.get()
 
-            # self.pp.pprint(self.d_job)
-
             # Now, "block" until the parent thread says we can continue...
+            pollLoop = 0
             while self.b_syncMasterSlave and not self.b_synchronized:
-                self.debug.print(msg    = "waiting for master sync... b_synchronized = %r" % self.b_synchronized,
-                                 level  = 2)
+                pollLoop += 1
+                if pollLoop % 10 == 0:
+                    self.debug.print(msg    = "ctl waiting for master sync... b_synchronized = %r" %
+                                              self.b_synchronized,
+                                     level  = 2)
                 time.sleep(timeout)
-                self.debug.print(msg    = "waiting for master sync... b_synchronized = %r" % self.b_synchronized,
-                                 level  = 2)
+
+            # Increase the job count
+            self.jobCount               += 1
+            self.debug.print("increasing job count to %d" % self.jobCount, level = 2)
+
         self.debug.print(msg = 'done ctl', level=2)
 
     def exe(self, str_cmd, **kwargs):
@@ -264,9 +267,10 @@ class crunner(object):
         self.debug.print(msg    = "start << %s >> " % str_cmd,
                          level  = 3)
 
-        self.b_currentJobDone   = False
+        self.d_job[self.jobCount]['done']               = False
+        self.d_job[self.jobCount]['started']            = True
 
-        self.d_job[self.jobCount]['startstamp']        = '%s' % datetime.datetime.now()
+        self.d_job[self.jobCount]['startstamp']         = '%s' % datetime.datetime.now()
         proc = subprocess.Popen(
             str_cmd,
             stdout              = subprocess.PIPE,
@@ -276,6 +280,7 @@ class crunner(object):
         )
 
         b_subprocessRunning     = True
+        pollLoop                = 0
         while b_subprocessRunning:
             try:
                 o = proc.communicate(timeout=0.1)
@@ -285,9 +290,13 @@ class crunner(object):
                 # if b_ssh:
                 #     self.remotePID    += proc.stdout.readline().strip()
                 self.d_job[self.jobCount]['pid']    = proc.pid
+                pollLoop += 1
+                if pollLoop % 10 == 0:
+                    self.debug.print("job %s running..." % proc.pid, level = 3)
 
         self.d_job[self.jobCount]['endstamp']       = '%s' % datetime.datetime.now()
-        self.d_job[self.jobCount]['status']         = 'done'
+        self.d_job[self.jobCount]['done']           = True
+        self.d_job[self.jobCount]['started']        = False
         self.d_job[self.jobCount]['proc']           = proc
         self.d_job[self.jobCount]['pid']            = proc.pid
         self.d_job[self.jobCount]['returncode']     = proc.returncode
@@ -297,7 +306,7 @@ class crunner(object):
 
         self.queue.put(self.d_job[self.jobCount])
 
-        self.b_currentJobDone   = True
+        # self.b_currentJobDone   = True
         self.debug.print(msg = "done << %s >> " % str_cmd, level=3)
 
     def exe_stillRunning(self):
@@ -308,16 +317,29 @@ class crunner(object):
 
     def tag_print(self, **kwargs):
         """
-        Simply print the current jobID
+        Simply print the passed tag from the internal data structure, but block
+        possibly on error -- there are thread timing considerations and it is
+        possible that the child thread hasn't started the job by the time this
+        method attempts to access the tag.
+
         :param kwargs:
         :return:
         """
+
+        timeout = 0.1
         str_tag = 'pid'
 
         for key, val in kwargs.items():
-            if key == 'tag':    str_tag = val
+            if key == 'tag':        str_tag = val
+            if key == 'timeout':    timeout = val
 
-        print("%s = %s" % (str_tag, self.d_job[self.jobCount][str_tag]))
+        pollLoop        = 0
+        try:
+            print("%s = %s" % (str_tag, self.d_job[self.jobCount][str_tag]))
+        except:
+            if pollLoop % 10 == 0:
+                self.debug.print("tag not available")
+            pollLoop += 1
 
     def currentJob_waitUntilDone(self, **kwargs):
         """
@@ -329,17 +351,166 @@ class crunner(object):
         :return:
         """
 
-        timeout     = 1
+        timeout     = 0.1
 
         for key,val in kwargs.items():
             if key == 'timeout':    timeout = val
 
-        while not self.b_currentJobDone and self.exe_stillRunning():
-            self.debug.print(msg    = "in waitUntilDone....",
-                             level  = 0)
+        pollLoop    = 0
+        while not self.d_job[self.jobCount]['done'] and self.exe_stillRunning():
+            pollLoop += 1
+            if pollLoop % 10 == 0:
+                self.debug.print(msg    = "job queue = %d / %d, -->b_synchronized = %r<--" %
+                                          (self.jobCount,
+                                           self.jobTotal,
+                                           self.b_synchronized),
+                                 level  = 0)
             time.sleep(timeout)
 
-    def allJobs_waitUntilDone(self, **kwargs):
+    def jobInfo_get(self, **kargs):
+        """
+        A buffered method to access elements of the d_job dictionary. Since
+        the requested field might not exist when this function is called,
+        the method blocks in a limited timeout.
+
+        Only a certain number of timeouts are allowed before this method
+        gives up with an error.
+
+        :param kargs:
+        :return:
+        """
+
+        timeout             = 0.1
+        attemptsTotal       = 500
+        job                 = self.jobCount
+        field               = 'pid'
+
+        for key, val in kargs.items():
+            if key == 'job':            job             = val
+            if key == 'field':          field           = val
+            if key == 'timeout':        timeout         = val
+            if key == 'attemptsTotal':  attemptsTotal   = val
+
+        attempts    = 0
+        b_success   = False
+        ret         = None
+
+
+        while not b_success:
+            try:
+                ret         = self.d_job[job][field]
+                b_success   = True
+            except:
+                time.sleep(timeout)
+                attempts += 1
+                if attempts > attemptsTotal:
+                    b_success   = False
+                    break
+
+        return{'success':   b_success,
+               'field':     ret}
+
+    def job_done(self, **kwargs):
+        """
+
+        Simply returns a boolean if the current or (other) job is done.
+
+        :param kwargs:
+        :return:
+        """
+
+        job = self.jobCount
+
+        for k, v in kwargs.items():
+            if k == 'job':  job = v
+
+        d_ret   = self.jobInfo_get(field = 'done')
+
+        return d_ret['field']
+
+    def job_started(self, **kwargs):
+        """
+
+        Simply returns a boolean if the current or (other) job is done.
+
+        :param kwargs:
+        :return:
+        """
+
+        job = self.jobCount
+
+        for k, v in kwargs.items():
+            if k == 'job':  job = v
+
+        d_ret   = self.jobInfo_get(field = 'started')
+
+        return d_ret['field']
+
+    def jobs_eventLoop(self, **kwargs):
+        """
+        This an event loop entry point.
+
+        Two event/condition families of callbacks should be provided
+        by the caller:
+
+            * a list of functions to execute on specific events in
+              the queue:
+
+                * onJobEvent_do
+                * onNewJobSpawned_do
+
+            * a list of functions to evaluate when the event loop
+              should terminate
+
+        The caller can provide
+        callback functions to be triggered on events in the
+        processing loop.
+
+        A caller can provide a list of functions to execute on
+        events in the job queue and should also provide a terminating
+        condition for this event loop.
+
+        Events include:
+
+            * onJobEvent_do
+            * onNewJobSpawned_do
+
+
+        :param kwargs:
+        :return:
+        """
+
+        timeout             = 0.1
+        onJobEventDo     = None
+        b_onJobEventDo   = False
+
+        oldJobCount         = 0
+        newJobCount         = 0
+
+        for key,val in kwargs.items():
+            if key == 'timeout':        timeout         = val
+            if key == 'onJobEventDo':
+                onJobEventDo    = val
+                b_onJobEventDo  = True
+
+        self.debug.print(msg = onJobEventDo, level = 0)
+        self.debug.print(msg = "job queue = %d / %d  -->b_synchronized = %r<--" %
+                               (self.jobCount,
+                                self.jobTotal,
+                                self.b_synchronized), level = 0)
+        while self.jobCount < self.jobTotal:
+            self.currentJob_waitUntilDone(**kwargs)
+            time.sleep(timeout)
+            self.b_synchronized     = True
+            self.debug.print(msg = "job queue = %d / %d  -->b_synchronized = %r<--" %
+                                   (self.jobCount,
+                                    self.jobTotal,
+                                    self.b_synchronized), level = 0)
+            if b_onJobEventDo and self.jobCount < self.jobTotal:
+                eval(onJobEventDo)
+
+
+    def jobs_waitUntilDone(self, **kwargs):
         """
         Waits until *all* jobs are done.
 
@@ -347,30 +518,29 @@ class crunner(object):
         :return:
         """
 
-        timeout         = 1
-        betweenJobsDo   = None
-        b_betweenJobsDo = False
+        timeout             = 0.1
+        onJobEventDo     = None
+        b_onJobEventDo   = False
 
         for key,val in kwargs.items():
             if key == 'timeout':        timeout         = val
-            if key == 'betweenJobsDo':
-                betweenJobsDo    = val
-                b_betweenJobsDo  = True
+            if key == 'onJobEventDo':
+                onJobEventDo    = val
+                b_onJobEventDo  = True
 
-        # print("jobCount = %d, jobTotal = %d, b_betweenJobsDo = %d, betweenJobsDo = " %
-        #       (self.jobCount, self.jobTotal, b_betweenJobsDo), end='')
-        self.debug.print(msg = betweenJobsDo, level = 1)
-        self.debug.print("jobCount = %d, jobTotal = %d" % (self.jobCount, self.jobTotal), level=1)
+        # This is the main event loop for this method.
         while self.jobCount < self.jobTotal:
-            self.currentJob_waitUntilDone(**kwargs)
-            time.sleep(timeout)
+            # Wait for the job to be done
+            while not self.job_done() and self.jobCount < self.jobTotal: pass
+            # if self.jobCount < self.jobTotal:
+            #     self.d_job[self.jobCount]['done'] = False
             self.b_synchronized     = True
-            self.debug.print(msg = "jobCount = %d, jobTotal = %d,  -->b_synchronized = %r<--" %
-                  (self.jobCount+1,
+            self.debug.print(msg = "job queue = %d / %d  -->b_synchronized = %r<--" %
+                  (self.jobCount,
                    self.jobTotal,
-                   self.b_synchronized), level = 1)
-            if b_betweenJobsDo:
-                eval(betweenJobsDo)
+                   self.b_synchronized), level = 0)
+            if b_onJobEventDo and self.jobCount < self.jobTotal:
+                eval(onJobEventDo)
 
     def exe_waitUntilDone(self, **kwargs):
         """
@@ -407,10 +577,11 @@ class crunner(object):
                                     returncode          = val
         self.exe_waitUntilDone(timeout = timeout)
         if not b_overrideReturn:
-            returncode  = self.d_job[self.jobCount]['returncode']
+            returncode  = self.d_job[self.jobCount-1]['returncode']
 
         if self.b_showStdOut:
-            print(self.d_job[self.jobCount]['stdout'])
+            for j in range(0, self.jobTotal):
+                print(self.d_job[j]['stdout'])
 
         sys.exit(returncode)
 
@@ -521,7 +692,7 @@ if __name__ == '__main__':
     # subprocesses.
     d.print(msg = "CLI << %s >>" % args.command, level = 0)
 
-    shell.allJobs_waitUntilDone(betweenJobsDo = "self.tag_print(tag = 'pid')")
+    shell.jobs_waitUntilDone(onJobEventDo = "self.tag_print(tag = 'pid')")
     # shell.pp.pprint(shell.d_job)
 
     if len(args.ssh):
@@ -531,6 +702,7 @@ if __name__ == '__main__':
     # This exits to the system, but only once all threads have completed.
     # The exitcode of the subprocess is returned to the system by this
     # call.
-    d.print(msg = 'done module')
+    d.print('done module')
+    d.print('%s' % shell.pp.pprint(shell.d_job))
     shell.exitOnDone()
 
