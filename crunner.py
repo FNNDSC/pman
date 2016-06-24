@@ -269,6 +269,7 @@ class crunner(object):
 
         self.d_job[self.jobCount]['done']               = False
         self.d_job[self.jobCount]['started']            = True
+        self.d_job[self.jobCount]['eventFunctionDone']  = False
 
         self.d_job[self.jobCount]['startstamp']         = '%s' % datetime.datetime.now()
         proc = subprocess.Popen(
@@ -286,13 +287,16 @@ class crunner(object):
                 o = proc.communicate(timeout=0.1)
                 b_subprocessRunning = False
             except subprocess.TimeoutExpired:
-                # self.d_jobInfo['pid']  = proc.pid
                 # if b_ssh:
                 #     self.remotePID    += proc.stdout.readline().strip()
                 self.d_job[self.jobCount]['pid']    = proc.pid
                 pollLoop += 1
                 if pollLoop % 10 == 0:
-                    self.debug.print("job %s running..." % proc.pid, level = 3)
+                    self.debug.print("job %d (%s) running... started = %r" %
+                                     (self.jobCount,
+                                      proc.pid,
+                                      self.d_job[self.jobCount]['started']),
+                                     level = 3)
 
         self.d_job[self.jobCount]['endstamp']       = '%s' % datetime.datetime.now()
         self.d_job[self.jobCount]['done']           = True
@@ -424,7 +428,8 @@ class crunner(object):
         for k, v in kwargs.items():
             if k == 'job':  job = v
 
-        d_ret   = self.jobInfo_get(field = 'done')
+        d_ret   = self.jobInfo_get(field    = 'done',
+                                   job      = job)
 
         return d_ret['field']
 
@@ -442,7 +447,8 @@ class crunner(object):
         for k, v in kwargs.items():
             if k == 'job':  job = v
 
-        d_ret   = self.jobInfo_get(field = 'started')
+        d_ret   = self.jobInfo_get(field    = 'started',
+                                   job      = job)
 
         return d_ret['field']
 
@@ -456,7 +462,7 @@ class crunner(object):
             * a list of functions to execute on specific events in
               the queue:
 
-                * onJobEvent_do
+                * onEventTriggered_do
                 * onNewJobSpawned_do
 
             * a list of functions to evaluate when the event loop
@@ -472,7 +478,7 @@ class crunner(object):
 
         Events include:
 
-            * onJobEvent_do
+            * onEventTriggered_do
             * onNewJobSpawned_do
 
 
@@ -481,34 +487,45 @@ class crunner(object):
         """
 
         timeout             = 0.1
-        onJobEventDo     = None
-        b_onJobEventDo   = False
-
-        oldJobCount         = 0
-        newJobCount         = 0
+        onEventTriggeredDo     = None
+        b_onEventTriggeredDo   = False
 
         for key,val in kwargs.items():
             if key == 'timeout':        timeout         = val
-            if key == 'onJobEventDo':
-                onJobEventDo    = val
-                b_onJobEventDo  = True
+            if key == 'waitForEvent':   waitForEvent     = val
+            if key == 'onEventTriggeredDo':
+                onEventTriggeredDo    = val
+                b_onEventTriggeredDo  = True
 
-        self.debug.print(msg = onJobEventDo, level = 0)
-        self.debug.print(msg = "job queue = %d / %d  -->b_synchronized = %r<--" %
-                               (self.jobCount,
-                                self.jobTotal,
-                                self.b_synchronized), level = 0)
+        # This is the main event loop for this method. Each loop of the while
+        # encompasses the lifetime of a single job. Trigger events are
+        # evaluated first, and at the end of the loop, processing waits to make
+        # sure the job is in fact done so that the main thread can communicate
+        # to the ctl thread that the next job can be processed.
         while self.jobCount < self.jobTotal:
-            self.currentJob_waitUntilDone(**kwargs)
-            time.sleep(timeout)
-            self.b_synchronized     = True
-            self.debug.print(msg = "job queue = %d / %d  -->b_synchronized = %r<--" %
-                                   (self.jobCount,
-                                    self.jobTotal,
-                                    self.b_synchronized), level = 0)
-            if b_onJobEventDo and self.jobCount < self.jobTotal:
-                eval(onJobEventDo)
+            # Keep the currentJob id fixed during this loop -- while this loop
+            # actually runs, the self.jobCount might change, but this loop will
+            # only process the self.jobCount as captured here.
+            currentJob  = self.jobCount
 
+            # Wait for the event trigger
+            while not eval(waitForEvent) and self.jobCount < self.jobTotal: pass
+            if b_onEventTriggeredDo             and \
+               self.jobCount < self.jobTotal    and not \
+               self.d_job[currentJob]['eventFunctionDone']:
+                eval(onEventTriggeredDo)
+                self.d_job[currentJob]['eventFunctionDone']   = True
+                self.debug.print(msg = "currentJob = %d job queue = %d / %d  -->b_synchronized = %r<--" %
+                                       (currentJob,
+                                        self.jobCount,
+                                        self.jobTotal,
+                                        self.b_synchronized), level = 0)
+
+            # Finally, before looping on, we need to wait until the job is in fact
+            # over and then set the synchronized flag to tell the ctl thread
+            # it's safe to continue
+            while not self.job_done(job=currentJob) and self.jobCount <= self.jobTotal: pass
+            self.b_synchronized     = True
 
     def jobs_waitUntilDone(self, **kwargs):
         """
@@ -519,14 +536,14 @@ class crunner(object):
         """
 
         timeout             = 0.1
-        onJobEventDo     = None
-        b_onJobEventDo   = False
+        onEventTriggeredDo     = None
+        b_onEventTriggeredDo   = False
 
         for key,val in kwargs.items():
             if key == 'timeout':        timeout         = val
-            if key == 'onJobEventDo':
-                onJobEventDo    = val
-                b_onJobEventDo  = True
+            if key == 'onEventTriggeredDo':
+                onEventTriggeredDo    = val
+                b_onEventTriggeredDo  = True
 
         # This is the main event loop for this method.
         while self.jobCount < self.jobTotal:
@@ -539,8 +556,9 @@ class crunner(object):
                   (self.jobCount,
                    self.jobTotal,
                    self.b_synchronized), level = 0)
-            if b_onJobEventDo and self.jobCount < self.jobTotal:
-                eval(onJobEventDo)
+            if b_onEventTriggeredDo             and         \
+                self.jobCount < self.jobTotal:
+                eval(onEventTriggeredDo)
 
     def exe_waitUntilDone(self, **kwargs):
         """
@@ -692,7 +710,14 @@ if __name__ == '__main__':
     # subprocesses.
     d.print(msg = "CLI << %s >>" % args.command, level = 0)
 
-    shell.jobs_waitUntilDone(onJobEventDo = "self.tag_print(tag = 'pid')")
+    # shell.jobs_waitUntilDone(onEventTriggeredDo = "self.tag_print(tag = 'pid')")
+
+    # shell.jobs_eventLoop(waitForEvent       = "self.job_started()",
+    #                      onEventTriggeredDo = "self.tag_print(tag='pid')")
+
+    shell.jobs_eventLoop(waitForEvent       = "self.job_done()",
+                         onEventTriggeredDo = "self.tag_print(tag='pid')")
+
     # shell.pp.pprint(shell.d_job)
 
     if len(args.ssh):
