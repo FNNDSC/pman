@@ -142,13 +142,13 @@ class crunner(object):
         :param kwargs:
         """
 
+
         self.b_shell            = True
         self.b_showStdOut       = True
         self.b_showStdErr       = True
 
         # Debugging
         self.verbosity          = 0
-        self.debug              = debug(verbosity = 10)
 
         # Toggle special handling of "compound" jobs
         self.b_splitCompound    = True
@@ -188,6 +188,10 @@ class crunner(object):
         self.t_exe              = None      # Exe thread
 
         self.pp                 = pprint.PrettyPrinter(indent=4)
+
+        for key, val in kwargs.items():
+            if key == 'verbosity':  self.verbosity  = val
+        self.debug              = debug(verbosity = self.verbosity)
 
     def __call__(self, str_cmd, **kwargs):
         """
@@ -269,6 +273,36 @@ class crunner(object):
         self.debug.print("b_synchronized = %r" % self.b_synchronized, level=2)
         self.debug.print(msg = 'done ctl', level=2)
 
+    def queue_pop(self, **kwargs):
+        """
+        get() [i.e. pop()] from a queue specified in the kwargs
+
+        The main purpose of this method is to control the size of the queue in the
+        main exe loop. Each timeout iteration a pid is written to a specific queue, and
+        popped during an exception handling.
+
+        Once the event is finished, the pid queues must ONLY have ONE entry, not multiple.
+
+        :param kwargs:
+        :return:
+        """
+        queue = None
+        str_queue = ""
+        for key, val in kwargs.items():
+            if key == 'queue':  str_queue   = val
+
+        if str_queue == 'queueStart':   queue = self.queueStart_pid
+        if str_queue == 'queueEnd':     queue = self.queueEnd_pid
+
+        if queue.qsize():
+            self.debug("%s queue has %d elements" % (str_queue, queue.qsize()),
+                       level=3)
+            pid = queue.get()
+            self.debug("%s queue popping pid %d..." % (str_queue, pid), level=3)
+            self.debug("%s queue has %d elements"   % (str_queue, queue.qsize()),
+                       level=3)
+
+
     def exe(self, str_cmd, **kwargs):
         """
         Execute <str_cmd> on the underlying shell in a separate thread.
@@ -317,23 +351,29 @@ class crunner(object):
         pollLoop                = 0
         while b_subprocessRunning:
             try:
-                self.queue_pid.put(proc.pid)
+                # self.queue_pid.put(proc.pid)
                 self.queueStart_pid.put(proc.pid)
                 self.queueEnd_pid.put(proc.pid)
-                self.debug.print("Putting pid %d in queue..." % proc.pid, level=3)
+                self.debug.print("Putting pid %d in queues..." % proc.pid, level=3)
                 o = proc.communicate(timeout=0.1)
                 b_subprocessRunning = False
             except subprocess.TimeoutExpired:
                 # if b_ssh:
                 #     self.remotePID    += proc.stdout.readline().strip()
-                if self.queue_pid.qsize():
-                    # self.debug("pid queue has %d elements" % self.queue_pid.qsize(),
+                # pid = self.queue_pid.get()
+                if self.queueStart_pid.qsize(): self.queue_pop(queue = 'queueStart')
+                    # self.debug("queueStart_pid has %d elements" % self.queueStart_pid.qsize(),
                     #            level=3)
-                    pid = self.queue_pid.get()
-                    pid = self.queueStart_pid.get()
-                    pid = self.queueEnd_pid.get()
-                    # self.debug("popping pid %d from queue..." % pid, level=3)
-                    # self.debug("pid queue has %d elements" % self.queue_pid.qsize(),
+                    # pid = self.queueStart_pid.get()
+                    # self.debug("popping pid %d from queueStart..." % pid, level=3)
+                    # self.debug("pid queueStart has %d elements" % self.queueStart_pid.qsize(),
+                    #            level=3)
+                if self.queueEnd_pid.qsize(): self.queue_pop(queue = 'queueEnd')
+                    # self.debug("queueEnd has %d elements" % self.queueEnd_pid.qsize(),
+                    #            level=3)
+                    # pid = self.queueEnd_pid.get()
+                    # self.debug("popping pid %d from queueEnd..." % pid, level=3)
+                    # self.debug("pid queueEnd has %d elements" % self.queueEnd_pid.qsize(),
                     #            level=3)
                 self.d_job[self.jobCount]['pid']    = proc.pid
                 pollLoop += 1
@@ -343,6 +383,10 @@ class crunner(object):
                                       proc.pid,
                                       self.d_job[self.jobCount]['started']),
                                      level = 3)
+
+        # and a final pop on the pid queues
+        # if self.queueStart_pid.qsize(): self.queue_pop(queue = 'queueStart')
+        # if self.queueEnd_pid.qsize():   self.queue_pop(queue = 'queueEnd')
 
         self.d_job[self.jobCount]['endstamp']       = '%s' % datetime.datetime.now()
         self.d_job[self.jobCount]['done']           = True
@@ -410,11 +454,13 @@ class crunner(object):
         for key, val in kwargs.items():
             if key == 'queue':  str_queue   = val
 
-        if str_queue ==
+        queue = None
+        if str_queue == "queueStart":   queue = self.queueStart_pid
+        if str_queue == "queueEnd":     queue = self.queueEnd_pid
 
-        self.debug.print("getting pid... (queue size = %d)" % self.queue_pid.qsize())
-        pid = self.queue_pid.get()
-        self.debug.print("pid = %d" % pid)
+        self.debug.print("getting %s pid... (queue size = %d)" % (str_queue, queue.qsize()))
+        pid = queue.get()
+        self.debug.print("%s pid = %d" % (str_queue, pid))
         return pid
 
     def currentJob_waitUntilDone(self, **kwargs):
@@ -829,9 +875,14 @@ class crunner_ssh(crunner):
         while not len(self.remotePID):
             time.sleep(timeout)
 
-def pid_print(shell):
-    pid = shell.pid_get()
-    print("Pid of process: %d" % pid)
+def pid_print(shell, **kwargs):
+
+    str_queue = "None"
+    for k, v in kwargs.items():
+        if k == 'queue':    str_queue = v
+
+    pid = shell.pid_get(**kwargs)
+    print("%s: id of process: %d" % (str_queue, pid))
 
 def job_started(shell):
     return shell.job_started()
@@ -849,6 +900,14 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
+        '-v', '--verbosity',
+        help    = 'verbosity level.',
+        dest    = 'verbosity',
+        action  = 'store',
+        default = '0'
+    )
+
+    parser.add_argument(
         '--ssh',
         help    = 'ssh to remote host.',
         dest    = 'ssh',
@@ -856,16 +915,18 @@ if __name__ == '__main__':
         default = ''
     )
 
-    d   = debug(verbosity = 10)
-    d.print('start module')
-
     args = parser.parse_args()
+
+    verbosity   = int(args.verbosity)
+
+    d   = debug(verbosity = verbosity)
+    d.print('start module')
 
     # Create a crunner shell
     if len(args.ssh):
-        shell   = crunner_ssh(ssh = args.ssh)
+        shell   = crunner_ssh(verbosity = args.verbosity, ssh = args.ssh)
     else:
-        shell   = crunner()
+        shell   = crunner(verbosity = verbosity)
 
     # Call the shell on a command line argument
     shell(args.command)
@@ -878,8 +939,8 @@ if __name__ == '__main__':
 
     # shell.jobs_waitUntilDone(onEventTriggeredDo = "self.tag_print(tag = 'pid')")
 
-    shell.jobs_loopctl(onJobStart   = "pid_print(shell)",
-                       onJobDone    = "pid_print(shell)")
+    shell.jobs_loopctl(onJobStart   = "pid_print(shell, queue='queueStart')",
+                       onJobDone    = "pid_print(shell, queue='queueEnd')")
 
     # shell.jobs_eventLoop(waitForEvent       = "self.job_started()",
     #                      onEventTriggeredDo = "pid_print(shell)")
