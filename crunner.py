@@ -171,7 +171,6 @@ class crunner(object):
 
 
         self.queue_continue     = Queue()
-
         self.queue              = Queue()
 
         # Job info
@@ -182,6 +181,7 @@ class crunner(object):
         self.d_job              = {}
         # self.b_currentJobDone   = False
         self.b_synchronized     = False
+        self.b_jobsAllDone      = False
 
         # Threads for job control and execution
         self.t_ctl              = None      # Controller thread
@@ -272,6 +272,7 @@ class crunner(object):
 
         self.debug.print("b_synchronized = %r" % self.b_synchronized, level=2)
         self.debug.print(msg = 'done ctl', level=2)
+        self.b_jobsAllDone  = True
 
     def queue_pop(self, **kwargs):
         """
@@ -302,6 +303,25 @@ class crunner(object):
             self.debug("%s queue has %d elements"   % (str_queue, queue.qsize()),
                        level=3)
 
+    def queue_flush(self, **kwargs):
+        """
+        Clear a queue.
+
+        :param kwargs:
+        :return:
+        """
+        queue = None
+        str_queue = ""
+        for key, val in kwargs.items():
+            if key == 'queue':  str_queue   = val
+
+        if str_queue == 'queueStart':   queue = self.queueStart_pid
+        if str_queue == 'queueEnd':     queue = self.queueEnd_pid
+
+        self.debug("Flushing %s (currently contains %d elements)" % (str_queue, queue.qsize()), level=3)
+        for q in range(0, queue.qsize()):
+            pid = queue.get()
+        self.debug("Flushed %s (currently contains %d elements)" % (str_queue, queue.qsize()), level=3)
 
     def exe(self, str_cmd, **kwargs):
         """
@@ -328,13 +348,8 @@ class crunner(object):
         self.d_job[self.jobCount]['startTrigger']       = True
         self.d_job[self.jobCount]['eventFunctionDone']  = False
 
-        self.debug.print("Putting start event in queue...", level=3)
-        self.debug.print("Flushing pid queue... (currently contains %d elements)" %
-                         self.queue_pid.qsize(), level=3)
-        for q in range(0, self.queue_pid.qsize()):
-            pid = self.queue_pid.get()
-        self.debug.print("Flushed pid queue... (currently contains %d elements)" %
-                         self.queue_pid.qsize(), level=3)
+        self.queue_flush(queue = 'queueStart')
+        self.queue_flush(queue = 'queueEnd')
 
         self.queue_startEvent.put({'startTrigger': True})
 
@@ -362,19 +377,7 @@ class crunner(object):
                 #     self.remotePID    += proc.stdout.readline().strip()
                 # pid = self.queue_pid.get()
                 if self.queueStart_pid.qsize(): self.queue_pop(queue = 'queueStart')
-                    # self.debug("queueStart_pid has %d elements" % self.queueStart_pid.qsize(),
-                    #            level=3)
-                    # pid = self.queueStart_pid.get()
-                    # self.debug("popping pid %d from queueStart..." % pid, level=3)
-                    # self.debug("pid queueStart has %d elements" % self.queueStart_pid.qsize(),
-                    #            level=3)
-                if self.queueEnd_pid.qsize(): self.queue_pop(queue = 'queueEnd')
-                    # self.debug("queueEnd has %d elements" % self.queueEnd_pid.qsize(),
-                    #            level=3)
-                    # pid = self.queueEnd_pid.get()
-                    # self.debug("popping pid %d from queueEnd..." % pid, level=3)
-                    # self.debug("pid queueEnd has %d elements" % self.queueEnd_pid.qsize(),
-                    #            level=3)
+                if self.queueEnd_pid.qsize():   self.queue_pop(queue = 'queueEnd')
                 self.d_job[self.jobCount]['pid']    = proc.pid
                 pollLoop += 1
                 if pollLoop % 10 == 0:
@@ -384,9 +387,8 @@ class crunner(object):
                                       self.d_job[self.jobCount]['started']),
                                      level = 3)
 
-        # and a final pop on the pid queues
+        # We need to pop the queueStart once we get to this point
         # if self.queueStart_pid.qsize(): self.queue_pop(queue = 'queueStart')
-        # if self.queueEnd_pid.qsize():   self.queue_pop(queue = 'queueEnd')
 
         self.d_job[self.jobCount]['endstamp']       = '%s' % datetime.datetime.now()
         self.d_job[self.jobCount]['done']           = True
@@ -629,8 +631,10 @@ class crunner(object):
             # only process the self.jobCount as captured here.
             currentJob  = self.jobCount
 
-            # Wait for the event trigger
-            while not self.job_started() and self.jobCount < self.jobTotal: pass
+            time.sleep(0.1)
+
+            # Wait for the start event trigger
+            while not self.job_started() and self.jobCount < self.jobTotal and not self.b_jobsAllDone: pass
             if b_onJobStart and self.jobCount < self.jobTotal:
                 eval(f_onJobStart)
                 # self.d_job[currentJob]['eventFunctionDone']   = True
@@ -651,8 +655,6 @@ class crunner(object):
             self.debug.print("continue queue has length %d" % self.queue_continue.qsize())
             self.debug.print("putting ok in continue queue")
             self.queue_continue.put(True)
-
-
 
     def jobs_eventLoop(self, **kwargs):
         """
@@ -882,7 +884,7 @@ def pid_print(shell, **kwargs):
         if k == 'queue':    str_queue = v
 
     pid = shell.pid_get(**kwargs)
-    print("%s: id of process: %d" % (str_queue, pid))
+    print("%20s: id of process: %d" % (str_queue, pid))
 
 def job_started(shell):
     return shell.job_started()
@@ -915,6 +917,14 @@ if __name__ == '__main__':
         default = ''
     )
 
+    parser.add_argument(
+        '--pipeline',
+        help    = 'interpret compound cmd as series of jobs',
+        dest    = 'b_pipeline',
+        action  = 'store_true',
+        default = False
+    )
+
     args = parser.parse_args()
 
     verbosity   = int(args.verbosity)
@@ -927,6 +937,8 @@ if __name__ == '__main__':
         shell   = crunner_ssh(verbosity = args.verbosity, ssh = args.ssh)
     else:
         shell   = crunner(verbosity = verbosity)
+
+    shell.b_splitCompound   = args.b_pipeline
 
     # Call the shell on a command line argument
     shell(args.command)
