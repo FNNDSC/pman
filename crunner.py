@@ -146,11 +146,13 @@ class crunner(object):
         self.b_shell            = True
         self.b_showStdOut       = True
         self.b_showStdErr       = True
+        self.b_echoCmd          = True
 
         # Debugging
         self.verbosity          = 0
 
         # Toggle special handling of "compound" jobs
+        self.l_cmd              = []
         self.b_splitCompound    = True
         self.b_syncMasterSlave  = True      # If True, sub-commands will pause
                                             # after complete and need to be
@@ -169,7 +171,6 @@ class crunner(object):
         self.queueStart_pid     = Queue()
         self.queueEnd_pid       = Queue()
 
-
         self.queue_continue     = Queue()
         self.queue              = Queue()
 
@@ -179,7 +180,7 @@ class crunner(object):
         self.jobCount           = 0
         self.jobTotal           = -1
         self.d_job              = {}
-        # self.b_currentJobDone   = False
+        self.d_fjob             = {}
         self.b_synchronized     = False
         self.b_jobsAllDone      = False
 
@@ -206,7 +207,13 @@ class crunner(object):
         :return:
         """
 
+        if self.b_echoCmd: print(str_cmd)
         l_args          = shlex.split(str_cmd)
+        self.l_cmd      = []
+        if self.b_splitCompound:
+            self.l_cmd  = str_cmd.split(";")
+        else:
+            self.l_cmd.append(str_cmd)
         self.t_ctl      = threading.Thread(target = self.ctl,
                                             args   = (str_cmd,),
                                             kwargs = kwargs)
@@ -225,17 +232,10 @@ class crunner(object):
         """
 
         self.debug.print(msg = 'start ctl', level=2)
-        timeout = 0.1
 
-        l_cmd   = []
-        if self.b_splitCompound:
-            l_cmd       = str_cmd.split(";")
-        else:
-            l_cmd.append(str_cmd)
+        self.jobTotal   = len(self.l_cmd)
 
-        self.jobTotal   = len(l_cmd)
-
-        for job in l_cmd:
+        for job in self.l_cmd:
             # This thread runs independently of the master, so set
             # an unsynchronized flag
             self.b_synchronized         = False
@@ -243,6 +243,7 @@ class crunner(object):
 
             # Declare the structure
             self.d_job[self.jobCount]   = {}
+            self.d_fjob[self.jobCount]  = {}
 
             self.t_exe                  =   threading.Thread(   target = self.exe,
                                                                 args   = (job,),
@@ -256,15 +257,6 @@ class crunner(object):
             self.debug.print("waiting for continue event from master...", level=2)
             blockUntil = self.queue_continue.get()
             self.debug.print("continue event processed", level=2)
-
-            # pollLoop = 0
-            # while self.b_syncMasterSlave and not self.b_synchronized:
-            #     pollLoop += 1
-            #     if pollLoop % 10 != 0:
-            #         self.debug.print(msg    = "ctl waiting for master sync... startTrigger = %r" %
-            #                                   (self.d_job[self.jobCount]['startTrigger']),
-            #                          level  = 2)
-            #     time.sleep(timeout)
 
             # Increase the job count
             self.jobCount               += 1
@@ -347,6 +339,12 @@ class crunner(object):
         self.d_job[self.jobCount]['started']            = True
         self.d_job[self.jobCount]['startTrigger']       = True
         self.d_job[self.jobCount]['eventFunctionDone']  = False
+        if b_ssh:
+            self.d_job[self.jobCount]['pid_remote']     = ""
+            self.d_job[self.jobCount]['remoteHost']     = self.str_remoteHost
+            self.d_job[self.jobCount]['remoteUser']     = self.str_remoteUser
+            self.d_job[self.jobCount]['remotePort']     = self.str_remotePort
+            self.d_job[self.jobCount]['sshInput']       = self.str_sshInput
 
         self.queue_flush(queue = 'queueStart')
         self.queue_flush(queue = 'queueEnd')
@@ -364,6 +362,7 @@ class crunner(object):
 
         b_subprocessRunning     = True
         pollLoop                = 0
+        self.remotePID          = ""
         while b_subprocessRunning:
             try:
                 # self.queue_pid.put(proc.pid)
@@ -373,8 +372,9 @@ class crunner(object):
                 o = proc.communicate(timeout=0.1)
                 b_subprocessRunning = False
             except subprocess.TimeoutExpired:
-                # if b_ssh:
-                #     self.remotePID    += proc.stdout.readline().strip()
+                if b_ssh:
+                    self.remotePID    += proc.stdout.readline().strip()
+                    self.d_job[self.jobCount]['pid_remote'] = self.remotePID
                 # pid = self.queue_pid.get()
                 if self.queueStart_pid.qsize(): self.queue_pop(queue = 'queueStart')
                 if self.queueEnd_pid.qsize():   self.queue_pop(queue = 'queueEnd')
@@ -394,7 +394,7 @@ class crunner(object):
         self.d_job[self.jobCount]['done']           = True
         self.d_job[self.jobCount]['doneTrigger']    = True
         self.d_job[self.jobCount]['started']        = False
-        self.d_job[self.jobCount]['proc']           = proc
+        self.d_fjob[self.jobCount]['proc']          = proc
         self.d_job[self.jobCount]['pid']            = proc.pid
         self.d_job[self.jobCount]['returncode']     = proc.returncode
         self.d_job[self.jobCount]['stdout']         = o[0]
@@ -605,10 +605,11 @@ class crunner(object):
         :return:
         """
 
+        timeout         = 0.1
         b_onJobStart    = False
         f_onJobStart    = None
         b_onJobDone     = False
-        f_onJobDone     = False
+        f_onJobDone     = None
 
         for key,val in kwargs.items():
             if key == 'timeout':        timeout         = val
@@ -631,10 +632,10 @@ class crunner(object):
             # only process the self.jobCount as captured here.
             currentJob  = self.jobCount
 
-            time.sleep(0.1)
+            time.sleep(timeout)
 
             # Wait for the start event trigger
-            while not self.job_started() and self.jobCount < self.jobTotal and not self.b_jobsAllDone: pass
+            while not self.job_started() and self.jobCount < self.jobTotal: pass
             if b_onJobStart and self.jobCount < self.jobTotal:
                 eval(f_onJobStart)
                 # self.d_job[currentJob]['eventFunctionDone']   = True
@@ -656,6 +657,9 @@ class crunner(object):
             self.debug.print("putting ok in continue queue")
             self.queue_continue.put(True)
 
+
+    # This method is somewhat historical and largely depreciated. It is left here
+    # for reference/legacy purposes.
     def jobs_eventLoop(self, **kwargs):
         """
         This an event loop entry point.
@@ -691,12 +695,13 @@ class crunner(object):
         """
 
         timeout                 = 0.1
-        onEventTriggeredDo     = None
-        b_onEventTriggeredDo   = False
+        onEventTriggeredDo      = None
+        b_onEventTriggeredDo    = False
+        f_waitForEvent          = None
 
         for key,val in kwargs.items():
-            if key == 'timeout':        timeout         = val
-            if key == 'waitForEvent':   waitForEvent     = val
+            if key == 'timeout':        timeout             = val
+            if key == 'waitForEvent':   f_waitForEvent      = val
             if key == 'onEventTriggeredDo':
                 onEventTriggeredDo    = val
                 b_onEventTriggeredDo  = True
@@ -712,9 +717,11 @@ class crunner(object):
             # only process the self.jobCount as captured here.
             currentJob  = self.jobCount
 
+            time.sleep(timeout)
+
             # Wait for the event trigger
             self.debug.print("EL: CurrentJob = %d/%d" %(self.jobCount, self.jobTotal))
-            while not eval(waitForEvent) and self.jobCount < self.jobTotal: pass
+            while not eval(f_waitForEvent) and self.jobCount < self.jobTotal: pass
             if b_onEventTriggeredDo and self.jobCount < self.jobTotal:
                 eval(onEventTriggeredDo)
                 self.d_job[currentJob]['eventFunctionDone']   = True
@@ -727,45 +734,13 @@ class crunner(object):
             # Finally, before looping on, we need to wait until the job is in fact
             # over and then set the synchronized flag to tell the ctl thread
             # it's safe to continue
-            while not self.job_done(job=currentJob) and self.jobCount < self.jobTotal: pass
+            if self.queueEnd_pid.qsize():
+                while not self.job_done() and self.jobCount < self.jobTotal: pass
             self.debug.print("Setting synchronized flag from %r to True" % self.b_synchronized)
             self.b_synchronized     = True
             self.debug.print("continue queue has length %d" % self.queue_continue.qsize())
             self.debug.print("putting ok in continue queue")
             self.queue_continue.put(True)
-
-    def jobs_waitUntilDone(self, **kwargs):
-        """
-        Waits until *all* jobs are done.
-
-        :param kwargs:
-        :return:
-        """
-
-        timeout             = 0.1
-        onEventTriggeredDo     = None
-        b_onEventTriggeredDo   = False
-
-        for key,val in kwargs.items():
-            if key == 'timeout':        timeout         = val
-            if key == 'onEventTriggeredDo':
-                onEventTriggeredDo    = val
-                b_onEventTriggeredDo  = True
-
-        # This is the main event loop for this method.
-        while self.jobCount < self.jobTotal:
-            # Wait for the job to be done
-            while not self.job_done() and self.jobCount < self.jobTotal: pass
-            # if self.jobCount < self.jobTotal:
-            #     self.d_job[self.jobCount]['done'] = False
-            self.b_synchronized     = True
-            self.debug.print(msg = "job queue = %d / %d  -->b_synchronized = %r<--" %
-                  (self.jobCount,
-                   self.jobTotal,
-                   self.b_synchronized), level = 0)
-            if b_onEventTriggeredDo             and         \
-                self.jobCount < self.jobTotal:
-                eval(onEventTriggeredDo)
 
     def exe_waitUntilDone(self, **kwargs):
         """
@@ -807,6 +782,9 @@ class crunner(object):
         if self.b_showStdOut:
             for j in range(0, self.jobTotal):
                 print(self.d_job[j]['stdout'])
+        if self.b_showStdErr:
+            for j in range(0, self.jobTotal):
+                print(self.d_job[j]['stderr'])
 
         sys.exit(returncode)
 
@@ -854,15 +832,29 @@ class crunner_ssh(crunner):
         semi-colon ';' joins), then each component is executed
         separately.
         """
-        str_cmd = "ssh -p %s %s@%s \'%s & echo $!\'" % (
-            self.str_remotePort,
-            self.str_remoteUser,
-            self.str_remoteHost,
-            str_cmd
-        )
+
+        self.l_cmd      = []
+        if self.b_splitCompound:
+            self.l_cmd  = str_cmd.split(";")
+        else:
+            self.l_cmd.append(str_cmd)
+
+        i = 0
+        for j in self.l_cmd:
+            str_sshCmd = "ssh -p %s %s@%s \'%s & echo $!\'" % (
+                self.str_remotePort,
+                self.str_remoteUser,
+                self.str_remoteHost,
+                j
+            )
+            self.l_cmd[i] = str_sshCmd
+            i += 1
+
+        str_cmd = " ; ".join(self.l_cmd)
 
         kwargs['ssh']    = True
         crunner.__call__(self, str_cmd, **kwargs)
+        self.waitForRemotePID()
 
     def waitForRemotePID(self, **kwargs):
         """
@@ -924,6 +916,27 @@ if __name__ == '__main__':
         action  = 'store_true',
         default = False
     )
+    parser.add_argument(
+        '--showStdOut',
+        help    = 'show stdout of all jobs',
+        dest    = 'b_stdout',
+        action  = 'store_true',
+        default = False
+    )
+    parser.add_argument(
+        '--showStdErr',
+        help    = 'show stderr of all jobs',
+        dest    = 'b_stderr',
+        action  = 'store_true',
+        default = False
+    )
+    parser.add_argument(
+        '--echoCmd',
+        help    = 'show cmd',
+        dest    = 'b_echoCmd',
+        action  = 'store_true',
+        default = False
+    )
 
     args = parser.parse_args()
 
@@ -934,11 +947,14 @@ if __name__ == '__main__':
 
     # Create a crunner shell
     if len(args.ssh):
-        shell   = crunner_ssh(verbosity = args.verbosity, ssh = args.ssh)
+        shell   = crunner_ssh(verbosity = verbosity, ssh = args.ssh)
     else:
         shell   = crunner(verbosity = verbosity)
 
     shell.b_splitCompound   = args.b_pipeline
+    shell.b_showStdOut      = args.b_stdout
+    shell.b_showStdErr      = args.b_stderr
+    shell.b_echoCmd         = args.b_echoCmd
 
     # Call the shell on a command line argument
     shell(args.command)
@@ -949,23 +965,17 @@ if __name__ == '__main__':
     # subprocesses.
     d.print(msg = "CLI << %s >>" % args.command, level = 0)
 
-    # shell.jobs_waitUntilDone(onEventTriggeredDo = "self.tag_print(tag = 'pid')")
-
+    # shell.jobs_loopctl()
     shell.jobs_loopctl(onJobStart   = "pid_print(shell, queue='queueStart')",
                        onJobDone    = "pid_print(shell, queue='queueEnd')")
 
+    # These are two legacy/depreciated methods
     # shell.jobs_eventLoop(waitForEvent       = "self.job_started()",
-    #                      onEventTriggeredDo = "pid_print(shell)")
-                         # onEventTriggeredDo = "self.tag_print(tag='pid')")
+    #                      onEventTriggeredDo = "pid_print(shell, queue='queueStart')")
 
     # shell.jobs_eventLoop(waitForEvent       = "self.job_done()",
-    #                      onEventTriggeredDo = "self.tag_print(tag='pid')")
+    #                      onEventTriggeredDo = "pid_print(shell, queue='queueEnd')")
 
-    # shell.pp.pprint(shell.d_job)
-
-    if len(args.ssh):
-        shell.waitForRemotePID()
-        print('PID of process on remote host: %s' % shell.remotePID)
 
     # This exits to the system, but only once all threads have completed.
     # The exitcode of the subprocess is returned to the system by this
