@@ -105,8 +105,8 @@ class pman(object):
         self.b_http             = False
 
         # Screen formatting
-        self.LC                 = 40
-        self.RC                 = 40
+        self.LC                 = 30
+        self.RC                 = 50
 
         for key,val in kwargs.iteritems():
             if key == 'protocol':   self.str_protocol   = val
@@ -125,13 +125,37 @@ class pman(object):
         """)
         print(Colors.CYAN + """
         'pman' is a client/server system that allows users to monitor
-        and control processes on (typically) Linux systems. Actual processes
-        are spawned using the 'crun' module and as such are HPC aware.
+        and control processes on (typically) Linux systems. Actual
+        processes are spawned using the 'crunner' module and as such
+        are ssh and HPC aware.
 
         The 'pman' server can be queried for running processes, lost/dead
         processes, exit status, etc.
 
         Communication from the 'pman' server is via JSON constructs.
+
+        Typical calling syntax is:
+
+                ./pman.py --raw 1 --http --ip <someIP> --port 5010
+
+        Note <someIP> should be a full IP/name, and a client can interact with the
+        service with a REST call, i.e.
+
+            Using curl:
+
+            curl -H "Content-Type: application/json"        \\
+            -X POST                                         \\
+            -d '{"payload": {"exec":{"cmd": "name", "args": ["arg1", "arg2", "arg3"]}, "action": "PUSH"}}' \\
+            http://10.17.24.163:5010/api/login/
+
+
+            Using http(ie):
+
+            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
+            Content-Type:application/vnd.collection+json    \\
+            Accept:application/vnd.collection+json          \\
+            payload:='{"exec": {"cmd": "name", "args": ["-a", "arg1", "-b", "arg2"]}, "action": "PUSH"}'
+
         """)
 
         self.col2_print('Server is listening on',
@@ -407,14 +431,17 @@ class Listener(threading.Thread):
             json_payload            = l_raw[-1]
             str_CTL                 = ''
             if len(json_payload):
-                d_request           = json.loads(json_payload)
-                str_verb            = d_request['template']
-                str_URL             = d_request['URL']
-                d_data              = d_request['data']
+                d_payload           = json.loads(json_payload)
+                d_request           = d_payload['payload']
+                print("|||||||")
+                print(d_request)
+                print("|||||||")
+                str_verb            = d_request['action']
+                d_exec              = d_request['exec']
 
-                o_URL               = urlparse(str_URL)
-                str_path            = o_URL.path
-                l_path              = str_path.split('/')[2:]
+                # o_URL               = urlparse(str_URL)
+                # str_path            = o_URL.path
+                # l_path              = str_path.split('/')[2:]
 
                 str_CTL             = "RUN"
                 if str_verb == 'QUIT':
@@ -524,7 +551,7 @@ if __name__ == "__main__":
     args    = parser.parse_args()
 
     comm    = pman(
-                    ip          = args.ip,
+                    IP          = args.ip,
                     port        = args.port,
                     protocol    = args.protocol,
                     raw         = args.raw,
