@@ -670,12 +670,12 @@ class crunner(object):
         # sure the job is in fact done so that the main thread can communicate
         # to the ctl thread that the next job can be processed.
         while self.jobCount < self.jobTotal:
-            # Keep the currentJob id fixed during this loop -- while this loop
-            # actually runs, the self.jobCount might change, but this loop will
-            # only process the self.jobCount as captured here.
-            currentJob  = self.jobCount
-
-            time.sleep(timeout)
+            # This short timeout during the very last job loop is needed for
+            # synchronization at the very end of the processig loop. It's
+            # probably a very very BAD idea to do this but I couldn't figure
+            # out another way. Each loop needed a small delay at the start so
+            # that the final all-loops-done event can sync properly.
+            if self.jobCount == self.jobTotal-1: time.sleep(timeout)
 
             # Wait for the start event trigger
             while not self.job_started() and self.jobCount < self.jobTotal: pass
