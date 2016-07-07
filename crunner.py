@@ -671,7 +671,7 @@ class crunner(object):
         # to the ctl thread that the next job can be processed.
         while self.jobCount < self.jobTotal:
             # This short timeout during the very last job loop is needed for
-            # synchronization at the very end of the processig loop. It's
+            # synchronization at the very end of the processing loop. It's
             # probably a very very BAD idea to do this but I couldn't figure
             # out another way. Each loop needed a small delay at the start so
             # that the final all-loops-done event can sync properly.
