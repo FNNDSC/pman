@@ -1,4 +1,4 @@
-#!/usr/bin/python3.5
+#!/usr/bin/env python3.5
 
 
 from __future__         import print_function
@@ -15,6 +15,7 @@ import  json
 import  inspect
 import  datetime
 import  pprint
+import  platform
 
 def synopsis(ab_shortOnly = False):
     str_scriptName  = os.path.basename(sys.argv[0])
@@ -22,18 +23,28 @@ def synopsis(ab_shortOnly = False):
 
     NAME
 
+        %s
+
+    SYNOPSIS
+
+
+        %s \\
+                    -c|--command <CMD>              \\
+                    --pipeline                      \\
+                    --ssh <user@machine[:<port>]>   \\
+                    --prettyprint                   \\
+                    --jsonprint                     \\
+                    --showStdOut                    \\
+                    --showStdErr                    \\
+                    --echoCmd                       \\
+                    --eventLoop                     \\
+                    --verbosity <verbosity>         \\
+
         Run <CMD> in a variety of ways.
 
-        %s     -c|--command <CMD>
 
-
-    """ % str_scriptName
+    """ % (str_scriptName, str_scriptName)
     str_description = """
-
-    ARGS
-
-        -c|--command <CMD>
-        Command to execute
 
     DESCRIPTION
 
@@ -42,6 +53,43 @@ def synopsis(ab_shortOnly = False):
 
         Standard returns (stdout, stderr) and exit codes are captured
         and available to other processes.
+
+    ARGS
+
+        -c|--command <CMD>
+        Command to execute
+
+        --verbosity <verbosity>
+        The verbosity. Set to "-1" for silent.
+
+        --pipeline
+        If specified, treat compound commands (i.e. command strings
+        concatenated together with ';') as a pipeline. Track each
+        individual command separately.
+
+        --ssh <user@machine[:port]>
+        If specified, ssh as <user> to <machine>[:port]> and execute the <CMD>
+        on remote host.
+
+        --prettyprint
+        If specified, pretty print internal job dictionary object at finish.
+
+        --jsonprint
+        If specified, json.dumps() internal job dictionary object at finish.
+
+        --showStdOut
+        If specified, print the stdout of each job executed.
+
+        --showStdErr
+        If specified, print the stderr of each job executed.
+
+        --echoCmd
+        If specified, echo the actual command string that crunner will execute
+        on the underlying shell.
+
+        --eventLoop
+        If specified, turn on job start/end event processing.
+
     """ % str_scriptName
     if ab_shortOnly:
         return str_shortSynopsis
@@ -112,27 +160,29 @@ class crunner(object):
         thread joins the 'exe' thread and so "waits" on it to complete.
 
             parent execution
-        --------O---------------O-------- ... --------
-                |              /
-                |  __call__   /
-                O-------------
-                        |
-                        |  t_ctl thread (join t_exe)
-                        +-------O------------------------ ...--------O--- (end)
-                                |                                  /
-                                |  t_exe thread                   /
-                                +-------O---------------- ... ---O---- (end)
-                                        |                       /
-                                        | subprocess           /
-                                        +---------------- ... +
-
-
+        ----->--O----->---------O----->-- ... ------->----- ... ---->------>
+                |              /   ^                                   ^
+                |  __call__   /    | (startEvent)                      | (endEvent)
+                O---->--+-->--     |                                   |
+                        |          |                                   |
+                        |          |     t_ctl thread (join t_exe)     |
+                        --->-------O---->------------>------ ...--->---O--- (end)
+                                 ^ |                                   ^
+                                 | |                                  /|
+                                 | |  t_exe thread                   / |
+                                 | --------O--------->------ ... ---O--+- (end)
+                                 |         |                       /   |
+                                 |         | subprocess           /    |
+                                 \         ---------->------ ... -    /
+                                  \         (each job)               /
+                                   -----<------------<------ ... -<-
 
 
         The main caller, however, returns to the parent context after a
         short interval. In this manner, main execution can continue in the parent
         process. The parent can query the crunner on the state of spawned
-        threads.
+        threads, and can provide the object with callbacks that are executed
+        on each job's startEvent and endEvent.
 
     """
 
@@ -339,6 +389,14 @@ class crunner(object):
         self.d_job[self.jobCount]['started']            = True
         self.d_job[self.jobCount]['startTrigger']       = True
         self.d_job[self.jobCount]['eventFunctionDone']  = False
+
+        # Platform info
+        self.d_job[self.jobCount]['system']             = platform.system()
+        self.d_job[self.jobCount]['machine']            = platform.machine()
+        self.d_job[self.jobCount]['platform']           = platform.platform()
+        self.d_job[self.jobCount]['uname']              = platform.uname()
+        self.d_job[self.jobCount]['version']            = platform.version()
+
         if b_ssh:
             self.d_job[self.jobCount]['pid_remote']     = ""
             self.d_job[self.jobCount]['remoteHost']     = self.str_remoteHost
@@ -386,9 +444,6 @@ class crunner(object):
                                       proc.pid,
                                       self.d_job[self.jobCount]['started']),
                                      level = 3)
-
-        # We need to pop the queueStart once we get to this point
-        # if self.queueStart_pid.qsize(): self.queue_pop(queue = 'queueStart')
 
         self.d_job[self.jobCount]['endstamp']       = '%s' % datetime.datetime.now()
         self.d_job[self.jobCount]['done']           = True
@@ -555,12 +610,6 @@ class crunner(object):
             self.debug.print("Got an end event!")
         return b_end
 
-        # d_ret   = self.jobInfo_get(field    = 'doneTrigger',
-        #                            job      = job)
-        #
-        # if d_ret['field']: self.d_job[job]['doneTrigger']  = False
-        # return d_ret['field']
-
     def job_started(self, **kwargs):
         """
 
@@ -581,12 +630,6 @@ class crunner(object):
         if self.jobCount < self.jobTotal:
             b_start = self.queue_startEvent.get()
             self.debug.print("Got a start event!")
-
-        # d_ret   = self.jobInfo_get(field    = 'startTrigger',
-        #                            job      = job)
-
-        # if d_ret['field']: self.d_job[job]['startTrigger']  = False
-        # return d_ret['field']
         return b_start
 
     def jobs_loopctl(self, **kwargs):
@@ -636,21 +679,13 @@ class crunner(object):
 
             # Wait for the start event trigger
             while not self.job_started() and self.jobCount < self.jobTotal: pass
-            if b_onJobStart and self.jobCount < self.jobTotal:
-                eval(f_onJobStart)
-                # self.d_job[currentJob]['eventFunctionDone']   = True
-                # self.debug.print(msg = "currentJob = %d job queue = %d / %d  -->b_synchronized = %r<--" %
-                #                        (currentJob,
-                #                         self.jobCount,
-                #                         self.jobTotal,
-                #                         self.b_synchronized), level = 0)
+            if b_onJobStart and self.jobCount < self.jobTotal: eval(f_onJobStart)
 
             # Finally, before looping on, we need to wait until the job is in fact
             # over and then set the synchronized flag to tell the ctl thread
             # it's safe to continue
             while not self.job_done() and self.jobCount < self.jobTotal: pass
-            if b_onJobDone and self.jobCount < self.jobTotal:
-                eval(f_onJobDone)
+            if b_onJobDone and self.jobCount < self.jobTotal: eval(f_onJobDone)
             self.debug.print("Setting synchronized flag from %r to True" % self.b_synchronized)
             self.b_synchronized     = True
             self.debug.print("continue queue has length %d" % self.queue_continue.qsize())
@@ -871,17 +906,23 @@ class crunner_ssh(crunner):
 
 def pid_print(shell, **kwargs):
 
-    str_queue = "None"
+    str_queue   = "None"
+    b_silent    = False
     for k, v in kwargs.items():
-        if k == 'queue':    str_queue = v
+        if k == 'queue':    str_queue   = v
+        if k == 'silent':   b_silent    = v
 
     pid = shell.pid_get(**kwargs)
-    print("%20s: id of process: %d" % (str_queue, pid))
+    if not b_silent: print("%20s: id of process: %d" % (str_queue, pid))
 
 def job_started(shell):
     return shell.job_started()
 
 if __name__ == '__main__':
+
+    if len(sys.argv) == 1:
+        print(synopsis())
+        sys.exit(1)
 
     parser = argparse.ArgumentParser(description=synopsis(True))
 
@@ -892,7 +933,6 @@ if __name__ == '__main__':
         action  = 'store',
         default = ''
     )
-
     parser.add_argument(
         '-v', '--verbosity',
         help    = 'verbosity level.',
@@ -900,7 +940,6 @@ if __name__ == '__main__':
         action  = 'store',
         default = '0'
     )
-
     parser.add_argument(
         '--ssh',
         help    = 'ssh to remote host.',
@@ -908,7 +947,6 @@ if __name__ == '__main__':
         action  = 'store',
         default = ''
     )
-
     parser.add_argument(
         '--pipeline',
         help    = 'interpret compound cmd as series of jobs',
@@ -934,6 +972,27 @@ if __name__ == '__main__':
         '--echoCmd',
         help    = 'show cmd',
         dest    = 'b_echoCmd',
+        action  = 'store_true',
+        default = False
+    )
+    parser.add_argument(
+        '--prettyprint',
+        help    = 'pretty print job object',
+        dest    = 'b_prettyprint',
+        action  = 'store_true',
+        default = False
+    )
+    parser.add_argument(
+        '--jsonprint',
+        help    = 'json print job object',
+        dest    = 'b_jsonprint',
+        action  = 'store_true',
+        default = False
+    )
+    parser.add_argument(
+        '--eventloop',
+        help    = 'turn on event loop start/end processing',
+        dest    = 'b_eventloop',
         action  = 'store_true',
         default = False
     )
@@ -965,9 +1024,11 @@ if __name__ == '__main__':
     # subprocesses.
     d.print(msg = "CLI << %s >>" % args.command, level = 0)
 
-    # shell.jobs_loopctl()
-    shell.jobs_loopctl(onJobStart   = "pid_print(shell, queue='queueStart')",
-                       onJobDone    = "pid_print(shell, queue='queueEnd')")
+    if not args.b_eventloop:
+        shell.jobs_loopctl()
+    else:
+        shell.jobs_loopctl( onJobStart   = "pid_print(shell, queue='queueStart')",
+                            onJobDone    = "pid_print(shell, queue='queueEnd')")
 
     # These are two legacy/depreciated methods
     # shell.jobs_eventLoop(waitForEvent       = "self.job_started()",
@@ -981,6 +1042,7 @@ if __name__ == '__main__':
     # The exitcode of the subprocess is returned to the system by this
     # call.
     d.print('done module')
-    d.print('%s' % shell.pp.pprint(shell.d_job))
+    if args.b_prettyprint:  print(shell.pp.pprint(shell.d_job))
+    if args.b_jsonprint:    print(json.dumps(shell.d_job))
     shell.exitOnDone()
 
