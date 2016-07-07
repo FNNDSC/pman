@@ -656,7 +656,6 @@ class crunner(object):
 
         for key,val in kwargs.items():
             if key == 'timeout':        timeout         = val
-            if key == 'waitForEvent':   waitForEvent     = val
             if key == 'onJobStart':
                 f_onJobStart    = val
                 b_onJobStart    = True
