@@ -110,9 +110,11 @@ class debug(object):
         """
 
         self.verbosity  = 0
+        self.level      = 0
 
         for k, v in kwargs.items():
             if k == 'verbosity':    self.verbosity  = v
+            if k == 'level':        self.level      = v
 
     def __call__(self, *args, **kwargs):
         self.print(*args, **kwargs)
@@ -137,7 +139,7 @@ class debug(object):
 
         if self.level <= self.verbosity:
 
-            print('%26s | Current thread = %50s | Current function = %30s | ' % (
+            print('%26s | %50s | %30s | ' % (
                 datetime.datetime.now(),
                 threading.current_thread(),
                 inspect.stack()[1][3]
