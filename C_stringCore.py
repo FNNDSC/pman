@@ -31,7 +31,11 @@
 import  os
 import  sys
 from    string          import  *
-from    cStringIO       import  StringIO
+
+try:
+	from    cStringIO       import  StringIO
+except ImportError:
+	from 	io 		import 	StringIO
 from    cgi             import  *
 
 class C_stringCore:
