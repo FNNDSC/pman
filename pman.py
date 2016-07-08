@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 
 # -*- coding: utf-8 -*-
 """
@@ -26,20 +26,80 @@ import  abc
 import  json
 import  sys
 import  datetime
+import  time
 import  os
 
 import  threading
 import  zmq
 import  json
-from    urlparse    import  urlparse
+# from    urllib      import  urlparse
+import  urllib.parse
 import  argparse
 import  datetime
 from    webob       import Response
 import  psutil
+import  uuid
+
+import  inspect
+import  crunner
+import  logging
 
 import  C_snode
 import  message
 from    _colors     import  Colors
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='(%(threadName)-10s) %(message)s')
+
+class debug(object):
+    """
+        A simple class that provides some helper debug functions. Mostly
+        printing function/thread names and checking verbosity level
+        before printing.
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Constructor
+        """
+
+        self.verbosity  = 0
+        self.level      = 0
+
+        for k, v in kwargs.items():
+            if k == 'verbosity':    self.verbosity  = v
+            if k == 'level':        self.level      = v
+
+    def __call__(self, *args, **kwargs):
+        self.print(*args, **kwargs)
+
+    def print(self, *args, **kwargs):
+        """
+        The "print" command for this object.
+
+        :param kwargs:
+        :return:
+        """
+
+        self.level  = 0
+        self.msg    = ""
+
+        for k, v in kwargs.items():
+            if k == 'level':    self.level  = v
+            if k == 'msg':      self.msg    = v
+
+        if len(args):
+            self.msg    = args[0]
+
+        if self.level <= self.verbosity:
+
+            print('%26s | %50s | %30s | ' % (
+                datetime.datetime.now(),
+                threading.current_thread(),
+                inspect.stack()[1][3]
+            ), end='')
+            for t in range(0, self.level): print("\t", end='')
+            print(self.msg)
 
 
 class pman(object):
@@ -108,7 +168,7 @@ class pman(object):
         self.LC                 = 30
         self.RC                 = 50
 
-        for key,val in kwargs.iteritems():
+        for key,val in kwargs.items():
             if key == 'protocol':   self.str_protocol   = val
             if key == 'IP':         self.str_IP         = val
             if key == 'port':       self.str_port       = val
@@ -239,6 +299,7 @@ class pman(object):
 
         # Start the 'poller' worker
         poller  = Poller()
+        poller.start()
 
         # Use built in queue device to distribute requests among workers.
         # What queue device does internally is,
@@ -308,14 +369,27 @@ class Poller(threading.Thread):
 
         self.pollTime           = 10
 
-        for key,val in kwargs.iteritems():
+        self.dp                 = debug(verbosity=0, level=-1)
+
+        self.dp.print('starting...', level=-1)
+        logging.debug('Starting __init__')
+
+        for key,val in kwargs.items():
             if key == 'pollTime':       self.pollTime       = val
 
         threading.Thread.__init__(self)
 
-    def run(self):
-        """ Main execution. """
+        logging.debug('Ending __init__')
 
+    def run(self):
+
+        timeout = 1
+
+        """ Main execution. """
+        logging.debug('in run...')
+        while True:
+            time.sleep(timeout)
+            self.dp.print("tick...")
 
 class Listener(threading.Thread):
     """ Listeners accept computation requests from front facing server.
@@ -343,24 +417,29 @@ class Listener(threading.Thread):
             return self.__name
 
     def __init__(self, **kwargs):
+        logging.debug('Starting __init__')
         self.debug              = message.Message(logTo = './debug.log')
         self.debug._b_syslog    = True
         self._log               = message.Message()
         self._log._b_syslog     = True
         self.__name             = "Listener"
         self.b_http             = False
+        self.dp                 = debug(verbosity=0, level=-1)
 
-        for key,val in kwargs.iteritems():
+        for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'id':             self.worker_id      = val
             if key == 'DB':             self._ptree         = val
             if key == 'http':           self.b_http         = val
 
         threading.Thread.__init__(self)
+        logging.debug('leaving __init__')
 
     def run(self):
         """ Main execution. """
         # Socket to communicate with front facing server.
+        logging.debug('Starting run...')
+        self.dp.print('starting...')
         socket = self.zmq_context.socket(zmq.DEALER)
         socket.connect('inproc://backend')
 
@@ -395,7 +474,7 @@ class Listener(threading.Thread):
                     str_res     = "%s%s" % (str_HTTPpre, str(res))
                     str_res     = str_res.replace("UTF-8", "UTF-8\nAccess-Control-Allow-Origin: *")
 
-                    socket.send(str_res)
+                    socket.send(str_res.encode())
                 else:
                     socket.send(str_payload)
                 if result['ctl'] == 'QUIT': os._exit(1)
@@ -421,9 +500,9 @@ class Listener(threading.Thread):
             print("***********************************************")
             print("len = %d" % len(request))
             print("***********************************************")
-            print(Colors.CYAN + "%s\n" % (request) + Colors.YELLOW)
+            print(Colors.CYAN + "%s\n" % (request.decode()) + Colors.YELLOW)
             print("***********************************************" + Colors.NO_COLOUR)
-            l_raw           = request.split('\n')
+            l_raw           = request.decode().split('\n')
             FORMtype        = l_raw[0].split('/')[0]
 
             print('Request = ...')
@@ -492,7 +571,7 @@ class Crunner(threading.Thread):
         self._log._b_syslog     = True
         self.__name             = "Crunner"
 
-        for key,val in kwargs.iteritems():
+        for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'id':             self.worker_id      = val
             if key == 'DB':             self._ptree         = val
