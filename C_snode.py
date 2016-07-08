@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 
 """
     NAME
@@ -237,7 +237,7 @@ class C_snode:
             Trailing '\n' are *not* replaced.
             """
             str_tabBoundary = " "
-            for key, value in kwargs.iteritems():
+            for key, value in kwargs.items():
               if key == 'tabBoundary':  str_tabBoundary = value
             b_trailN = False
             length = len(astr_buf)
@@ -273,15 +273,15 @@ class C_snode:
             # self.meta.pre(str_pre)
             # if self.b_printMetaData: self.sCore.write('%s' % self.meta)
 
-            for key, value in self.d_data.iteritems():
+            for key, value in self.d_data.items():
                 self.sCore.write('%s   +--%-17s %s\n' % (str_pre, key, value))
 
             nodeCount     = len(self.d_nodes)
             if nodeCount and self.b_printContents:
                 self.sCore.write('%s   +---+\n' % str_pre )
                 elCount   = 0
-                lastKey   = self.d_nodes.keys()[-1]
-                for node in self.d_nodes.keys():
+                lastKey   = list(self.d_nodes)[-1]
+                for node in list(self.d_nodes):
                     self.d_nodes[node].printPre(True)
                     if node == lastKey:
                         self.d_nodes[node].printPre(False)
@@ -444,7 +444,7 @@ class C_stree:
             self.b_initFromDict         = False
             adict                       = {}
             al_rootBranch               = []
-            for key,value in kwargs.iteritems():
+            for key,value in kwargs.items():
                 if key == 'rootBranch': al_rootBranch   = value
                 if key == 'dict':
                     self.b_initFromDict = True
@@ -543,7 +543,7 @@ class C_stree:
             Checks if the current path has a node spec'd by kwargs
             """
             str_node    = "/" # This node will always be "False"
-            for key, val in kwargs.iteritems():
+            for key, val in kwargs.items():
                 if key == 'node':   str_node = val
             if str_node in self.l_cwd:
                 return { 'found':   True,
@@ -565,7 +565,7 @@ class C_stree:
             
             b_node  = False
             node    = 0
-            for key,val in kwargs.iteritems():
+            for key,val in kwargs.items():
                 if key == 'node':   
                     b_node  = True
                     node    = int(val)
@@ -927,7 +927,7 @@ class C_stree:
             if len(astr_path): self.cdnode(astr_path)
             str_nodes   = self.str_lsnode(astr_path)
             d_data      = self.snode_current.d_data
-            for key, val in kwargs.iteritems():
+            for key, val in kwargs.items():
                 if key == 'data':   b_lsData    = val
                 if key == 'nodes':  b_lsNodes   = val
             if len(astr_path): self.cdnode(str_cwd)
@@ -1063,7 +1063,7 @@ class C_stree:
             b_failOnDirExist    = True
             b_saveJSON          = True
             b_savePickle        = False
-            for key, val in kwargs.iteritems():
+            for key, val in kwargs.items():
                 if key == 'startPath':      str_pathTree        = val
                 if key == 'pathDiskRoot':   str_pathDiskRoot    = val
                 if key == 'failOnDirExist': b_failOnDirExist    = val
@@ -1106,10 +1106,13 @@ class C_stree:
                                         'exception':    exception}
 
                     os.chdir(str_pathDiskFull)
-                    for str_filename, contents in self.snode_current.d_data.iteritems():
-                        with open(str_filename, 'w') as f:
-                            if b_saveJSON:      json.dump(contents,     f)
-                            if b_savePickle:    pickle.dump(contents,   f)
+                    for str_filename, contents in self.snode_current.d_data.items():
+                        # print("str_filename = %s; contents = %s" % (str_filename, contents))
+                        if b_saveJSON:
+                            with open(str_filename, 'w')    as f: json.dump(contents,     f)
+                            f.close()
+                        if b_savePickle:
+                            with open(str_filename, 'wb')   as f: json.dump(contents,     f)
                             f.close()
                 else:
                     return{'status':    False,
@@ -1152,7 +1155,7 @@ class C_stree:
             str_pathDiskRoot    = ''
             b_loadJSON          = True
             b_loadPickle        = False
-            for key, val in kwargs.iteritems():
+            for key, val in kwargs.items():
                 if key == 'pathDiskRoot':   str_pathDiskRoot    = val
                 if key == 'loadJSON':       b_loadJSON          = val
                 if key == 'loadPickle':     b_loadPickle        = val
@@ -1178,9 +1181,15 @@ class C_stree:
                 dirname     = os.path.dirname(f)
                 filename    = os.path.basename(f)
                 # print(f)
-                with open(str_pathDiskRoot + '/' + f) as fp:
-                    if b_loadJSON:      contents = json.load(fp)
-                    if b_loadPickle:    contents = pickle.load(fp)
+                if b_loadJSON:
+                    with open(str_pathDiskRoot + '/' + f, 'r') as fp:
+                        contents = json.load(fp)
+                        fp.close()
+                if b_loadPickle:
+                    with open(str_pathDiskRoot + '/' + f, 'rb') as fp:
+                        contents = pickle.load(fp)
+                        fp.close()
+
                 if rtree.cd(dirname)['status']:
                     rtree.touch(filename, contents)
 
@@ -1223,7 +1232,7 @@ class C_stree:
             f               = None
             ret             = {}
 
-            for key,val in kwargs.iteritems():
+            for key,val in kwargs.items():
                 if key == 'startPath':  str_startPath   = val
                 if key == 'f':          f               = val
 
@@ -1278,7 +1287,7 @@ class C_stree:
             f               = None
             ret             = {}
 
-            for key,val in kwargs.iteritems():
+            for key,val in kwargs.items():
                 if key == 'startPath':  str_startPath   = val
                 if key == 'f':          f               = val
 
@@ -1504,21 +1513,21 @@ if __name__ == "__main__":
     bTree.tree_save(startPath       = '/',
                     pathDiskRoot    = '/tmp/bTree',
                     failOnDirExist  = True,
-                    saveJSON        = False,
-                    savePickle      = True)
+                    saveJSON        = True,
+                    savePickle      = False)
 
     print('Saving aTree...')
     aTree.tree_save(startPath       = '/',
                     pathDiskRoot    = '/tmp/aTree',
                     failOnDirExist  = True,
-                    saveJSON        = False,
-                    savePickle      = True)
+                    saveJSON        = True,
+                    savePickle      = False)
 
     print('Reading aTree into cTree...')
     cTree = C_stree.tree_load(
                     pathDiskRoot    = '/tmp/aTree',
-                    loadJSON        = False,
-                    loadPickle      = True)
+                    loadJSON        = True,
+                    loadPickle      = False)
     cTree.tree_metaData_print(False)
     print('cTree = %s' % cTree)
     cTree.rm('/4/9/B/E/K/file1')
