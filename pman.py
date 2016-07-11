@@ -297,10 +297,6 @@ class pman(object):
                                     http        = self.b_http)
             listener.start()
 
-        # Start the 'poller' worker
-        poller  = Poller()
-        poller.start()
-
         # Use built in queue device to distribute requests among workers.
         # What queue device does internally is,
         #   1. Read a client's socket ID and request.
@@ -332,64 +328,6 @@ class pman(object):
     def stree(self, value):
         """STree Getter"""
         self._stree = value
-
-class Poller(threading.Thread):
-    """
-    The Poller checks for running processes based on the internal
-    DB and system process table. Jobs that are no longer running are
-    removed from the internal DB.
-    """
-    def log(self, *args):
-        """
-        get/set the poller log object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
-
-    def __init__(self, **kwargs):
-        self.debug              = message.Message(logTo = './debug.log')
-        self.debug._b_syslog    = True
-        self._log               = message.Message()
-        self._log._b_syslog     = True
-        self.__name             = "Poller"
-
-        self.pollTime           = 10
-
-        self.dp                 = debug(verbosity=0, level=-1)
-
-        self.dp.print('starting...', level=-1)
-        logging.debug('Starting __init__')
-
-        for key,val in kwargs.items():
-            if key == 'pollTime':       self.pollTime       = val
-
-        threading.Thread.__init__(self)
-
-        logging.debug('Ending __init__')
-
-    def run(self):
-
-        timeout = 1
-
-        """ Main execution. """
-        logging.debug('in run...')
-        while True:
-            time.sleep(timeout)
-            self.dp.print("tick...")
 
 class Listener(threading.Thread):
     """ Listeners accept computation requests from front facing server.
@@ -532,11 +470,78 @@ class Listener(threading.Thread):
 
                 if str_verb == 'PUSH':
                     print("In PUSH")
+                    # Start the 'poller' worker
+                    poller  = Poller()
+                    poller.start()
 
             return {
                     'ctl':      str_CTL,
                     'status':   True
                     }
+
+class Poller(threading.Thread):
+    """
+    The Poller checks for running processes based on the internal
+    DB and system process table. Jobs that are no longer running are
+    removed from the internal DB.
+    """
+    def log(self, *args):
+        """
+        get/set the poller log object.
+
+        Caller can further manipulate the log object with object-specific
+        calls.
+        """
+        if len(args):
+            self._log = args[0]
+        else:
+            return self._log
+
+    def name(self, *args):
+        """
+        get/set the descriptive name text of this object.
+        """
+        if len(args):
+            self.__name = args[0]
+        else:
+            return self.__name
+
+    def __init__(self, **kwargs):
+        self.debug              = message.Message(logTo = './debug.log')
+        self.debug._b_syslog    = True
+        self._log               = message.Message()
+        self._log._b_syslog     = True
+        self.__name             = "Poller"
+
+        self.pollTime           = 10
+
+        self.dp                 = debug(verbosity=0, level=-1)
+
+        self.dp.print('starting...', level=-1)
+
+        for key,val in kwargs.items():
+            if key == 'pollTime':       self.pollTime       = val
+
+        threading.Thread.__init__(self)
+
+
+    def run(self):
+
+        timeout = 1
+        loop    = 10
+
+        """ Main execution. """
+        logging.debug('in run...')
+
+        # Spawn the crunner object container
+        crunner  = Crunner()
+        crunner.start()
+
+        # Now poll...
+        while True:
+            time.sleep(timeout)
+            self.dp.print("tick...")
+
 
 class Crunner(threading.Thread):
     """
@@ -564,17 +569,31 @@ class Crunner(threading.Thread):
         else:
             return self.__name
 
+    def run(self):
+
+        timeout = 1
+        loop    = 10
+
+        """ Main execution. """
+        self.dp.print("running...")
+        self.shell.verbosity    = 10
+        self.shell('sleep 10')
+        self.shell.jobs_loopctl(    onJobStart  = "print('Start!')",
+                                    onJobEnd    = "print('End!)'")
+        self.shell.exitOnDone()
+
     def __init__(self, **kwargs):
         self.debug              = message.Message(logTo = './debug.log')
         self.debug._b_syslog    = True
         self._log               = message.Message()
         self._log._b_syslog     = True
         self.__name             = "Crunner"
+        self.dp                 = debug(verbosity=0, level=-1)
 
-        for key,val in kwargs.items():
-            if key == 'context':        self.zmq_context    = val
-            if key == 'id':             self.worker_id      = val
-            if key == 'DB':             self._ptree         = val
+        self.dp.print('starting crunner...', level=-1)
+
+
+        self.shell              = crunner.crunner()
 
         threading.Thread.__init__(self)
 
