@@ -40,6 +40,8 @@ from    webob       import Response
 import  psutil
 import  uuid
 
+import  queue
+from    functools   import  partial
 import  inspect
 import  crunner
 import  logging
@@ -248,8 +250,8 @@ class pman(object):
             self.col2_print('Reading pman DB from disk:', 'OK')
         else:
             P = self._ptree
-            P.cd('/')
-            P.mkdir('proc')
+            # P.cd('/')
+            # P.mkdir('proc')
             P.tree_save(
                 startPath       = '/',
                 pathDiskRoot    = self.str_DBpath,
@@ -364,6 +366,8 @@ class Listener(threading.Thread):
         self.b_http             = False
         self.dp                 = debug(verbosity=0, level=-1)
 
+        self.poller             = None
+
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'id':             self.worker_id      = val
@@ -417,6 +421,62 @@ class Listener(threading.Thread):
                     socket.send(str_payload)
                 if result['ctl'] == 'QUIT': os._exit(1)
 
+    def job_process(self, **kwargs):
+        """
+        Main job handler -- one listener thread per polling thread
+        per crunner thread.
+        """
+
+        str_cmd         = ""
+
+        for k,v in kwargs.items():
+            if k == 'cmd':  str_cmd     = v
+
+        self.dp.print("spawing and starting poller thread")
+
+        # Start the 'poller' worker
+        self.poller  = Poller(cmd = str_cmd)
+        self.poller.start()
+
+        str_timeStamp   = datetime.datetime.today().strftime('%Y%m%d%H%M%S.%f')
+        str_uuid        = uuid.uuid4()
+        str_dir         = '%s_%s' % (str_timeStamp, str_uuid)
+
+        b_jobsAllDone   = False
+
+        p               = self._ptree
+
+        p.cd('/')
+        p.mkcd(str_dir)
+
+        p.mkdir('start')
+        p.mkdir('end')
+
+        jobCount        = 0
+        while not b_jobsAllDone:
+            try:
+                b_jobsAllDone   = self.poller.queueAllDone.get_nowait()
+            except queue.Empty:
+                self.dp.print('Waiting on start job info')
+                d_startInfo     = self.poller.queueStart.get()
+                p.cd('start')
+                p.mkcd('%s' % jobCount)
+                p.touch('startInfo', d_startInfo.copy())
+                p.cd('../../../')
+
+                self.dp.print('Waiting on end job info')
+                d_endInfo       = self.poller.queueEnd.get()
+                p.cd('end')
+                p.mkcd('%s' % jobCount)
+                p.touch('endInfo', d_endInfo.copy())
+                p.cd('../../../')
+                jobCount        += 1
+
+        p.touch('startInfo',    d_startInfo)
+        p.touch('endInfo',      d_endInfo)
+        p.touch('jobCount',     jobCount-1)
+        p.touch('cmd',          str_cmd)
+
     def process(self, request):
         """ Process the message from remote client
 
@@ -467,12 +527,10 @@ class Listener(threading.Thread):
 
                 if str_verb == 'PULL' or str_verb == 'GET':
                     print("In PULL/GET")
+                    print(self._ptree)
 
                 if str_verb == 'PUSH':
-                    print("In PUSH")
-                    # Start the 'poller' worker
-                    poller  = Poller()
-                    poller.start()
+                    self.job_process(cmd = d_exec['cmd'])
 
             return {
                     'ctl':      str_CTL,
@@ -517,10 +575,17 @@ class Poller(threading.Thread):
 
         self.dp                 = debug(verbosity=0, level=-1)
 
+        self.str_cmd            = ""
+        self.crunner            = None
+        self.queueStart         = queue.Queue()
+        self.queueEnd           = queue.Queue()
+        self.queueAllDone       = queue.Queue()
+
         self.dp.print('starting...', level=-1)
 
         for key,val in kwargs.items():
             if key == 'pollTime':       self.pollTime       = val
+            if key == 'cmd':            self.str_cmd        = val
 
         threading.Thread.__init__(self)
 
@@ -531,17 +596,29 @@ class Poller(threading.Thread):
         loop    = 10
 
         """ Main execution. """
-        logging.debug('in run...')
 
         # Spawn the crunner object container
-        crunner  = Crunner()
-        crunner.start()
+        self.crunner  = Crunner(cmd = self.str_cmd)
+        self.crunner.start()
 
-        # Now poll...
-        while True:
-            time.sleep(timeout)
-            self.dp.print("tick...")
+        b_jobsAllDone   = False
 
+        while not b_jobsAllDone:
+            try:
+                b_jobsAllDone = self.crunner.queueAllDone.get_nowait()
+            except queue.Empty:
+                # We basically propagate the queue contents "up" the chain.
+                self.dp.print('Waiting on start job info')
+                self.queueStart.put(self.crunner.queueStart.get())
+
+                # print(str_jsonStart)
+
+                self.dp.print('Waiting on end job info')
+                self.queueEnd.put(self.crunner.queueEnd.get())
+                # print(str_jsonEnd)
+
+        self.queueAllDone.put(b_jobsAllDone)
+        self.dp.print("done with run")
 
 class Crunner(threading.Thread):
     """
@@ -569,19 +646,6 @@ class Crunner(threading.Thread):
         else:
             return self.__name
 
-    def run(self):
-
-        timeout = 1
-        loop    = 10
-
-        """ Main execution. """
-        self.dp.print("running...")
-        self.shell.verbosity    = 10
-        self.shell('sleep 10')
-        self.shell.jobs_loopctl(    onJobStart  = "print('Start!')",
-                                    onJobEnd    = "print('End!)'")
-        self.shell.exitOnDone()
-
     def __init__(self, **kwargs):
         self.debug              = message.Message(logTo = './debug.log')
         self.debug._b_syslog    = True
@@ -592,10 +656,52 @@ class Crunner(threading.Thread):
 
         self.dp.print('starting crunner...', level=-1)
 
+        self.queueStart         = queue.Queue()
+        self.queueEnd           = queue.Queue()
+        self.queueAllDone       = queue.Queue()
 
-        self.shell              = crunner.crunner()
+        self.str_cmd            = ""
+        self.shell              = crunner.crunner(verbosity=0)
+
+        for k,v in kwargs.items():
+            if k == 'cmd':  self.str_cmd    = v
 
         threading.Thread.__init__(self)
+
+    def jsonJobInfo_queuePut(self, **kwargs):
+        """
+        Get and return the job dictionary as a json string.
+        """
+
+        str_queue   = 'startQueue'
+        for k,v in kwargs.items():
+            if k == 'queue':    str_queue   = v
+
+
+        if str_queue == 'startQueue':   queue   = self.queueStart
+        if str_queue == 'endQueue':     queue   = self.queueEnd
+
+        # self.dp.print(self.shell.d_job)
+
+        queue.put(self.shell.d_job)
+
+    def run(self):
+
+        timeout = 1
+        loop    = 10
+
+        """ Main execution. """
+        self.dp.print("running...")
+        self.shell(self.str_cmd)
+        # self.shell.jobs_loopctl(    onJobStart  = 'self.jsonJobInfo_queuePut(queue="startQueue")',
+        #                             onJobDone   = 'self.jsonJobInfo_queuePut(queue="endQueue")')
+        self.shell.jobs_loopctl(    onJobStart  = partial(self.jsonJobInfo_queuePut, queue="startQueue"),
+                                    onJobDone   = partial(self.jsonJobInfo_queuePut, queue="endQueue"))
+        print("done!!!")
+        self.queueAllDone.put(True)
+        self.queueStart.put({'allJobsStarted': True})
+        self.queueEnd.put({'allJobsDone': True})
+        # self.shell.exitOnDone()
 
 
 if __name__ == "__main__":
