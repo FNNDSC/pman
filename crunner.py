@@ -16,6 +16,7 @@ import  inspect
 import  datetime
 import  pprint
 import  platform
+from    functools       import  partial
 
 def synopsis(ab_shortOnly = False):
     str_scriptName  = os.path.basename(sys.argv[0])
@@ -387,6 +388,7 @@ class crunner(object):
         self.debug.print(msg    = "start << %s >> " % str_cmd,
                          level  = 3)
 
+        self.d_job[self.jobCount]['cmd']                = str_cmd
         self.d_job[self.jobCount]['done']               = False
         self.d_job[self.jobCount]['started']            = True
         self.d_job[self.jobCount]['startTrigger']       = True
@@ -680,19 +682,19 @@ class crunner(object):
 
             # Wait for the start event trigger
             while not self.job_started() and self.jobCount < self.jobTotal: pass
-            if b_onJobStart and self.jobCount < self.jobTotal: eval(f_onJobStart)
+            if b_onJobStart and self.jobCount < self.jobTotal: f_onJobStart()
 
             # Finally, before looping on, we need to wait until the job is in fact
             # over and then set the synchronized flag to tell the ctl thread
             # it's safe to continue
             while not self.job_done() and self.jobCount < self.jobTotal: pass
-            if b_onJobDone and self.jobCount < self.jobTotal: eval(f_onJobDone)
+            if b_onJobDone and self.jobCount < self.jobTotal: f_onJobDone()
             self.debug.print("Setting synchronized flag from %r to True" % self.b_synchronized)
+            self.debug.print("jobCount / jobTotal = %d / %d" % (self.jobCount, self.jobTotal))
             self.b_synchronized     = True
             self.debug.print("continue queue has length %d" % self.queue_continue.qsize())
             self.debug.print("putting ok in continue queue")
             self.queue_continue.put(True)
-
 
     # This method is somewhat historical and largely depreciated. It is left here
     # for reference/legacy purposes.
@@ -1028,8 +1030,10 @@ if __name__ == '__main__':
     if not args.b_eventloop:
         shell.jobs_loopctl()
     else:
-        shell.jobs_loopctl( onJobStart   = "pid_print(shell, queue='queueStart')",
-                            onJobDone    = "pid_print(shell, queue='queueEnd')")
+        # shell.jobs_loopctl( onJobStart   = "pid_print(shell, queue='queueStart')",
+        #                     onJobDone    = "pid_print(shell, queue='queueEnd')")
+        shell.jobs_loopctl( onJobStart   = partial(pid_print, shell, queue='queueStart'),
+                            onJobDone    = partial(pid_print, shell, queue='queueEnd'))
 
     # These are two legacy/depreciated methods
     # shell.jobs_eventLoop(waitForEvent       = "self.job_started()",
