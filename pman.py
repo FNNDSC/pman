@@ -33,22 +33,22 @@ import  threading
 import  zmq
 import  json
 # from    urllib      import  urlparse
-import  urllib.parse
+from    urllib.parse    import  urlparse
 import  argparse
 import  datetime
-from    webob       import Response
+from    webob           import  Response
 import  psutil
 import  uuid
 
 import  queue
-from    functools   import  partial
+from    functools       import  partial
 import  inspect
 import  crunner
 import  logging
 
 import  C_snode
 import  message
-from    _colors     import  Colors
+from    _colors         import  Colors
 
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s')
@@ -419,12 +419,17 @@ class Listener(threading.Thread):
                     socket.send(str_res.encode())
                 else:
                     socket.send(str_payload)
-                if result['ctl'] == 'QUIT': os._exit(1)
+                if result['action'] == 'quit': os._exit(1)
 
-    def job_process(self, **kwargs):
+    def t_job_process(self, *args, **kwargs):
         """
-        Main job handler -- one listener thread per polling thread
-        per crunner thread.
+        Main job handler -- this is in turn a thread spawned from the
+        parent listener thread.
+
+        By being threaded, the client http caller gets an immediate
+        response without needing to wait on the jobs actually running
+        to completion.
+
         """
 
         str_cmd         = ""
@@ -477,7 +482,64 @@ class Listener(threading.Thread):
         p.touch('jobCount',     jobCount-1)
         p.touch('cmd',          str_cmd)
 
-    def process(self, request):
+        self.dp.print('All jobs processed.')
+
+    def DB_get(self, **kwargs):
+        """
+        Returns part of the DB tree based on path spec in the URL
+        """
+
+        r           = C_snode.C_stree()
+        p           = self._ptree
+
+        str_URLpath = "/api/v1/"
+        for k,v in kwargs.items():
+            if k == 'path':     str_URLpath = v
+
+        str_path    = '/' + '/'.join(str_URLpath.split('/')[3:])
+
+        self.dp.print("path = %s" % str_path)
+
+        if str_path == '/':
+            # If root node, only return list of jobs
+            l_rootdir = p.lstr_lsnode(str_path)
+            r.mknode(l_rootdir)
+        else:
+            # Here is a hidden behaviour. If the 'root' dir starts
+            # with an underscore, then replace that component of
+            # the path with the actual name in list order.
+            # This is simply a short hand way to access indexed
+            # offsets.
+
+            l_path  = str_path.split('/')
+            jobID   = l_path[1]
+            # Does the jobID start with an underscore?
+            if jobID[0] == '_':
+                jobOffset   = jobID[1:]
+                l_rootdir   = list(p.lstr_lsnode('/'))
+                self.dp.print('jobOffset = %s' % jobOffset)
+                self.dp.print('l_rootdir...')
+                self.dp.print(l_rootdir)
+                actualJob   = l_rootdir[int(jobOffset)]
+                l_path[1]   = actualJob
+                str_path    = '/'.join(l_path)
+
+            r.mkdir(str_path)
+            r.cd(str_path)
+            r.cd('../')
+            if not r.graft(p, str_path):
+                r.rm(str_path)
+                # We are probably trying to access a file...
+                r.touch(str_path, p.cat(str_path))
+
+        # print(p)
+        self.dp.print(r)
+        self.dp.print(dict(r.snode_root))
+
+        return dict(r.snode_root)
+
+
+    def process(self, request, **kwargs):
         """ Process the message from remote client
 
         In some philosophical respects, this process() method in fact implements
@@ -505,37 +567,56 @@ class Listener(threading.Thread):
 
             print('Request = ...')
             print(l_raw)
+            REST_header             = l_raw[0]
+            REST_verb               = REST_header.split()[0]
+            str_path                = REST_header.split()[1]
             json_payload            = l_raw[-1]
             str_CTL                 = ''
+
+            d_ret                   = {}
+
+            d_ret['status']         = False
+            d_ret['RESTheader']     = REST_header
+            d_ret['RESTverb']       = REST_verb
+            d_ret['action']         = ""
+            d_ret['path']           = str_path
+
+            if REST_verb == 'GET':
+                d_ret['GET']    = self.DB_get(path = str_path)
+                d_ret['status'] = True
+
             if len(json_payload):
                 d_payload           = json.loads(json_payload)
                 d_request           = d_payload['payload']
                 print("|||||||")
                 print(d_request)
                 print("|||||||")
-                str_verb            = d_request['action']
+                payload_verb        = d_request['action']
                 d_exec              = d_request['exec']
+                d_ret['payloadsize']= len(json_payload)
 
                 # o_URL               = urlparse(str_URL)
                 # str_path            = o_URL.path
                 # l_path              = str_path.split('/')[2:]
 
-                str_CTL             = "RUN"
-                if str_verb == 'QUIT':
+                if payload_verb == 'quit':
                     print('Shutting down server...')
-                    str_CTL = "QUIT"
+                    d_ret['status'] = True
 
-                if str_verb == 'PULL' or str_verb == 'GET':
-                    print("In PULL/GET")
-                    print(self._ptree)
+                if payload_verb == 'run':
+                    d_ret['cmd']    = d_exec['cmd']
+                    d_ret['action'] = payload_verb
+                    t_process_d_arg = {'cmd': d_exec['cmd']}
 
-                if str_verb == 'PUSH':
-                    self.job_process(cmd = d_exec['cmd'])
+                    t_process       = threading.Thread( target  = self.t_job_process,
+                                                        args    = (),
+                                                        kwargs  = t_process_d_arg)
+                    t_process.start()
+                    d_ret['status'] = True
 
-            return {
-                    'ctl':      str_CTL,
-                    'status':   True
-                    }
+                    # self.job_process(cmd = d_exec['cmd'])
+
+            return d_ret
 
 class Poller(threading.Thread):
     """
@@ -697,7 +778,6 @@ class Crunner(threading.Thread):
         #                             onJobDone   = 'self.jsonJobInfo_queuePut(queue="endQueue")')
         self.shell.jobs_loopctl(    onJobStart  = partial(self.jsonJobInfo_queuePut, queue="startQueue"),
                                     onJobDone   = partial(self.jsonJobInfo_queuePut, queue="endQueue"))
-        print("done!!!")
         self.queueAllDone.put(True)
         self.queueStart.put({'allJobsStarted': True})
         self.queueEnd.put({'allJobsDone': True})
