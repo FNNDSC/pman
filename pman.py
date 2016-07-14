@@ -39,6 +39,7 @@ import  datetime
 from    webob           import  Response
 import  psutil
 import  uuid
+import  shutil
 
 import  queue
 from    functools       import  partial
@@ -296,6 +297,7 @@ class pman(object):
             listener = Listener(    id          = i,
                                     context     = self.zmq_context,
                                     DB          = self._ptree,
+                                    DBpath      = self.str_DBpath,
                                     http        = self.b_http)
             listener.start()
 
@@ -367,11 +369,13 @@ class Listener(threading.Thread):
         self.dp                 = debug(verbosity=0, level=-1)
 
         self.poller             = None
+        self.str_DBpath         = "/tmp/pman"
 
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'id':             self.worker_id      = val
             if key == 'DB':             self._ptree         = val
+            if key == 'DBpath':         self.str_DBpath     = val
             if key == 'http':           self.b_http         = val
 
         threading.Thread.__init__(self)
@@ -490,6 +494,49 @@ class Listener(threading.Thread):
         DB, then we need to find the file, and map the relevant
         path to components in that file.
         """
+
+    def processPUT(self, **kwargs):
+        """
+         Dispatcher for PUT
+        """
+
+        str_cmd     = ""
+        str_action  = ""
+        str_context = ""
+        for k,v in kwargs.items():
+            if k == 'cmd':      str_cmd     = v
+            if k == 'action':   str_action  = v
+            if k == 'context':  str_context = v
+        if str_action.lower() == 'run' and str_context.lower() == 'db':
+            self.DB_fileIO(cmd  = str_cmd)
+
+    def DB_fileIO(self, **kwargs):
+        """
+        Process DB file IO requests. Typically these control the
+        DB -- save or load.
+        """
+        str_cmd = 'save'
+
+        for k,v in kwargs.items():
+            if k == 'cmd':  str_cmd = v
+
+        if str_cmd == 'save':
+            if os.path.isdir(self.str_DBpath):
+                shutil.rmtree(self.str_DBpath)
+            self._ptree.tree_save(
+                startPath       = '/',
+                pathDiskRoot    = self.str_DBpath,
+                failOnDirExist  = False,
+                saveJSON        = True,
+                savePickle      = False)
+
+        if str_cmd == 'load':
+            self._ptree = C_snode.tree_load(
+                startPath       = '/',
+                pathDiskRoot    = self.str_DBpath,
+                failOnDirExist  = False,
+                loadJSON        = True,
+                loadPickle      = False)
 
     def DB_get(self, **kwargs):
         """
@@ -647,7 +694,16 @@ class Listener(threading.Thread):
                     print('Shutting down server...')
                     d_ret['status'] = True
 
-                if payload_verb == 'run':
+                if payload_verb == 'run' and REST_verb == 'PUT':
+                    d_ret['cmd']        = d_exec['cmd']
+                    d_ret['context']    = d_exec['context']
+                    d_ret['action']     = payload_verb
+                    self.processPUT(cmd     = d_exec['cmd'],
+                                    context = d_exec['context'],
+                                    action  = payload_verb)
+                    d_ret['status'] = True
+
+                if payload_verb == 'run' and REST_verb == 'POST':
                     d_ret['cmd']    = d_exec['cmd']
                     d_ret['action'] = payload_verb
                     t_process_d_arg = {'cmd': d_exec['cmd']}
