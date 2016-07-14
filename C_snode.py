@@ -682,6 +682,32 @@ class C_stree:
             self.mknode([astr_node])
             self.cdnode(astr_node)
 
+        def isdir(self, str_path):
+            """
+            A convenience function, returns bool if <str_path> is
+            a "dir" in the tree space
+            """
+
+            return self.b_pathInTree(str_path)['valid']
+
+        def isfile(self, str_path):
+            """
+            A convenience function, returns bool if <str_path> is
+            a "file" in the tree space
+            """
+
+            b_isFile            = False
+            if self.isdir(str_path):
+                b_isFile        = False
+            else:
+                str_parentDir   = '/'.join(str_path.split('/')[0:-1])
+                str_fileName    = str_path.split('/')[-1]
+                if self.cd(str_parentDir)['status']:
+                    l_files = self.lsf(str_parentDir)
+                    if any(str_fileName in f for f in l_files):
+                        b_isFile    = True
+            return b_isFile
+
         def cat(self, name):
             """
             Returns the contents of the 'name'd element at this level.
