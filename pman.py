@@ -526,7 +526,10 @@ class Listener(threading.Thread):
                 l_rootdir   = list(p.lstr_lsnode('/'))
                 self.dp.print('jobOffset = %s' % jobOffset)
                 self.dp.print(l_rootdir)
-                actualJob   = l_rootdir[int(jobOffset)]
+                try:
+                    actualJob   = l_rootdir[int(jobOffset)]
+                except:
+                    return False
                 l_path[1]   = actualJob
                 str_path    = '/'.join(l_path)
 
@@ -566,8 +569,10 @@ class Listener(threading.Thread):
                             str_access += "[%s]" % l
                         else:
                             str_access += "['%s']" % l
-
-                    contents        = eval('contents%s' % str_access)
+                    try:
+                        contents        = eval('contents%s' % str_access)
+                    except:
+                        contents        = False
 
                 r.touch(str_path, contents)
 
