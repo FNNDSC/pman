@@ -484,6 +484,13 @@ class Listener(threading.Thread):
 
         self.dp.print('All jobs processed.')
 
+    def json_filePart_get(self, **kwargs):
+        """
+        If the requested path is *within* a json "file" on the
+        DB, then we need to find the file, and map the relevant
+        path to components in that file.
+        """
+
     def DB_get(self, **kwargs):
         """
         Returns part of the DB tree based on path spec in the URL
@@ -518,7 +525,6 @@ class Listener(threading.Thread):
                 jobOffset   = jobID[1:]
                 l_rootdir   = list(p.lstr_lsnode('/'))
                 self.dp.print('jobOffset = %s' % jobOffset)
-                self.dp.print('l_rootdir...')
                 self.dp.print(l_rootdir)
                 actualJob   = l_rootdir[int(jobOffset)]
                 l_path[1]   = actualJob
@@ -528,9 +534,42 @@ class Listener(threading.Thread):
             r.cd(str_path)
             r.cd('../')
             if not r.graft(p, str_path):
-                r.rm(str_path)
                 # We are probably trying to access a file...
-                r.touch(str_path, p.cat(str_path))
+                # First, remove the erroneous path in the return DB
+                r.rm(str_path)
+
+                # Now, we need to find the "file", parse the json layer
+                # and save...
+                n                   = 0
+                contents            = p.cat(str_path)
+                str_pathFile        = str_path
+                l_path              = str_path.split('/')
+                totalPathLen        = len(l_path)
+                l_pathFile          = []
+                while not contents and -1*n < totalPathLen:
+                    n               -= 1
+                    str_pathFile    = '/'.join(str_path.split('/')[0:n])
+                    contents        = p.cat(str_pathFile)
+                    l_pathFile.append(l_path[n])
+
+                if contents and n<0:
+                    l_pathFile      = l_pathFile[::-1]
+                    str_access      = ""
+                    for l in l_pathFile:
+                        b_int       = False
+                        try:
+                            i       = int(l)
+                            b_int   = True
+                        except:
+                            b_int   = False
+                        if b_int:
+                            str_access += "[%s]" % l
+                        else:
+                            str_access += "['%s']" % l
+
+                    contents        = eval('contents%s' % str_access)
+
+                r.touch(str_path, contents)
 
         # print(p)
         self.dp.print(r)
