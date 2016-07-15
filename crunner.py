@@ -295,8 +295,9 @@ class crunner(object):
 
 
             # Declare the structure
-            self.d_job[self.jobCount]   = {}
-            self.d_fjob[self.jobCount]  = {}
+            str_jobCount    = str(self.jobCount)
+            self.d_job[str_jobCount]   = {}
+            self.d_fjob[str_jobCount]  = {}
 
             self.t_exe                  =   threading.Thread(   target = self.exe,
                                                                 args   = (job,),
@@ -304,7 +305,7 @@ class crunner(object):
             self.t_exe.start()
             self.t_exe.join()
 
-            # self.d_job[self.jobCount]   = self.queue.get()
+            # self.d_job[str_jobCount]   = self.queue.get()
 
             # Now, "block" until the parent thread says we can continue...
             self.debug.print("waiting for continue event from master...", level=2)
@@ -387,33 +388,33 @@ class crunner(object):
 
         self.debug.print(msg    = "start << %s >> " % str_cmd,
                          level  = 3)
-
-        self.d_job[self.jobCount]['cmd']                = str_cmd
-        self.d_job[self.jobCount]['done']               = False
-        self.d_job[self.jobCount]['started']            = True
-        self.d_job[self.jobCount]['startTrigger']       = True
-        self.d_job[self.jobCount]['eventFunctionDone']  = False
+        str_jobCount    = str(self.jobCount)
+        self.d_job[str_jobCount]['cmd']                = str_cmd
+        self.d_job[str_jobCount]['done']               = False
+        self.d_job[str_jobCount]['started']            = True
+        self.d_job[str_jobCount]['startTrigger']       = True
+        self.d_job[str_jobCount]['eventFunctionDone']  = False
 
         # Platform info
-        self.d_job[self.jobCount]['system']             = platform.system()
-        self.d_job[self.jobCount]['machine']            = platform.machine()
-        self.d_job[self.jobCount]['platform']           = platform.platform()
-        self.d_job[self.jobCount]['uname']              = platform.uname()
-        self.d_job[self.jobCount]['version']            = platform.version()
+        self.d_job[str_jobCount]['system']             = platform.system()
+        self.d_job[str_jobCount]['machine']            = platform.machine()
+        self.d_job[str_jobCount]['platform']           = platform.platform()
+        self.d_job[str_jobCount]['uname']              = platform.uname()
+        self.d_job[str_jobCount]['version']            = platform.version()
 
         if b_ssh:
-            self.d_job[self.jobCount]['pid_remote']     = ""
-            self.d_job[self.jobCount]['remoteHost']     = self.str_remoteHost
-            self.d_job[self.jobCount]['remoteUser']     = self.str_remoteUser
-            self.d_job[self.jobCount]['remotePort']     = self.str_remotePort
-            self.d_job[self.jobCount]['sshInput']       = self.str_sshInput
+            self.d_job[str_jobCount]['pid_remote']     = ""
+            self.d_job[str_jobCount]['remoteHost']     = self.str_remoteHost
+            self.d_job[str_jobCount]['remoteUser']     = self.str_remoteUser
+            self.d_job[str_jobCount]['remotePort']     = self.str_remotePort
+            self.d_job[str_jobCount]['sshInput']       = self.str_sshInput
 
         self.queue_flush(queue = 'queueStart')
         self.queue_flush(queue = 'queueEnd')
 
         self.queue_startEvent.put({'startTrigger': True})
 
-        self.d_job[self.jobCount]['startstamp']         = '%s' % datetime.datetime.now()
+        self.d_job[str_jobCount]['startstamp']         = '%s' % datetime.datetime.now()
         proc = subprocess.Popen(
             str_cmd,
             stdout              = subprocess.PIPE,
@@ -436,33 +437,33 @@ class crunner(object):
             except subprocess.TimeoutExpired:
                 if b_ssh:
                     self.remotePID    += proc.stdout.readline().strip()
-                    self.d_job[self.jobCount]['pid_remote'] = self.remotePID
+                    self.d_job[str_jobCount]['pid_remote'] = self.remotePID
                 # pid = self.queue_pid.get()
                 if self.queueStart_pid.qsize(): self.queue_pop(queue = 'queueStart')
                 if self.queueEnd_pid.qsize():   self.queue_pop(queue = 'queueEnd')
-                self.d_job[self.jobCount]['pid']    = proc.pid
+                self.d_job[str_jobCount]['pid']    = proc.pid
                 pollLoop += 1
                 if pollLoop % 10 == 0:
                     self.debug.print("job %d (%s) running... started = %r" %
                                      (self.jobCount,
                                       proc.pid,
-                                      self.d_job[self.jobCount]['started']),
+                                      self.d_job[str_jobCount]['started']),
                                      level = 3)
 
-        self.d_job[self.jobCount]['endstamp']       = '%s' % datetime.datetime.now()
-        self.d_job[self.jobCount]['done']           = True
-        self.d_job[self.jobCount]['doneTrigger']    = True
-        self.d_job[self.jobCount]['started']        = False
-        self.d_fjob[self.jobCount]['proc']          = proc
-        self.d_job[self.jobCount]['pid']            = proc.pid
-        self.d_job[self.jobCount]['returncode']     = proc.returncode
-        self.d_job[self.jobCount]['stdout']         = o[0]
-        self.d_job[self.jobCount]['stderr']         = o[1]
-        self.d_job[self.jobCount]['cmd']            = str_cmd
+        self.d_job[str_jobCount]['endstamp']       = '%s' % datetime.datetime.now()
+        self.d_job[str_jobCount]['done']           = True
+        self.d_job[str_jobCount]['doneTrigger']    = True
+        self.d_job[str_jobCount]['started']        = False
+        self.d_fjob[str_jobCount]['proc']          = proc
+        self.d_job[str_jobCount]['pid']            = proc.pid
+        self.d_job[str_jobCount]['returncode']     = proc.returncode
+        self.d_job[str_jobCount]['stdout']         = o[0]
+        self.d_job[str_jobCount]['stderr']         = o[1]
+        self.d_job[str_jobCount]['cmd']            = str_cmd
 
         self.debug.print("Putting end event in queue...", level=3)
         self.queue_endEvent.put({'endTrigger': True})
-        self.queue.put(self.d_job[self.jobCount])
+        self.queue.put(self.d_job[str_jobCount])
 
         self.debug.print(msg = "done << %s >> " % str_cmd, level=3)
 
@@ -491,11 +492,12 @@ class crunner(object):
             if key == 'timeout':    timeout = val
 
         pollLoop        = 0
+        str_jobCount    = str(self.jobCount)
         b_tagPrinted    = False
         print("in tag_print...")
         while not b_tagPrinted:
             try:
-                print("%s = %s" % (str_tag, self.d_job[self.jobCount][str_tag]))
+                print("%s = %s" % (str_tag, self.d_job[str_jobCount][str_tag]))
                 b_tagPrinted    = True
             except:
                 pollLoop += 1
@@ -540,7 +542,8 @@ class crunner(object):
             if key == 'timeout':    timeout = val
 
         pollLoop    = 0
-        while not self.d_job[self.jobCount]['done'] and self.exe_stillRunning():
+        str_jobCount    = str(self.jobCount)
+        while not self.d_job[str_jobCount]['done'] and self.exe_stillRunning():
             pollLoop += 1
             if pollLoop % 10 == 0:
                 self.debug.print(msg    = "job queue = %d / %d, -->b_synchronized = %r<--" %
@@ -814,8 +817,9 @@ class crunner(object):
                                     b_overrideReturn    = True
                                     returncode          = val
         self.exe_waitUntilDone(timeout = timeout)
+        str_jobCount    = str(self.jobCount-1)
         if not b_overrideReturn:
-            returncode  = self.d_job[self.jobCount-1]['returncode']
+            returncode  = self.d_job[str_jobCount]['returncode']
 
         if self.b_showStdOut:
             for j in range(0, self.jobTotal):
