@@ -500,43 +500,86 @@ class Listener(threading.Thread):
          Dispatcher for PUT
         """
 
-        str_cmd     = ""
-        str_action  = ""
-        str_context = ""
+        d_payload       = {}
+        str_cmd         = ""
+        str_action      = ""
+        str_context     = ""
+
+        str_dbpath      = self.str_DBpath
+        str_fileio      = "json"
+
         for k,v in kwargs.items():
-            if k == 'cmd':      str_cmd     = v
+            if k == 'payload':  d_payload   = v
             if k == 'action':   str_action  = v
-            if k == 'context':  str_context = v
+
+        self.dp.print('action = %s' % str_action)
+        d_exec              = d_payload['exec']
+        str_cmd             = d_exec['cmd']
+        str_action          = d_payload['action']
+        self.dp.print('action = %s' % str_action)
+
+        if 'context'    in d_exec:  str_context     = d_exec['context']
+        if 'dbpath'     in d_exec:  str_dbpath      = d_exec['dbpath']
+        if 'fileio'     in d_exec:  str_type        = d_exec['fileio']
+
         if str_action.lower() == 'run' and str_context.lower() == 'db':
-            self.DB_fileIO(cmd  = str_cmd)
+            self.DB_fileIO(cmd      = str_cmd,
+                           fileio   = str_fileio,
+                           dbpath   = str_dbpath)
 
     def DB_fileIO(self, **kwargs):
         """
         Process DB file IO requests. Typically these control the
         DB -- save or load.
         """
-        str_cmd = 'save'
+        str_cmd     = 'save'
+        str_dbpath  = self.str_DBpath
+        str_fileio  = 'json'
 
         for k,v in kwargs.items():
-            if k == 'cmd':  str_cmd = v
+            if k == 'cmd':      str_cmd     = v
+            if k == 'fileio':   str_fileio  = v
+            if k == 'dbpath':   str_dbpath  = v
+
+
+        self.dp.print('cmd      = %s' % str_cmd)
+        self.dp.print('fileio   = %s' % str_fileio)
+        self.dp.print('dbpath   = %s' % str_dbpath)
 
         if str_cmd == 'save':
-            if os.path.isdir(self.str_DBpath):
-                shutil.rmtree(self.str_DBpath)
-            self._ptree.tree_save(
-                startPath       = '/',
-                pathDiskRoot    = self.str_DBpath,
-                failOnDirExist  = False,
-                saveJSON        = True,
-                savePickle      = False)
+            if os.path.isdir(str_dbpath):
+                shutil.rmtree(str_dbpath)
+            if str_fileio   == 'json':
+                self._ptree.tree_save(
+                    startPath       = '/',
+                    pathDiskRoot    = str_dbpath,
+                    failOnDirExist  = False,
+                    saveJSON        = True,
+                    savePickle      = False)
+            if str_fileio   == 'pickle':
+                self._ptree.tree_save(
+                    startPath       = '/',
+                    pathDiskRoot    = str_dbpath,
+                    failOnDirExist  = False,
+                    saveJSON        = False,
+                    savePickle      = True)
 
         if str_cmd == 'load':
-            self._ptree = C_snode.tree_load(
-                startPath       = '/',
-                pathDiskRoot    = self.str_DBpath,
-                failOnDirExist  = False,
-                loadJSON        = True,
-                loadPickle      = False)
+            if str_fileio   == 'json':
+                self._ptree = C_snode.C_stree.tree_load(
+                    startPath       = '/',
+                    pathDiskRoot    = str_dbpath,
+                    failOnDirExist  = False,
+                    loadJSON        = True,
+                    loadPickle      = False)
+            if str_fileio   == 'pickle':
+                self._ptree = C_snode.C_stree.tree_load(
+                    startPath       = '/',
+                    pathDiskRoot    = str_dbpath,
+                    failOnDirExist  = False,
+                    loadJSON        = False,
+                    loadPickle      = True)
+
 
     def DB_get(self, **kwargs):
         """
@@ -606,16 +649,8 @@ class Listener(threading.Thread):
                     l_pathFile      = l_pathFile[::-1]
                     str_access      = ""
                     for l in l_pathFile:
-                        b_int       = False
-                        try:
-                            i       = int(l)
-                            b_int   = True
-                        except:
-                            b_int   = False
-                        if b_int:
-                            str_access += "[%s]" % l
-                        else:
-                            str_access += "['%s']" % l
+                        str_access += "['%s']" % l
+                    self.dp.print('str_access = %s' % str_access)
                     try:
                         contents        = eval('contents%s' % str_access)
                     except:
@@ -664,8 +699,10 @@ class Listener(threading.Thread):
             json_payload            = l_raw[-1]
             str_CTL                 = ''
 
-            d_ret                   = {}
+            # remove trailing '/' if any on path
+            if str_path[-1]         == '/': str_path = str_path[0:-1]
 
+            d_ret                   = {}
             d_ret['status']         = False
             d_ret['RESTheader']     = REST_header
             d_ret['RESTverb']       = REST_verb
@@ -698,8 +735,7 @@ class Listener(threading.Thread):
                     d_ret['cmd']        = d_exec['cmd']
                     d_ret['context']    = d_exec['context']
                     d_ret['action']     = payload_verb
-                    self.processPUT(cmd     = d_exec['cmd'],
-                                    context = d_exec['context'],
+                    self.processPUT(payload = d_request,
                                     action  = payload_verb)
                     d_ret['status'] = True
 
