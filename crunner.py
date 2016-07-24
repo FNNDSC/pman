@@ -33,6 +33,8 @@ def synopsis(ab_shortOnly = False):
                     -c|--command <CMD>              \\
                     --pipeline                      \\
                     --ssh <user@machine[:<port>]>   \\
+                    --auid <apparentUserID>         \\
+                    --jid <jobID>                   \\
                     --prettyprint                   \\
                     --jsonprint                     \\
                     --showStdOut                    \\
@@ -67,6 +69,18 @@ def synopsis(ab_shortOnly = False):
         If specified, treat compound commands (i.e. command strings
         concatenated together with ';') as a pipeline. Track each
         individual command separately.
+
+        --auid <apparentUserID>
+        Set the apparent User ID. This is a field stored at the root level
+        of a job data structure and is useful is a job is run as one user
+        but is apparently run as another. In particular, for certain cluster
+        jobs, all jobs might be run as a single "master" user, but need to
+        retain some concept of the apparent user that actually scheduled or
+        started the job.
+
+        --jid <jobID>
+        Set the jobID, which is a field stored at the root level of a job
+        data structure.
 
         --ssh <user@machine[:port]>
         If specified, ssh as <user> to <machine>[:port]> and execute the <CMD>
@@ -236,6 +250,8 @@ class crunner(object):
         self.d_fjob             = {}
         self.b_synchronized     = False
         self.b_jobsAllDone      = False
+        self.jid                = ''
+        self.auid               = ''
 
         # Threads for job control and execution
         self.t_ctl              = None      # Controller thread
@@ -394,6 +410,10 @@ class crunner(object):
         self.d_job[str_jobCount]['started']            = True
         self.d_job[str_jobCount]['startTrigger']       = True
         self.d_job[str_jobCount]['eventFunctionDone']  = False
+        if len(self.auid):
+            self.d_job[str_jobCount]['auid']           = self.auid
+        if len(self.jid):
+            self.d_job[str_jobCount]['jid']            = self.jid
 
         # Platform info
         self.d_job[str_jobCount]['system']             = platform.system()
@@ -583,7 +603,7 @@ class crunner(object):
 
         while not b_success and job < self.jobTotal:
             try:
-                ret         = self.d_job[job][field]
+                ret         = self.d_job[str(job)][field]
                 b_success   = True
             except:
                 time.sleep(timeout)
@@ -765,7 +785,7 @@ class crunner(object):
             while not eval(f_waitForEvent) and self.jobCount < self.jobTotal: pass
             if b_onEventTriggeredDo and self.jobCount < self.jobTotal:
                 eval(onEventTriggeredDo)
-                self.d_job[currentJob]['eventFunctionDone']   = True
+                self.d_job[str(currentJob)]['eventFunctionDone']   = True
                 self.debug.print(msg = "currentJob = %d job queue = %d / %d  -->b_synchronized = %r<--" %
                                        (currentJob,
                                         self.jobCount,
@@ -823,10 +843,10 @@ class crunner(object):
 
         if self.b_showStdOut:
             for j in range(0, self.jobTotal):
-                print(self.d_job[j]['stdout'])
+                print(self.d_job[str(j)]['stdout'])
         if self.b_showStdErr:
             for j in range(0, self.jobTotal):
-                print(self.d_job[j]['stderr'])
+                print(self.d_job[str(j)]['stderr'])
 
         sys.exit(returncode)
 
@@ -955,6 +975,20 @@ if __name__ == '__main__':
         default = ''
     )
     parser.add_argument(
+        '--jid',
+        help    = 'job ID.',
+        dest    = 'jid',
+        action  = 'store',
+        default = ''
+    )
+    parser.add_argument(
+        '--auid',
+        help    = 'apparent user id',
+        dest    = 'auid',
+        action  = 'store',
+        default = ''
+    )
+    parser.add_argument(
         '--pipeline',
         help    = 'interpret compound cmd as series of jobs',
         dest    = 'b_pipeline',
@@ -1021,6 +1055,9 @@ if __name__ == '__main__':
     shell.b_showStdOut      = args.b_stdout
     shell.b_showStdErr      = args.b_stderr
     shell.b_echoCmd         = args.b_echoCmd
+
+    shell.jid               = args.jid
+    shell.auid              = args.auid
 
     # Call the shell on a command line argument
     shell(args.command)
