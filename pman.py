@@ -142,7 +142,7 @@ class pman(object):
 
     def __init__(self, **kwargs):
         """
-
+        Constructor
         """
 
 
@@ -167,6 +167,10 @@ class pman(object):
         self.listeners          = 1
         self.b_http             = False
 
+        # Job info
+        self.auid               = ''
+        self.jid                = ''
+
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
@@ -179,6 +183,8 @@ class pman(object):
             if key == 'listeners':  self.listeners      = int(val)
             if key == 'http':       self.b_http         = int(val)
             if key == 'within':     self.within         = val
+            if key == 'jid':        self.jid            = val
+            if key == 'auid':       self.auid           = val
 
         print(Colors.YELLOW)
         print("""
@@ -204,20 +210,19 @@ class pman(object):
         Note <someIP> should be a full IP/name, and a client can interact with the
         service with a REST call, i.e.
 
-            Using curl:
+          Using curl:""" + Colors.GREEN + """
 
             curl -H "Content-Type: application/json"        \\
             -X POST                                         \\
-            -d '{"payload": {"exec":{"cmd": "name", "args": ["arg1", "arg2", "arg3"]}, "action": "PUSH"}}' \\
-            http://10.17.24.163:5010/api/login/
+            -d '{"payload": {"exec": {"cmd": "cal 2016"}, "action": "run"}' \\
+            http://192.168.1.189:5010/api/v1/cmd/""" + Colors.CYAN + """
 
+          Using http(ie):""" + Colors.GREEN + """
 
-            Using http(ie):
-
-            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
-            Content-Type:application/vnd.collection+json    \\
-            Accept:application/vnd.collection+json          \\
-            payload:='{"exec": {"cmd": "name", "args": ["-a", "arg1", "-b", "arg2"]}, "action": "PUSH"}'
+            http POST http://192.168.1.189:5010/api/v1/cmd/ \\
+            Content-Type:application/json                   \\
+            Accept:application/json                         \\
+            payload:='{"exec": {"cmd": "cal 2016"}, "action": "run"}'
 
         """)
 
@@ -359,7 +364,7 @@ class Listener(threading.Thread):
             return self.__name
 
     def __init__(self, **kwargs):
-        logging.debug('Starting __init__')
+        # logging.debug('Starting __init__')
         self.debug              = message.Message(logTo = './debug.log')
         self.debug._b_syslog    = True
         self._log               = message.Message()
@@ -371,6 +376,9 @@ class Listener(threading.Thread):
         self.poller             = None
         self.str_DBpath         = "/tmp/pman"
 
+        self.jid                = ''
+        self.auid               = ''
+
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'id':             self.worker_id      = val
@@ -379,12 +387,11 @@ class Listener(threading.Thread):
             if key == 'http':           self.b_http         = val
 
         threading.Thread.__init__(self)
-        logging.debug('leaving __init__')
+        # logging.debug('leaving __init__')
 
     def run(self):
         """ Main execution. """
         # Socket to communicate with front facing server.
-        logging.debug('Starting run...')
         self.dp.print('starting...')
         socket = self.zmq_context.socket(zmq.DEALER)
         socket.connect('inproc://backend')
@@ -437,9 +444,15 @@ class Listener(threading.Thread):
         """
 
         str_cmd         = ""
+        d_meta          = {}
 
         for k,v in kwargs.items():
             if k == 'cmd':  str_cmd     = v
+            if k == 'meta': d_meta      = v
+
+        if d_meta:
+            self.jid    = d_meta['jid']
+            self.auid   = d_meta['auid']
 
         self.dp.print("spawing and starting poller thread")
 
@@ -485,6 +498,10 @@ class Listener(threading.Thread):
         p.touch('endInfo',      d_endInfo)
         p.touch('jobCount',     jobCount-1)
         p.touch('cmd',          str_cmd)
+        if len(self.auid):
+            p.touch('auid',     self.auid)
+        if len(self.jid):
+            p.touch('jid',      self.jid)
 
         self.dp.print('All jobs processed.')
 
@@ -742,7 +759,10 @@ class Listener(threading.Thread):
                 if payload_verb == 'run' and REST_verb == 'POST':
                     d_ret['cmd']    = d_exec['cmd']
                     d_ret['action'] = payload_verb
-                    t_process_d_arg = {'cmd': d_exec['cmd']}
+                    d_meta          = {}
+                    if "meta" in d_request:
+                        d_meta      = d_request['meta']
+                    t_process_d_arg = {'cmd': d_exec['cmd'], 'meta': d_meta}
 
                     t_process       = threading.Thread( target  = self.t_job_process,
                                                         args    = (),
@@ -894,7 +914,6 @@ class Crunner(threading.Thread):
         for k,v in kwargs.items():
             if k == 'queue':    str_queue   = v
 
-
         if str_queue == 'startQueue':   queue   = self.queueStart
         if str_queue == 'endQueue':     queue   = self.queueEnd
 
@@ -966,6 +985,20 @@ if __name__ == "__main__":
         default = False,
         help    = 'Send HTTP formatted replies.'
     )
+    parser.add_argument(
+        '--jid',
+        help    = 'job ID.',
+        dest    = 'jid',
+        action  = 'store',
+        default = ''
+    )
+    parser.add_argument(
+        '--auid',
+        help    = 'apparent user id',
+        dest    = 'auid',
+        action  = 'store',
+        default = ''
+    )
 
 
     args    = parser.parse_args()
@@ -976,6 +1009,8 @@ if __name__ == "__main__":
                     protocol    = args.protocol,
                     raw         = args.raw,
                     listeners   = args.listeners,
-                    http        = args.http
+                    http        = args.http,
+                    jid         = args.jid,
+                    auid        = args.auid
                     )
     comm.start()
