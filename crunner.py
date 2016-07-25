@@ -1088,7 +1088,7 @@ if __name__ == '__main__':
     # The exitcode of the subprocess is returned to the system by this
     # call.
     d.print('done module')
-    if args.b_prettyprint:  print(shell.pp.pprint(shell.d_job))
+    if args.b_prettyprint:  shell.pp.pprint(shell.d_job)
     if args.b_jsonprint:    print(json.dumps(shell.d_job))
     shell.exitOnDone()
 
