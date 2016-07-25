@@ -104,7 +104,6 @@ class debug(object):
             for t in range(0, self.level): print("\t", end='')
             print(self.msg)
 
-
 class pman(object):
     """
     The server class for the pman (process manager) server
@@ -158,6 +157,7 @@ class pman(object):
         # DB
         self.str_DBpath         = '/tmp/pman'
         self._ptree             = C_snode.C_stree()
+        self.str_fileio         = 'json'
 
         # Comms
         self.str_protocol       = "tcp"
@@ -174,6 +174,7 @@ class pman(object):
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
+        self.dp                 = debug(verbosity=0, level=-1)
 
         for key,val in kwargs.items():
             if key == 'protocol':   self.str_protocol   = val
@@ -183,8 +184,6 @@ class pman(object):
             if key == 'listeners':  self.listeners      = int(val)
             if key == 'http':       self.b_http         = int(val)
             if key == 'within':     self.within         = val
-            if key == 'jid':        self.jid            = val
-            if key == 'auid':       self.auid           = val
 
         print(Colors.YELLOW)
         print("""
@@ -236,7 +235,8 @@ class pman(object):
 
         # Read the DB from HDD
         self._ptree             = C_snode.C_stree()
-        self.DB_read()
+        # self.DB_read()
+        self.DB_fileIO(cmd = 'load')
 
         # Setup zmq context
         self.zmq_context        = zmq.Context()
@@ -269,6 +269,74 @@ class pman(object):
                             'No DB found... creating empty default DB')
         print(Colors.NO_COLOUR, end='')
 
+    def DB_fileIO(self, **kwargs):
+        """
+        Process DB file IO requests. Typically these control the
+        DB -- save or load.
+        """
+        str_cmd     = 'save'
+        str_DBpath  = self.str_DBpath
+        str_fileio  = 'json'
+
+        for k,v in kwargs.items():
+            if k == 'cmd':      str_cmd             = v
+            if k == 'fileio':   self.str_fileio     = v
+            if k == 'dbpath':   self.str_DBpath     = v
+
+        self.dp.print('cmd      = %s' % str_cmd)
+        self.dp.print('fileio   = %s' % self.str_fileio)
+        self.dp.print('dbpath   = %s' % self.str_DBpath)
+
+        if str_cmd == 'save':
+            if os.path.isdir(self.str_DBpath):
+                shutil.rmtree(self.str_DBpath)
+            if self.str_fileio   == 'json':
+                self._ptree.tree_save(
+                    startPath       = '/',
+                    pathDiskRoot    = self.str_DBpath,
+                    failOnDirExist  = False,
+                    saveJSON        = True,
+                    savePickle      = False)
+            if self.str_fileio   == 'pickle':
+                self._ptree.tree_save(
+                    startPath       = '/',
+                    pathDiskRoot    = self.str_DBpath,
+                    failOnDirExist  = False,
+                    saveJSON        = False,
+                    savePickle      = True)
+
+        if str_cmd == 'load':
+            if os.path.isdir(self.str_DBpath):
+                self.debug("Reading pman DB from disk...\n")
+                if self.str_fileio   == 'json':
+                    self._ptree = C_snode.C_stree.tree_load(
+                        startPath       = '/',
+                        pathDiskRoot    = self.str_DBpath,
+                        failOnDirExist  = False,
+                        loadJSON        = True,
+                        loadPickle      = False)
+                if self.str_fileio   == 'pickle':
+                    self._ptree = C_snode.C_stree.tree_load(
+                        startPath       = '/',
+                        pathDiskRoot    = self.str_DBpath,
+                        failOnDirExist  = False,
+                        loadJSON        = False,
+                        loadPickle      = True)
+                self.debug("pman DB read from disk...\n")
+                self.col2_print('Reading pman DB from disk:', 'OK')
+            else:
+                P = self._ptree
+                P.tree_save(
+                    startPath       = '/',
+                    pathDiskRoot    = self.str_DBpath,
+                    failOnDirExist  = False,
+                    saveJSON        = True,
+                    savePickle      = False
+                )
+                self.col2_print('Reading pman DB from disk:',
+                                'No DB found... creating empty default DB')
+            print(Colors.NO_COLOUR, end='')
+
     def start(self):
         """
             Main execution.
@@ -297,13 +365,19 @@ class pman(object):
         socket_back = self.zmq_context.socket(zmq.DEALER)
         socket_back.bind('inproc://backend')
 
+        # Start the 'fileIO' thread
+        fileIO      = FileIO(       timout      = 60,
+                                    within      = self)
+        fileIO.start()
+
         # Start the 'listner' workers.
         for i in range(1,self.listeners+1):
             listener = Listener(    id          = i,
                                     context     = self.zmq_context,
                                     DB          = self._ptree,
                                     DBpath      = self.str_DBpath,
-                                    http        = self.b_http)
+                                    http        = self.b_http,
+                                    within      = self)
             listener.start()
 
         # Use built in queue device to distribute requests among workers.
@@ -337,6 +411,68 @@ class pman(object):
     def stree(self, value):
         """STree Getter"""
         self._stree = value
+
+class FileIO(threading.Thread):
+    """
+    A class that periodically saves the database from memory out to disk.
+    """
+    def log(self, *args):
+        """
+        get/set the internal pipeline listener object.
+
+        Caller can further manipulate the log object with object-specific
+        calls.
+        """
+        if len(args):
+            self._log = args[0]
+        else:
+            return self._log
+
+    def name(self, *args):
+        """
+        get/set the descriptive name text of this object.
+        """
+        if len(args):
+            self.__name = args[0]
+        else:
+            return self.__name
+
+    def __init__(self, **kwargs):
+        # logging.debug('Starting __init__')
+        self.debug              = message.Message(logTo = './debug.log')
+        self.debug._b_syslog    = True
+        self._log               = message.Message()
+        self._log._b_syslog     = True
+        self.__name             = "FileIO"
+        self.b_http             = False
+        self.dp                 = debug(verbosity=0, level=-1)
+
+        self.str_DBpath         = "/tmp/pman"
+
+        self.timeout            = 60
+        self.within             = None
+
+        for key,val in kwargs.items():
+            if key == 'DB':             self._ptree         = val
+            if key == 'DBpath':         self.str_DBpath     = val
+            if key == 'timeout':        self.timeout        = val
+            if key == 'within':         self.within         = val
+
+        threading.Thread.__init__(self)
+
+    def run(self):
+        """ Main execution. """
+        # Socket to communicate with front facing server.
+        self.dp.print('starting FileIO handler...')
+
+        while True:
+            self.dp.print('Saving DB as type "%s" to "%s"...' % (
+                self.within.str_fileio,
+                self.within.str_DBpath
+            ))
+            self.within.DB_fileIO(cmd = 'save')
+            self.dp.print('DB saved...')
+            time.sleep(self.timeout)
 
 class Listener(threading.Thread):
     """ Listeners accept computation requests from front facing server.
@@ -379,12 +515,15 @@ class Listener(threading.Thread):
         self.jid                = ''
         self.auid               = ''
 
+        self.within             = None
+
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'id':             self.worker_id      = val
             if key == 'DB':             self._ptree         = val
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'http':           self.b_http         = val
+            if key == 'within':         self.within         = val
 
         threading.Thread.__init__(self)
         # logging.debug('leaving __init__')
@@ -522,7 +661,7 @@ class Listener(threading.Thread):
         str_action      = ""
         str_context     = ""
 
-        str_dbpath      = self.str_DBpath
+        str_DBpath      = self.str_DBpath
         str_fileio      = "json"
 
         for k,v in kwargs.items():
@@ -536,67 +675,13 @@ class Listener(threading.Thread):
         self.dp.print('action = %s' % str_action)
 
         if 'context'    in d_exec:  str_context     = d_exec['context']
-        if 'dbpath'     in d_exec:  str_dbpath      = d_exec['dbpath']
+        if 'dbpath'     in d_exec:  str_DBpath      = d_exec['dbpath']
         if 'fileio'     in d_exec:  str_type        = d_exec['fileio']
 
         if str_action.lower() == 'run' and str_context.lower() == 'db':
-            self.DB_fileIO(cmd      = str_cmd,
-                           fileio   = str_fileio,
-                           dbpath   = str_dbpath)
-
-    def DB_fileIO(self, **kwargs):
-        """
-        Process DB file IO requests. Typically these control the
-        DB -- save or load.
-        """
-        str_cmd     = 'save'
-        str_dbpath  = self.str_DBpath
-        str_fileio  = 'json'
-
-        for k,v in kwargs.items():
-            if k == 'cmd':      str_cmd     = v
-            if k == 'fileio':   str_fileio  = v
-            if k == 'dbpath':   str_dbpath  = v
-
-
-        self.dp.print('cmd      = %s' % str_cmd)
-        self.dp.print('fileio   = %s' % str_fileio)
-        self.dp.print('dbpath   = %s' % str_dbpath)
-
-        if str_cmd == 'save':
-            if os.path.isdir(str_dbpath):
-                shutil.rmtree(str_dbpath)
-            if str_fileio   == 'json':
-                self._ptree.tree_save(
-                    startPath       = '/',
-                    pathDiskRoot    = str_dbpath,
-                    failOnDirExist  = False,
-                    saveJSON        = True,
-                    savePickle      = False)
-            if str_fileio   == 'pickle':
-                self._ptree.tree_save(
-                    startPath       = '/',
-                    pathDiskRoot    = str_dbpath,
-                    failOnDirExist  = False,
-                    saveJSON        = False,
-                    savePickle      = True)
-
-        if str_cmd == 'load':
-            if str_fileio   == 'json':
-                self._ptree = C_snode.C_stree.tree_load(
-                    startPath       = '/',
-                    pathDiskRoot    = str_dbpath,
-                    failOnDirExist  = False,
-                    loadJSON        = True,
-                    loadPickle      = False)
-            if str_fileio   == 'pickle':
-                self._ptree = C_snode.C_stree.tree_load(
-                    startPath       = '/',
-                    pathDiskRoot    = str_dbpath,
-                    failOnDirExist  = False,
-                    loadJSON        = False,
-                    loadPickle      = True)
-
+            self.within.DB_fileIO(  cmd      = str_cmd,
+                                    fileio   = str_fileio,
+                                    dbpath   = str_DBpath)
 
     def DB_get(self, **kwargs):
         """
@@ -680,7 +765,6 @@ class Listener(threading.Thread):
         self.dp.print(dict(r.snode_root))
 
         return dict(r.snode_root)
-
 
     def process(self, request, **kwargs):
         """ Process the message from remote client
@@ -985,21 +1069,6 @@ if __name__ == "__main__":
         default = False,
         help    = 'Send HTTP formatted replies.'
     )
-    parser.add_argument(
-        '--jid',
-        help    = 'job ID.',
-        dest    = 'jid',
-        action  = 'store',
-        default = ''
-    )
-    parser.add_argument(
-        '--auid',
-        help    = 'apparent user id',
-        dest    = 'auid',
-        action  = 'store',
-        default = ''
-    )
-
 
     args    = parser.parse_args()
 
@@ -1009,8 +1078,6 @@ if __name__ == "__main__":
                     protocol    = args.protocol,
                     raw         = args.raw,
                     listeners   = args.listeners,
-                    http        = args.http,
-                    jid         = args.jid,
-                    auid        = args.auid
+                    http        = args.http
                     )
     comm.start()
