@@ -204,7 +204,7 @@ class pman(object):
 
         Typical calling syntax is:
 
-                ./pman.py --raw 1 --http --ip <someIP> --port 5010
+                ./pman.py --raw 1 --http --ip <someIP> --port 5010 --listeners <listeners>
 
         Note <someIP> should be a full IP/name, and a client can interact with the
         service with a REST call, i.e.
@@ -218,10 +218,52 @@ class pman(object):
 
           Using http(ie):""" + Colors.GREEN + """
 
+            # Execute a command
             http POST http://192.168.1.189:5010/api/v1/cmd/ \\
             Content-Type:application/json                   \\
             Accept:application/json                         \\
-            payload:='{"exec": {"cmd": "cal 2016"}, "action": "run"}'
+            payload:='{ "exec": {                           \\
+                            "cmd": "cal 2 2016"             \\
+                                },                          \\
+                        "action": "run"                     \\
+                        "meta": {                           \\
+                                    "auid": "John Smith,    \\
+                                    "jid":  "someJID"       \\
+                                }                           \\
+                       }'
+
+            # Search for a field
+            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
+            Content-Type:application/json                   \\
+            Accept:application/json                         \\
+            payload:='{ "action": "search",                 \\
+                        "meta": {                           \\
+                                    "key":"jid",            \\
+                                    "value":"<jid>-3"       \\
+                                }                           \\
+                       }'
+
+            # Search for an embedded field:
+            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
+            Content-Type:application/json                   \\
+            Accept:application/json                         \\
+            payload:='{"action":    "search",               \\
+                        "meta": {                           \\
+                               "key":"end/0/endInfo/0/cmd", \\
+                               "value":"cal 2 2016"         \\
+                                }                           \\
+                        }'
+
+            # Check if a hit on a search is 'done':
+            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
+            Content-Type:application/json                   \\
+            Accept:application/json                         \\
+            payload:='{ "action":    "done",                \\
+                        "meta": {                           \\
+                                    "key":"jid",            \\
+                                    "value":"<jid>-2"       \\
+                                 }                          \\
+                        }'
 
         """)
 
@@ -475,7 +517,7 @@ class FileIO(threading.Thread):
             time.sleep(self.timeout)
 
 class Listener(threading.Thread):
-    """ Listeners accept computation requests from front facing server.
+    """ Listeners accept communication requests from front facing server.
         Parse input text streams and act accordingly. """
 
     def log(self, *args):
@@ -570,6 +612,77 @@ class Listener(threading.Thread):
                 else:
                     socket.send(str_payload)
                 if result['action'] == 'quit': os._exit(1)
+
+    def t_search_process(self, *args, **kwargs):
+        """
+
+        Search
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+        self.dp.print("In search process...")
+
+        d_request   = {}
+        d_ret       = {}
+        hits        = 0
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+
+        str_fileName    = d_request['meta']['key']
+        str_target      = d_request['meta']['value']
+        p = self._ptree
+        for r in self._ptree.lstr_lsnode('/'):
+            if p.cd('/' + r)['status']:
+                str_val = p.cat(str_fileName)
+                if str_val == str_target:
+                    str_path            = '/api/v1/' + r + '/' + str_fileName
+                    d_ret[str(hits)]    = {}
+                    d_ret[str(hits)]    = self.DB_get(path = str_path)
+                    hits               += 1
+        return d_ret
+
+    def t_done_process(self, *args, **kwargs):
+        """
+
+        Check if the job corresponding to the search pattern is "done".
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+        self.dp.print("In done process...")
+
+        d_request   = {}
+        d_ret       = {}
+        hits        = 0
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+
+        d_search    = self.t_search_process(request = d_request)
+
+        p = self._ptree
+        for j in d_search.keys():
+            d_j = d_search[j]
+            for job in d_j.keys():
+                str_path    = '/api/vi/' + job + '/endInfo'
+                d_ret[str(hits)]    = {}
+                d_ret[str(hits)]    = self.DB_get(path = str_path)
+                hits               += 1
+        if not d_ret:
+            d_ret                   = {
+                "-1":   {
+                    "noJobFound":   {
+                        "endInfo":  {"allJobsDone": None}
+                    }
+                }
+            }
+        return d_ret
+
+
 
     def t_job_process(self, *args, **kwargs):
         """
@@ -821,7 +934,8 @@ class Listener(threading.Thread):
                 print(d_request)
                 print("|||||||")
                 payload_verb        = d_request['action']
-                d_exec              = d_request['exec']
+                if 'exec' in d_request.keys():
+                    d_exec          = d_request['exec']
                 d_ret['payloadsize']= len(json_payload)
 
                 # o_URL               = urlparse(str_URL)
@@ -854,7 +968,15 @@ class Listener(threading.Thread):
                     t_process.start()
                     d_ret['status'] = True
 
-                    # self.job_process(cmd = d_exec['cmd'])
+                if payload_verb == 'search' and REST_verb == "POST":
+                    d_ret['action'] = payload_verb
+                    d_ret['meta']   = d_request['meta']
+                    d_ret['hits']   = self.t_search_process(request = d_request)
+
+                if payload_verb == 'done' and REST_verb == "POST":
+                    d_ret['action'] = payload_verb
+                    d_ret['meta']   = d_request['meta']
+                    d_ret['hits']   = self.t_done_process(request = d_request)
 
             return d_ret
 
