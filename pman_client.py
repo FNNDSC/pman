@@ -69,20 +69,35 @@ class Client():
         these relate to the saving of the internal database.
 
         Several "canned" command payloads are available, and are triggered
-        by an approprite "--testsuite <index> [--loop <loop>]":
+        by an approprite "--testsuite <type> [--loop <loop>]":
 
-            --testsuite 1:
-            Create <loop> instances of 'cmd'. These are in fact 'eval'ed, so
-            C-style literals like '%d' are replaced by the current <loop>.
+            --testsuite POST:
+            Create <loop> instances of 'cmd'. Any instances in the <cmd> of
+            C-style literals like '%d' are replaced by the current <loop>
+            count. These cmds are then executed/managed by 'pman'.
 
-            --testsuite 2:
-            Get first <loop> jobInfo packages.
+            --testsuite GET_/endInfo:
+            GET first <loop> jobInfo packages and return the _<suffix> in the
+            jobInfo tree.
+
         """)
 
         print(Colors.WHITE + "\t\tWill transmit to: " + Colors.LIGHT_BLUE, end='')
         print('%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
         print(Colors.WHITE + "\t\tIter-transmit delay: " + Colors.LIGHT_BLUE, end='')
         print('%d second(s)' % (self.txpause))
+
+    def shell_reset(self):
+        """
+        "resets" i.e. re-initializes the internal crunner shell
+        :return:
+        """
+        self.shell                      = crunner.crunner(verbosity=-1)
+        self.shell.b_splitCompound      = True
+        self.shell.b_showStdOut         = True
+        self.shell.b_showStdErr         = True
+        self.shell.b_echoCmd            = True
+        self.shell.b_splitCompound      = True
 
     def testsuite_handle(self, **kwargs):
         """
@@ -91,39 +106,93 @@ class Client():
 
         # First, process the <cmd> string for any special characters
 
-        testsuite       = 0
 
         str_shellCmd    = ""
+        b_tx            = False
         str_cmd = self.str_cmd
-
-        for k,v in kwargs.items():
-            if k == 'testsuite':    testsuite   = int(v)
+        str_test        = "POST"
+        str_suffix      = ""
+        l_testsuite     = self.str_testsuite.split('_')
+        if len(l_testsuite) == 2:
+            [str_test, str_suffix]  = l_testsuite
 
         for l in range(self.loopStart, self.loopEnd):
+            b_tx        = False
+            if "%d" in self.str_cmd:
+                str_cmd = self.str_cmd.replace("%d", str(l))
+            self.shell_reset()
 
-            if testsuite    == 0:
-                if "%d" in self.str_cmd:
-                    str_cmd = self.str_cmd.replace("%d", str(l))
-                    # print(str_cmd)
+            if str_test == "POST":
+                #
+                # POST <cmd>
+                #
                 str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":{\"auid\":\"%s\", \"jid\":\"%s-%d\"}}'" \
                                         % (self.str_ip, self.str_port, str_cmd, self.str_auid, self.str_jid, l)
-                self.shell                      = crunner.crunner(verbosity=-1)
-                self.shell.b_splitCompound      = True
-                self.shell.b_showStdOut         = True
-                self.shell.b_showStdErr         = True
-                self.shell.b_echoCmd            = True
+                b_tx            = True
+            if str_test == "GET":
+                #
+                # GET <cmd>
+                #
+                str_shellCmd    = "http GET http://%s:%s/api/v1/_%d/%s Content-Type:application/json Accept:application/json" \
+                                  % (self.str_ip, self.str_port, l, str_suffix)
+                b_tx            = True
+
+            if b_tx:
                 print(Colors.LIGHT_BLUE)
                 print("Sending...")
-                self.shell(str_shellCmd)
-                self.shell.jobs_loopctl()
+
+                d_ret   = self.shell.run(str_shellCmd)
+
                 print(Colors.LIGHT_GREEN)
                 print("Receiving...")
-                json_stdout  = json.loads(self.shell.d_job["0"]["stdout"])
+                json_stdout         = {}
+                json_stderr         = {}
+                json_returncode     = {}
+                if len(d_ret["stdout"]):
+                    json_stdout         = {"stdout": json.loads(d_ret["stdout"])}
+                if len(d_ret["stderr"]):
+                    json_stderr         = {"stderr" :d_ret["stderr"]}
+                if len(str(d_ret["returncode"])):
+                    json_returncode     = {"returncode": json.loads(str(d_ret["returncode"]))}
                 self.pp.pprint(json_stdout)
+                self.pp.pprint(json_stderr)
+                self.pp.pprint(json_returncode)
                 print("\n")
-                print("Pausing for %d second(s)..." % self.txpause)
+                print(Colors.LIGHT_RED + "Pausing for %d second(s)..." % self.txpause)
                 time.sleep(self.txpause)
                 print("\n")
+
+    def action_process(self, d_msg):
+        """
+        Process the "action" in d_msg
+        """
+
+        if d_msg['action'] == 'search':
+            d_params    = d_msg['params']
+            str_key     = d_params['key']
+            str_value   = d_params['value']
+            # First get list of all "jobs"
+            self.shell_reset()
+            str_shellCmd    = "http GET http://%s:%s/api/v1/ Content-Type:application/json Accept:application/json" \
+                              % (self.str_ip, self.str_port)
+            d_ret       = self.shell.run(str_shellCmd)
+            json_stdout = json.loads(d_ret['stdout'])
+            json_GET    = json_stdout['GET']
+            l_keys      = json_GET.keys()
+
+            for j in l_keys:
+                self.shell_reset()
+                str_shellCmd    = "http GET http://%s:%s/api/v1/%s/%s Content-Type:application/json Accept:application/json" \
+                                  % (self.str_ip, self.str_port, j, str_key)
+                d_ret   = self.shell.run(str_shellCmd)
+                json_stdout = json.loads(d_ret['stdout'])
+                json_val    = json_stdout['GET'][j][str_key]
+                if json_val == str_value:
+                    print(j)
+
+                # self.pp.pprint(json_val)
+
+
 
     def run(self):
         ''' Connects to server. Send message, poll for and print result to standard out. '''
@@ -131,7 +200,13 @@ class Client():
         if len(self.str_testsuite):
             self.testsuite_handle()
 
-        print(Colors.LIGHT_PURPLE + 'msg to transmit - %s ' % (self.str_msg))
+        if len(self.str_msg):
+            d_msg   = json.loads(self.str_msg)
+
+            if 'action' in d_msg.keys():
+                self.action_process(d_msg)
+
+            print(Colors.LIGHT_PURPLE + 'msg to transmit - %s ' % (json.dumps(d_msg)))
 
 
 
@@ -200,14 +275,14 @@ if __name__ == '__main__':
         help    = 'start internal testsuite loop at loopStart',
         dest    = 'loopStart',
         action  = 'store',
-        default = ''
+        default = '0'
     )
     parser.add_argument(
         '--loopEnd',
         help    = 'end internal testsuite loop at loopEnd',
         dest    = 'loopEnd',
         action  = 'store',
-        default = ''
+        default = '0'
     )
 
     args    = parser.parse_args()
