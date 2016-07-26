@@ -850,6 +850,36 @@ class crunner(object):
 
         sys.exit(returncode)
 
+    def run(self, str_cmd, **kwargs):
+        """
+        A convenience function that "runs" the passed <str_cmd> and returns information
+        of job "0". Different jobs can be specified by kwargs for compound statements.
+
+        Returns a dictionary:
+
+            {
+                "stdout":   <stdout from job>,
+                "stderr":   <stderr from job>,
+                "exitCode": <exitCode from job>
+            }
+
+        """
+
+        str_job = "0"
+
+        for k,v in kwargs.items():
+            if k == 'job':  str_job = v
+
+        self.__call__(str_cmd)
+        self.jobs_loopctl()
+
+        d_ret                   = {}
+        d_ret['stdout']         = self.d_job[str_job]['stdout']
+        d_ret['stderr']         = self.d_job[str_job]['stderr']
+        d_ret['returncode']     = self.d_job[str_job]['returncode']
+
+        return d_ret
+
 class crunner_ssh(crunner):
     """
     A specialized class that handles ssh connections to remote
