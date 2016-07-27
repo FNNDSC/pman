@@ -36,11 +36,7 @@ class Client():
         self.txpause        = 1
         self.pp             = pprint.PrettyPrinter(indent=4)
 
-        self.shell                      = crunner.crunner()
-        self.shell.b_splitCompound      = True
-        self.shell.b_showStdOut         = True
-        self.shell.b_showStdErr         = True
-        self.shell.b_echoCmd            = True
+        self.b_quiet        = False
 
         for key,val in kwargs.items():
             if key == 'cmd':        self.str_cmd        = val
@@ -53,39 +49,48 @@ class Client():
             if key == 'testsuite':  self.str_testsuite  = val
             if key == 'loopStart':  self.loopStart      = int(val)
             if key == 'loopEnd':    self.loopEnd        = int(val)
+            if key == 'b_quiet':    self.b_quiet        = val
 
-        print(Colors.LIGHT_GREEN)
-        print("""
-        \t+---------------------------------+
-        \t| Welcome to the pman client test |
-        \t+---------------------------------+
-        """)
-        print(Colors.CYAN + """
-        This program sends command payloads to a 'pman' process manager. A
-        command is a typical bash command string to be executed and managed
-        by pman.
+        self.shell                      = crunner.crunner(verbosity=-1)
+        self.shell.b_splitCompound      = True
+        self.shell.b_showStdOut         = not self.b_quiet
+        self.shell.b_showStdErr         = not self.b_quiet
+        self.shell.b_echoCmd            = not self.b_quiet
 
-        In addition, several control messages can also be sent to 'pman'. Typically
-        these relate to the saving of the internal database.
+        if not self.b_quiet:
 
-        Several "canned" command payloads are available, and are triggered
-        by an approprite "--testsuite <type> [--loop <loop>]":
+            print(Colors.LIGHT_GREEN)
+            print("""
+            \t+---------------------------------+
+            \t| Welcome to the pman client test |
+            \t+---------------------------------+
+            """)
+            print(Colors.CYAN + """
+            This program sends command payloads to a 'pman' process manager. A
+            command is a typical bash command string to be executed and managed
+            by pman.
 
-            --testsuite POST:
-            Create <loop> instances of 'cmd'. Any instances in the <cmd> of
-            C-style literals like '%d' are replaced by the current <loop>
-            count. These cmds are then executed/managed by 'pman'.
+            In addition, several control messages can also be sent to 'pman'. Typically
+            these relate to the saving of the internal database.
 
-            --testsuite GET_/endInfo:
-            GET first <loop> jobInfo packages and return the _<suffix> in the
-            jobInfo tree.
+            Several "canned" command payloads are available, and are triggered
+            by an approprite "--testsuite <type> [--loop <loop>]":
 
-        """)
+                --testsuite POST:
+                Create <loop> instances of 'cmd'. Any instances in the <cmd> of
+                C-style literals like '%d' are replaced by the current <loop>
+                count. These cmds are then executed/managed by 'pman'.
 
-        print(Colors.WHITE + "\t\tWill transmit to: " + Colors.LIGHT_BLUE, end='')
-        print('%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
-        print(Colors.WHITE + "\t\tIter-transmit delay: " + Colors.LIGHT_BLUE, end='')
-        print('%d second(s)' % (self.txpause))
+                --testsuite GET_/endInfo:
+                GET first <loop> jobInfo packages and return the _<suffix> in the
+                jobInfo tree.
+
+            """)
+
+            print(Colors.WHITE + "\t\tWill transmit to: " + Colors.LIGHT_BLUE, end='')
+            print('%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
+            print(Colors.WHITE + "\t\tIter-transmit delay: " + Colors.LIGHT_BLUE, end='')
+            print('%d second(s)' % (self.txpause))
 
     def shell_reset(self):
         """
@@ -94,10 +99,9 @@ class Client():
         """
         self.shell                      = crunner.crunner(verbosity=-1)
         self.shell.b_splitCompound      = True
-        self.shell.b_showStdOut         = True
-        self.shell.b_showStdErr         = True
-        self.shell.b_echoCmd            = True
-        self.shell.b_splitCompound      = True
+        self.shell.b_showStdOut         = not self.b_quiet
+        self.shell.b_showStdErr         = not self.b_quiet
+        self.shell.b_echoCmd            = not self.b_quiet
 
     def testsuite_handle(self, **kwargs):
         """
@@ -109,7 +113,7 @@ class Client():
 
         str_shellCmd    = ""
         b_tx            = False
-        str_cmd = self.str_cmd
+        str_cmd         = self.str_cmd
         str_test        = "POST"
         str_suffix      = ""
         l_testsuite     = self.str_testsuite.split('_')
@@ -167,8 +171,8 @@ class Client():
         Process the "action" in d_msg
         """
 
-        if d_msg['action'] == 'search':
-            d_params    = d_msg['params']
+        if d_msg['action'] == 'searchREST':
+            d_params    = d_msg['meta']
             str_key     = d_params['key']
             str_value   = d_params['value']
             # First get list of all "jobs"
@@ -184,15 +188,45 @@ class Client():
                 self.shell_reset()
                 str_shellCmd    = "http GET http://%s:%s/api/v1/%s/%s Content-Type:application/json Accept:application/json" \
                                   % (self.str_ip, self.str_port, j, str_key)
-                d_ret   = self.shell.run(str_shellCmd)
+                d_ret       = self.shell.run(str_shellCmd)
                 json_stdout = json.loads(d_ret['stdout'])
                 json_val    = json_stdout['GET'][j][str_key]
                 if json_val == str_value:
                     print(j)
 
-                # self.pp.pprint(json_val)
+        if d_msg['action'] == 'search':
+            d_params        = d_msg['meta']
+            str_key         = d_params['key']
+            str_value       = d_params['value']
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"search\",\"meta\":{\"key\":\"%s\", \"value\":\"%s\"}}'" \
+                              % (self.str_ip, self.str_port, str_key, str_value)
+            d_ret           = self.shell.run(str_shellCmd)
+            json_stdout     = json.loads(d_ret['stdout'])
+            json_hits       = json_stdout['hits']
+            # self.pp.pprint(json_hits)
+            print(json.dumps(json_stdout, indent=4))
 
+        if d_msg['action'] == 'done':
+            d_params        = d_msg['meta']
+            str_key         = d_params['key']
+            str_value       = d_params['value']
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"done\",\"meta\":{\"key\":\"%s\", \"value\":\"%s\"}}'" \
+                              % (self.str_ip, self.str_port, str_key, str_value)
+            d_ret           = self.shell.run(str_shellCmd)
+            json_stdout     = json.loads(d_ret['stdout'])
+            json_hits       = json_stdout['hits']
+            # self.pp.pprint(json_hits)
+            print(json.dumps(json_stdout, indent=4))
 
+        if d_msg['action'] == 'run' and len(self.str_cmd):
+            d_meta          = d_msg['meta']
+            str_meta        = json.dumps(d_meta)
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
+                              % (self.str_ip, self.str_port, self.str_cmd, str_meta)
+            d_ret       = self.shell.run(str_shellCmd)
+            json_stdout = json.loads(d_ret['stdout'])
+            # self.pp.pprint(json_stdout)
+            print(json.dumps(json_stdout, indent=4))
 
     def run(self):
         ''' Connects to server. Send message, poll for and print result to standard out. '''
@@ -205,10 +239,6 @@ class Client():
 
             if 'action' in d_msg.keys():
                 self.action_process(d_msg)
-
-            print(Colors.LIGHT_PURPLE + 'msg to transmit - %s ' % (json.dumps(d_msg)))
-
-
 
 if __name__ == '__main__':
 
@@ -284,6 +314,13 @@ if __name__ == '__main__':
         action  = 'store',
         default = '0'
     )
+    parser.add_argument(
+        '--quiet',
+        help    = 'if specified, only echo JSON output from server response',
+        dest    = 'b_quiet',
+        action  = 'store_true',
+        default = False
+    )
 
     args    = parser.parse_args()
     client  = Client(
@@ -296,7 +333,8 @@ if __name__ == '__main__':
                         txpause     = args.txpause,
                         testsuite   = args.testsuite,
                         loopStart   = args.loopStart,
-                        loopEnd     = args.loopEnd
+                        loopEnd     = args.loopEnd,
+                        b_quiet     = args.b_quiet
                 )
     client.run()
     sys.exit(0)
