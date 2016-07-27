@@ -553,6 +553,7 @@ class Listener(threading.Thread):
 
         self.poller             = None
         self.str_DBpath         = "/tmp/pman"
+        self.str_jobRootDir     = ''
 
         self.jid                = ''
         self.auid               = ''
@@ -668,9 +669,12 @@ class Listener(threading.Thread):
         for j in d_search.keys():
             d_j = d_search[j]
             for job in d_j.keys():
-                str_path    = '/api/vi/' + job + '/endInfo'
-                d_ret[str(hits)]    = {}
-                d_ret[str(hits)]    = self.DB_get(path = str_path)
+                str_pathStart       = '/api/vi/' + job + '/startInfo'
+                str_pathEnd         = '/api/vi/' + job + '/endInfo'
+                d_ret[str(hits)+'.0']    = {}
+                d_ret[str(hits)+'.0']    = self.DB_get(path = str_pathStart)
+                d_ret[str(hits)+'.1']    = {}
+                d_ret[str(hits)+'.1']    = self.DB_get(path = str_pathEnd)
                 hits               += 1
         if not d_ret:
             d_ret                   = {
@@ -695,8 +699,8 @@ class Listener(threading.Thread):
 
         """
 
-        str_cmd         = ""
-        d_meta          = {}
+        str_cmd             = ""
+        d_meta              = {}
 
         for k,v in kwargs.items():
             if k == 'cmd':  str_cmd     = v
@@ -712,21 +716,29 @@ class Listener(threading.Thread):
         self.poller  = Poller(cmd = str_cmd)
         self.poller.start()
 
-        str_timeStamp   = datetime.datetime.today().strftime('%Y%m%d%H%M%S.%f')
-        str_uuid        = uuid.uuid4()
-        str_dir         = '%s_%s' % (str_timeStamp, str_uuid)
+        str_timeStamp       = datetime.datetime.today().strftime('%Y%m%d%H%M%S.%f')
+        str_uuid            = uuid.uuid4()
+        str_dir             = '%s_%s' % (str_timeStamp, str_uuid)
+        self.str_jobRootDir = str_dir
 
-        b_jobsAllDone   = False
+        b_jobsAllDone       = False
 
-        p               = self._ptree
+        p                   = self._ptree
 
         p.cd('/')
         p.mkcd(str_dir)
+        p.touch('cmd',          str_cmd)
+        if len(self.auid):
+            p.touch('auid',     self.auid)
+        if len(self.jid):
+            p.touch('jid',      self.jid)
 
         p.mkdir('start')
         p.mkdir('end')
 
         jobCount        = 0
+        p.touch('jobCount',     jobCount)
+
         while not b_jobsAllDone:
             try:
                 b_jobsAllDone   = self.poller.queueAllDone.get_nowait()
@@ -737,6 +749,7 @@ class Listener(threading.Thread):
                 p.mkcd('%s' % jobCount)
                 p.touch('startInfo', d_startInfo.copy())
                 p.cd('../../../')
+                p.touch('/%s/startInfo' % str_dir, d_startInfo.copy())
 
                 self.dp.print('Waiting on end job info')
                 d_endInfo       = self.poller.queueEnd.get()
@@ -744,16 +757,9 @@ class Listener(threading.Thread):
                 p.mkcd('%s' % jobCount)
                 p.touch('endInfo', d_endInfo.copy())
                 p.cd('../../../')
+                p.touch('/%s/endInfo' % str_dir,    d_endInfo.copy())
+                p.touch('/%s/jobCount' % str_dir,   jobCount)
                 jobCount        += 1
-
-        p.touch('startInfo',    d_startInfo)
-        p.touch('endInfo',      d_endInfo)
-        p.touch('jobCount',     jobCount-1)
-        p.touch('cmd',          str_cmd)
-        if len(self.auid):
-            p.touch('auid',     self.auid)
-        if len(self.jid):
-            p.touch('jid',      self.jid)
 
         self.dp.print('All jobs processed.')
 
@@ -930,9 +936,9 @@ class Listener(threading.Thread):
             if len(json_payload):
                 d_payload           = json.loads(json_payload)
                 d_request           = d_payload['payload']
-                print("|||||||")
-                print(d_request)
-                print("|||||||")
+                # print("|||||||")
+                # print(d_request)
+                # print("|||||||")
                 payload_verb        = d_request['action']
                 if 'exec' in d_request.keys():
                     d_exec          = d_request['exec']
@@ -966,6 +972,8 @@ class Listener(threading.Thread):
                                                         args    = (),
                                                         kwargs  = t_process_d_arg)
                     t_process.start()
+                    time.sleep(0.1)
+                    d_ret['jobRootDir'] = self.str_jobRootDir
                     d_ret['status'] = True
 
                 if payload_verb == 'search' and REST_verb == "POST":
