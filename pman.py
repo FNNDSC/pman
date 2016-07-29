@@ -645,6 +645,51 @@ class Listener(threading.Thread):
                     hits               += 1
         return d_ret
 
+    def t_info_process(self, *args, **kwargs):
+        """
+
+        Check if the job corresponding to the search pattern is "done".
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+        self.dp.print("In done process...")
+
+        d_request   = {}
+        d_ret       = {}
+        b_status    = False
+        hits        = 0
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+
+        d_search    = self.t_search_process(request = d_request)
+
+        p = self._ptree
+        for j in d_search.keys():
+            d_j = d_search[j]
+            for job in d_j.keys():
+                str_pathStart       = '/api/v1/' + job + '/startInfo'
+                str_pathEnd         = '/api/v1/' + job + '/endInfo'
+                d_ret[str(hits)+'.0']    = {}
+                d_ret[str(hits)+'.0']    = self.DB_get(path = str_pathStart)
+                d_ret[str(hits)+'.1']    = {}
+                d_ret[str(hits)+'.1']    = self.DB_get(path = str_pathEnd)
+                hits               += 1
+        if not hits:
+            d_ret                   = {
+                "-1":   {
+                    "noJobFound":   {
+                        "endInfo":  {"allJobsDone": None}
+                    }
+                }
+            }
+        else:
+            b_status            = True
+        return {"hits":     d_ret,
+                "status":   b_status}
+
     def t_done_process(self, *args, **kwargs):
         """
 
@@ -659,24 +704,57 @@ class Listener(threading.Thread):
 
         d_request   = {}
         d_ret       = {}
+        b_status    = False
         hits        = 0
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
 
         d_search    = self.t_search_process(request = d_request)
 
-        p = self._ptree
+        p   = self._ptree
+        Ts  = C_snode.C_stree()
+        Te  = C_snode.C_stree()
         for j in d_search.keys():
             d_j = d_search[j]
             for job in d_j.keys():
-                str_pathStart       = '/api/vi/' + job + '/startInfo'
-                str_pathEnd         = '/api/vi/' + job + '/endInfo'
-                d_ret[str(hits)+'.0']    = {}
-                d_ret[str(hits)+'.0']    = self.DB_get(path = str_pathStart)
-                d_ret[str(hits)+'.1']    = {}
-                d_ret[str(hits)+'.1']    = self.DB_get(path = str_pathEnd)
+                str_pathStart       = '/api/v1/' + job + '/start'
+                str_pathEnd         = '/api/v1/' + job + '/end'
+                d_start             = self.DB_get(path = str_pathStart)
+                d_end               = self.DB_get(path = str_pathEnd)
+                Ts.initFromDict(d_start)
+                Te.initFromDict(d_end)
+
+                print(Ts)
+                l_subJobsStart      = []
+                if Ts.cd('/%s/start' % job)['status']:
+                    l_subJobsStart  = Ts.lstr_lsnode()
+                    l_subJobsStart  = list(map(int, l_subJobsStart))
+                    l_subJobsStart  = l_subJobsStart[:-1]
+
+                print(Te)
+                l_subJobsEnd        = []
+                if Te.cd('/%s/end' % job)['status']:
+                    l_subJobsEnd    = Te.lstr_lsnode()
+                    l_subJobsEnd    = list(map(int, l_subJobsEnd))
+                    l_subJobsEnd    = l_subJobsEnd[:-1]
+
+                print("subJobsStart = " + str(l_subJobsStart))
+                print("subJobsEnd = " + str(l_subJobsEnd))
+
+                for j in l_subJobsStart:
+                    l_subJobsStart[j]   = Ts.cat('/%s/start/%d/startInfo/%d/startTrigger' % \
+                                                 (job, j, j))
+
+                for j in l_subJobsEnd:
+                    l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % \
+                                                 (job, j, j))
+
+
+
+                d_ret[str(hits)+'.start']   = {"startTrigger":  l_subJobsStart}
+                d_ret[str(hits)+'.end']     = {"returncode":    l_subJobsEnd}
                 hits               += 1
-        if not d_ret:
+        if not hits:
             d_ret                   = {
                 "-1":   {
                     "noJobFound":   {
@@ -684,9 +762,10 @@ class Listener(threading.Thread):
                     }
                 }
             }
-        return d_ret
-
-
+        else:
+            b_status            = True
+        return {"hits":     d_ret,
+                "status":   b_status}
 
     def t_job_process(self, *args, **kwargs):
         """
@@ -980,11 +1059,22 @@ class Listener(threading.Thread):
                     d_ret['action'] = payload_verb
                     d_ret['meta']   = d_request['meta']
                     d_ret['hits']   = self.t_search_process(request = d_request)
+                    if d_ret['hits']:
+                        d_ret['status'] = True
 
                 if payload_verb == 'done' and REST_verb == "POST":
                     d_ret['action'] = payload_verb
                     d_ret['meta']   = d_request['meta']
-                    d_ret['hits']   = self.t_done_process(request = d_request)
+                    d_done          = self.t_done_process(request = d_request)
+                    d_ret['hits']   = d_done["hits"]
+                    d_ret['status'] = d_done["status"]
+
+                if payload_verb == 'info' and REST_verb == "POST":
+                    d_ret['action'] = payload_verb
+                    d_ret['meta']   = d_request['meta']
+                    d_done          = self.t_info_process(request = d_request)
+                    d_ret['hits']   = d_done["hits"]
+                    d_ret['status'] = d_done["status"]
 
             return d_ret
 
