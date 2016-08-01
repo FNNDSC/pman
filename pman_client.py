@@ -15,6 +15,7 @@ import  time
 import  sys
 import  json
 import  pprint
+import  socket
 
 class Client():
 
@@ -68,31 +69,16 @@ class Client():
 
             print(Colors.LIGHT_GREEN)
             print("""
-            \t+---------------------------------+
-            \t| Welcome to the pman client test |
-            \t+---------------------------------+
+            \t\t\t+---------------------------------+
+            \t\t\t| Welcome to the pman client test |
+            \t\t\t+---------------------------------+
             """)
             print(Colors.CYAN + """
             This program sends command payloads to a 'pman' process manager. A
             command is a typical bash command string to be executed and managed
             by pman.
 
-            In addition, several control messages can also be sent to 'pman'. Typically
-            these relate to the saving of the internal database.
-
-            Several "canned" command payloads are available, and are triggered
-            by an appropriate "--testsuite <type> [--loop <loop>]":
-
-                --testsuite POST:
-                Create <loop> instances of 'cmd'. Any instances in the <cmd> of
-                C-style literals like '%d' are replaced by the current <loop>
-                count. These cmds are then executed/managed by 'pman'.
-
-                --testsuite GET_endInfo:
-                --testsuite GET_cmd:
-                --testsuite GET_<path>:
-                GET first <loop> jobInfo packages and return the <path> in the
-                jobInfo tree. This path should NOT start with '/'!
+            See 'pman --man commands' for more help.
 
             """)
 
@@ -100,6 +86,7 @@ class Client():
             print('%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
             print(Colors.WHITE + "\t\tIter-transmit delay: " + Colors.LIGHT_BLUE, end='')
             print('%d second(s)' % (self.txpause))
+            print('')
 
     def man(self, **kwargs):
         """
@@ -117,12 +104,13 @@ class Client():
             str_commands = Colors.CYAN + """
             The following commands are serviced by this script:
             """ + "\n" + \
-            self.man_searchREST(description   =   "short")   + "\n" + \
-            self.man_search(    description   =   "short")   + "\n" + \
-            self.man_done(      description   =   "short")   + "\n" + \
-            self.man_info(      description   =   "short")   + "\n" + \
-            self.man_run(       description   =   "short")   + "\n" + \
-            self.man_get(       description   =   "short") + "\n"
+            self.man_searchREST(description   =   "short")      + "\n" + \
+            self.man_search(    description   =   "short")      + "\n" + \
+            self.man_done(      description   =   "short")      + "\n" + \
+            self.man_info(      description   =   "short")      + "\n" + \
+            self.man_run(       description   =   "short")      + "\n" + \
+            self.man_testsuite( description   =   "short")      + "\n" + \
+            self.man_get(       description   =   "short")      + "\n"
 
             return str_commands
 
@@ -132,6 +120,62 @@ class Client():
         if str_man  == 'done':          return self.man_done(       description  =   str_amount)
         if str_man  == 'run':           return self.man_run(        description  =   str_amount)
         if str_man  == 'get':           return self.man_get(        description  =   str_amount)
+        if str_man  == 'testsuite':     return self.man_testsuite(  description  =   str_amount)
+
+    def man_testsuite(self, **kwargs):
+        """
+        """
+
+        b_fullDescription   = False
+        str_description     = "full"
+
+        for k,v in kwargs.items():
+            if k == 'description':  str_description = v
+        if str_description == "full":   b_fullDescription   = True
+
+        str_manTxt =   Colors.LIGHT_CYAN        + \
+                       "\t\t%-20s" % "testsuite"    + \
+                       Colors.LIGHT_PURPLE      + \
+                       "%-60s" % "runs several convenience functions in a loop." + \
+                       Colors.NO_COLOUR
+
+        if b_fullDescription:
+            str_manTxt += """
+
+                This runs several convenience functions in a loop -- used primarily
+                to populate an empty pman DB with some default data. Any '%d' strings
+                in the <cmd> will be replaced by the current loop index. In addition,
+                the <jid> will be appended with the current loop index.
+
+                EXAMPLE:
+                """ + Colors.LIGHT_PURPLE + """
+
+                Run 12 instances of "cal %d 2016" with given auid and jid prefix: """+ \
+                Colors.LIGHT_GREEN + """
+
+                ./pman_client.py --ip %s --port 5010      \\
+                    --testsuite POST                                \\
+                    --cmd "cal %s 2016"                             \\
+                    --loopStart 0 --loopEnd 13                      \\
+                    --msg                                           \\
+                    '{  "meta": {
+                                    "auid": "rudolphpienaar",
+                                    "jid":  "<jid>"
+                                }
+                    }'
+                """ % (self.str_ip, "%d") + Colors.LIGHT_PURPLE + """
+
+                Get the first 12 "cmd" values from the root data tree: + """ +\
+                Colors.LIGHT_GREEN + """
+
+                ./pman_client.py --ip %s --port 5010      \\
+                    --testsuite GET_cmd                             \\
+                    --loopStart 0 --loopEnd 13                      \\
+                    --txpause 0
+
+                """ % self.str_ip + Colors.NO_COLOUR
+
+        return str_manTxt
 
     def man_searchREST(self, **kwargs):
         """
@@ -147,7 +191,7 @@ class Client():
         str_manTxt =   Colors.LIGHT_CYAN        + \
                        "\t\t%-20s" % "searchREST"    + \
                        Colors.LIGHT_PURPLE      + \
-                       "%-60s" % "Search for a target using an external client and REST calls." + \
+                       "%-60s" % "searches for a target using an external client and REST calls." + \
                         Colors.NO_COLOUR
 
         if b_fullDescription:
@@ -162,8 +206,8 @@ class Client():
                 ./pman_client.py --ip 192.168.1.189 --port 5010  --msg  \\
                     '{  "action": "searchREST",
                         "meta": {
-                                    "key": "auid",
-                                    "value": "rudolphpienaar"
+                                    "key":      "auid",
+                                    "value":    "rudolphpienaar"
                                 }
                     }'
                 """ + Colors.NO_COLOUR
@@ -184,7 +228,7 @@ class Client():
         str_manTxt =   Colors.LIGHT_CYAN        + \
                        "\t\t%-20s" % "search"       + \
                        Colors.LIGHT_PURPLE      + \
-                       "%-60s" % "Search for a target in a single call." + \
+                       "%-60s" % "searches for a target in a single call." + \
                        Colors.NO_COLOUR
 
         if b_fullDescription:
@@ -195,14 +239,14 @@ class Client():
 
                 EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip 192.168.1.189 --port 5010  --msg  \\
+                ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "search",
                         "meta": {
-                                    "key": "auid",
-                                    "value": "rudolphpienaar"
+                                    "key":      "auid",
+                                    "value":    "rudolphpienaar"
                                 }
                     }'
-                """ + Colors.NO_COLOUR
+                """ % self.str_ip + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -234,14 +278,14 @@ class Client():
 
                 EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip 192.168.1.189 --port 5010  --msg  \\
+                ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "info",
                         "meta": {
                                     "key":      "jid",
                                     "value":    "<jid>-1"
                                 }
                     }'
-                """ + Colors.NO_COLOUR
+                """ % self.str_ip + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -273,14 +317,14 @@ class Client():
 
                 EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip 192.168.1.189 --port 5010  --msg  \\
+                ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "done",
                         "meta": {
                                     "key":      "jid",
                                     "value":    "<jid>-1"
                                 }
                     }'
-                """ + Colors.NO_COLOUR
+                """ % self.str_ip + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -309,14 +353,14 @@ class Client():
 
                 EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip 192.168.1.189 --port 5010 --cmd "cal 7 1970" --msg  \\
+                ./pman_client.py --ip %s --port 5010 --cmd "cal 7 1970" --msg  \\
                     '{  "action": "run",
                         "meta": {
                                     "auid":     "rudolphpienaar",
                                     "jid":      "<jid>-1"
                                 }
                     }'
-                """ + Colors.NO_COLOUR
+                """ % self.str_ip + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -353,13 +397,13 @@ class Client():
 
                 EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip 192.168.1.189 --port 5010 --msg  \\
+                ./pman_client.py --ip %s --port 5010 --msg  \\
                     '{  "action": "get",
                         "meta": {
                                     "path":     "/_01/endInfo"
                                 }
                     }'
-                """ + Colors.NO_COLOUR
+                """ % self.str_ip + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -542,6 +586,8 @@ class Client():
 
 if __name__ == '__main__':
 
+    str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+
     parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
 
     parser.add_argument(
@@ -562,7 +608,7 @@ if __name__ == '__main__':
         '--ip',
         action  = 'store',
         dest    = 'ip',
-        default = '127.0.0.1',
+        default = str_defIP,
         help    = 'IP to connect.'
     )
     parser.add_argument(
