@@ -30,8 +30,6 @@ class Client():
         self.str_msg        = ""
         self.str_testsuite  = ""
         self.str_protocol   = "http"
-        self.str_auid       = "<auid>"
-        self.str_jid        = "<jid>"
         self.loopStart      = 0
         self.loopEnd        = 0
         self.txpause        = 1
@@ -46,8 +44,6 @@ class Client():
             if key == 'msg':        self.str_msg        = val
             if key == 'ip':         self.str_ip         = val
             if key == 'port':       self.str_port       = val
-            if key == 'auid':       self.str_auid       = val
-            if key == 'jid':        self.str_jid        = val
             if key == 'txpause':    self.txpause        = int(val)
             if key == 'testsuite':  self.str_testsuite  = val
             if key == 'loopStart':  self.loopStart      = int(val)
@@ -111,7 +107,14 @@ class Client():
             self.man_run(       description   =   "short")      + "\n" + \
             self.man_testsuite( description   =   "short")      + "\n" + \
             self.man_save(      description   =   "short")      + "\n" + \
-            self.man_get(       description   =   "short")      + "\n"
+            self.man_get(       description   =   "short")      + "\n" + \
+            Colors.YELLOW + \
+            """
+            To get detailed help on any of the above commands, type
+            """ + Colors.LIGHT_CYAN + \
+            """
+                ./pman_client.py --man <command>
+            """
 
             return str_commands
 
@@ -186,8 +189,7 @@ class Client():
 
                 This runs several convenience functions in a loop -- used primarily
                 to populate an empty pman DB with some default data. Any '%d' strings
-                in the <cmd> will be replaced by the current loop index. In addition,
-                the <jid> will be appended with the current loop index.
+                in the <cmd> and <jid> fields will be replaced by the current loop index.
 
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_PURPLE + """
@@ -202,10 +204,10 @@ class Client():
                     --msg                                           \\
                     '{  "meta": {
                                     "auid": "rudolphpienaar",
-                                    "jid":  "<jid>"
+                                    "jid":  "<jid>-%s"
                                 }
                     }'
-                """ % (self.str_ip, "%d") + Colors.LIGHT_PURPLE + """
+                """ % (self.str_ip, "%d", "%d") + Colors.LIGHT_PURPLE + """
 
                 Get the first 12 "cmd" values from the root data tree: + """ +\
                 Colors.LIGHT_GREEN + """
@@ -494,14 +496,14 @@ class Client():
         self.shell.b_showStdErr         = not self.b_quiet
         self.shell.b_echoCmd            = not self.b_quiet
 
-    def testsuite_handle(self, **kwargs):
+    def testsuite_handle(self, d_msg, **kwargs):
         """
         Handle the test suites.
         """
 
         # First, process the <cmd> string for any special characters
 
-
+        d_meta          = d_msg['meta']
         str_shellCmd    = ""
         b_tx            = False
         str_cmd         = self.str_cmd
@@ -513,18 +515,23 @@ class Client():
         if len(l_testsuite) == 1:
             [str_test]  = l_testsuite
 
+        str_jid         = d_meta['jid']
         for l in range(self.loopStart, self.loopEnd):
             b_tx        = False
             if "%d" in self.str_cmd:
                 str_cmd = self.str_cmd.replace("%d", str(l))
+            if "%d" in d_meta['jid']:
+                d_meta['jid']   = d_meta['jid'].replace("%d", str(l))
+            str_meta            = json.dumps(d_meta)
+            d_meta['jid']       = str_jid
             self.shell_reset()
 
             if str_test == "POST":
                 #
                 # POST <cmd>
                 #
-                str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":{\"auid\":\"%s\", \"jid\":\"%s-%d\"}}'" \
-                                        % (self.str_ip, self.str_port, str_cmd, self.str_auid, self.str_jid, l)
+                str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
+                                        % (self.str_ip, self.str_port, str_cmd, str_meta)
                 b_tx            = True
             if str_test == "GET":
                 #
@@ -546,11 +553,11 @@ class Client():
                 json_stderr         = {}
                 json_returncode     = {}
                 if len(d_ret["stdout"]):
-                    json_stdout         = {"stdout": json.loads(d_ret["stdout"])}
+                    json_stdout         = {"stdout":    json.loads(d_ret["stdout"])}
                 else:
                     json_stdout         = {"stdout": ""}
                 if len(d_ret["stderr"]):
-                    json_stderr         = {"stderr" :d_ret["stderr"]}
+                    json_stderr         = {"stderr":    d_ret["stderr"]}
                 else:
                     json_stderr         = {"stderr": ""}
                 if len(str(d_ret["returncode"])):
@@ -657,12 +664,11 @@ class Client():
     def run(self):
         ''' Connects to server. Send message, poll for and print result to standard out. '''
 
+        d_msg   = json.loads(self.str_msg)
         if len(self.str_testsuite):
-            self.testsuite_handle()
+            self.testsuite_handle(d_msg)
 
         if len(self.str_msg):
-            d_msg   = json.loads(self.str_msg)
-
             if 'action' in d_msg.keys():
                 self.action_process(d_msg)
 
@@ -712,7 +718,7 @@ if __name__ == '__main__':
         help    = 'apparent user id',
         dest    = 'auid',
         action  = 'store',
-        default = '<aiud>'
+        default = '<auid>'
     )
     parser.add_argument(
         '--txpause',
@@ -763,8 +769,6 @@ if __name__ == '__main__':
                         cmd         = args.cmd,
                         ip          = args.ip,
                         port        = args.port,
-                        jid         = args.jid,
-                        auid        = args.auid,
                         txpause     = args.txpause,
                         testsuite   = args.testsuite,
                         loopStart   = args.loopStart,
