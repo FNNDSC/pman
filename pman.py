@@ -648,6 +648,7 @@ class Listener(threading.Thread):
         str_target      = d_meta['value']
         p = self._ptree
         str_origDir     = p.cwd()
+        str_pathOrig    = str_path
         for r in self._ptree.lstr_lsnode('/'):
             if p.cd('/' + r)['status']:
                 str_val = p.cat(str_fileName)
@@ -655,7 +656,7 @@ class Listener(threading.Thread):
                     if not b_pathSpec:
                         str_path            = '/api/v1/' + r + '/' + str_fileName
                     else:
-                        str_path            = '/api/v1/' + r + str_path
+                        str_path            = '/api/v1/' + r + str_pathOrig
                         if str_path[-1] == '/': str_path = str_path[:-1]
                     d_ret[str(hits)]    = {}
                     d_ret[str(hits)]    = self.DB_get(path = str_path)
