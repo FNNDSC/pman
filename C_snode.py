@@ -680,7 +680,7 @@ class C_stree:
             """Creates a single node and cd's into that node
             """
             self.mknode([astr_node])
-            self.cdnode(astr_node)
+            return self.cdnode(astr_node)
 
         def isdir(self, str_path):
             """
