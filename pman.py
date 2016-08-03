@@ -332,6 +332,7 @@ class pman(object):
         if str_cmd == 'save':
             if os.path.isdir(self.str_DBpath):
                 shutil.rmtree(self.str_DBpath)
+            #print(self._ptree)
             if self.str_fileio   == 'json':
                 self._ptree.tree_save(
                     startPath       = '/',
@@ -629,20 +630,37 @@ class Listener(threading.Thread):
         d_request   = {}
         d_ret       = {}
         hits        = 0
+        b_pathSpec  = False
+        str_path    = ""
+
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
 
-        str_fileName    = d_request['meta']['key']
-        str_target      = d_request['meta']['value']
+        d_meta          = d_request['meta']
+
+        if 'path' in d_meta:
+            b_pathSpec  = True
+            str_path    = d_meta['path']
+
+        print(d_meta)
+        print(b_pathSpec)
+        str_fileName    = d_meta['key']
+        str_target      = d_meta['value']
         p = self._ptree
+        str_origDir     = p.cwd()
         for r in self._ptree.lstr_lsnode('/'):
             if p.cd('/' + r)['status']:
                 str_val = p.cat(str_fileName)
                 if str_val == str_target:
-                    str_path            = '/api/v1/' + r + '/' + str_fileName
+                    if not b_pathSpec:
+                        str_path            = '/api/v1/' + r + '/' + str_fileName
+                    else:
+                        str_path            = '/api/v1/' + r + str_path
+                        if str_path[-1] == '/': str_path = str_path[:-1]
                     d_ret[str(hits)]    = {}
                     d_ret[str(hits)]    = self.DB_get(path = str_path)
                     hits               += 1
+        p.cd(str_origDir)
         return d_ret
 
     def t_info_process(self, *args, **kwargs):
@@ -724,19 +742,26 @@ class Listener(threading.Thread):
                 Ts.initFromDict(d_start)
                 Te.initFromDict(d_end)
 
+                print("Ts.cwd = %s " % Ts.cwd())
+                print("Te.cwd = %s " % Te.cwd())
+
                 print(Ts)
                 l_subJobsStart      = []
                 if Ts.cd('/%s/start' % job)['status']:
                     l_subJobsStart  = Ts.lstr_lsnode()
                     l_subJobsStart  = list(map(int, l_subJobsStart))
-                    l_subJobsStart  = l_subJobsStart[:-1]
+                    l_subJobsStart.sort()
+                    print(l_subJobsStart)
+                    if len(l_subJobsStart) > 1: l_subJobsStart  = l_subJobsStart[:-1]
 
                 print(Te)
                 l_subJobsEnd        = []
                 if Te.cd('/%s/end' % job)['status']:
                     l_subJobsEnd    = Te.lstr_lsnode()
                     l_subJobsEnd    = list(map(int, l_subJobsEnd))
-                    l_subJobsEnd    = l_subJobsEnd[:-1]
+                    l_subJobsEnd.sort()
+                    print(l_subJobsEnd)
+                    if len(l_subJobsEnd) > 1: l_subJobsEnd    = l_subJobsEnd[:-1]
 
                 print("subJobsStart = " + str(l_subJobsStart))
                 print("subJobsEnd = " + str(l_subJobsEnd))
@@ -746,6 +771,7 @@ class Listener(threading.Thread):
                                                  (job, j, j))
 
                 for j in l_subJobsEnd:
+                    print("l_subJobsEnd = %s" % l_subJobsEnd)
                     l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % \
                                                  (job, j, j))
 
@@ -771,11 +797,9 @@ class Listener(threading.Thread):
         """
         Main job handler -- this is in turn a thread spawned from the
         parent listener thread.
-
         By being threaded, the client http caller gets an immediate
         response without needing to wait on the jobs actually running
         to completion.
-
         """
 
         str_cmd             = ""
@@ -839,7 +863,7 @@ class Listener(threading.Thread):
                 p.touch('/%s/endInfo' % str_dir,    d_endInfo.copy())
                 p.touch('/%s/jobCount' % str_dir,   jobCount)
                 jobCount        += 1
-
+        print(p)
         self.dp.print('All jobs processed.')
 
     def json_filePart_get(self, **kwargs):
@@ -854,27 +878,24 @@ class Listener(threading.Thread):
          Dispatcher for PUT
         """
 
-        d_payload       = {}
-        str_cmd         = ""
-        str_action      = ""
-        str_context     = ""
-
+        d_request       = {}
+        str_action      = "run"
+        str_cmd         = "save"
         str_DBpath      = self.str_DBpath
         str_fileio      = "json"
 
         for k,v in kwargs.items():
-            if k == 'payload':  d_payload   = v
-            if k == 'action':   str_action  = v
+            if k == 'request':  d_request   = v
 
+        str_action      = d_request['action']
         self.dp.print('action = %s' % str_action)
-        d_exec              = d_payload['exec']
-        str_cmd             = d_exec['cmd']
-        str_action          = d_payload['action']
+        d_meta              = d_request['meta']
         self.dp.print('action = %s' % str_action)
 
-        if 'context'    in d_exec:  str_context     = d_exec['context']
-        if 'dbpath'     in d_exec:  str_DBpath      = d_exec['dbpath']
-        if 'fileio'     in d_exec:  str_type        = d_exec['fileio']
+        if 'context'    in d_meta:  str_context     = d_meta['context']
+        if 'operation'  in d_meta:  str_cmd         = d_meta['operation']
+        if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
+        if 'fileio'     in d_meta:  str_type        = d_meta['fileio']
 
         if str_action.lower() == 'run' and str_context.lower() == 'db':
             self.within.DB_fileIO(  cmd      = str_cmd,
@@ -889,6 +910,7 @@ class Listener(threading.Thread):
         r           = C_snode.C_stree()
         p           = self._ptree
 
+        pcwd        = p.cwd()
         str_URLpath = "/api/v1/"
         for k,v in kwargs.items():
             if k == 'path':     str_URLpath = v
@@ -959,6 +981,7 @@ class Listener(threading.Thread):
                 r.touch(str_path, contents)
 
         # print(p)
+        p.cd(pcwd)
         self.dp.print(r)
         self.dp.print(dict(r.snode_root))
 
@@ -1032,11 +1055,8 @@ class Listener(threading.Thread):
                     d_ret['status'] = True
 
                 if payload_verb == 'run' and REST_verb == 'PUT':
-                    d_ret['cmd']        = d_exec['cmd']
-                    d_ret['context']    = d_exec['context']
                     d_ret['action']     = payload_verb
-                    self.processPUT(payload = d_request,
-                                    action  = payload_verb)
+                    self.processPUT(                            request     = d_request)
                     d_ret['status'] = True
 
                 if payload_verb == 'run' and REST_verb == 'POST':
@@ -1047,9 +1067,9 @@ class Listener(threading.Thread):
                         d_meta      = d_request['meta']
                     t_process_d_arg = {'cmd': d_exec['cmd'], 'meta': d_meta}
 
-                    t_process       = threading.Thread( target  = self.t_job_process,
-                                                        args    = (),
-                                                        kwargs  = t_process_d_arg)
+                    t_process       = threading.Thread(         target      = self.t_job_process,
+                                                                args        = (),
+                                                                kwargs      = t_process_d_arg)
                     t_process.start()
                     time.sleep(0.1)
                     d_ret['jobRootDir'] = self.str_jobRootDir
@@ -1058,21 +1078,21 @@ class Listener(threading.Thread):
                 if payload_verb == 'search' and REST_verb == "POST":
                     d_ret['action'] = payload_verb
                     d_ret['meta']   = d_request['meta']
-                    d_ret['hits']   = self.t_search_process(request = d_request)
+                    d_ret['hits']   = self.t_search_process(    request     = d_request)
                     if d_ret['hits']:
                         d_ret['status'] = True
 
                 if payload_verb == 'done' and REST_verb == "POST":
                     d_ret['action'] = payload_verb
                     d_ret['meta']   = d_request['meta']
-                    d_done          = self.t_done_process(request = d_request)
+                    d_done          = self.t_done_process(      request     = d_request)
                     d_ret['hits']   = d_done["hits"]
                     d_ret['status'] = d_done["status"]
 
                 if payload_verb == 'info' and REST_verb == "POST":
                     d_ret['action'] = payload_verb
                     d_ret['meta']   = d_request['meta']
-                    d_done          = self.t_info_process(request = d_request)
+                    d_done          = self.t_info_process(      request     = d_request)
                     d_ret['hits']   = d_done["hits"]
                     d_ret['status'] = d_done["status"]
 
