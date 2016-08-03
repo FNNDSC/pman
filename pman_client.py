@@ -69,9 +69,9 @@ class Client():
 
             print(Colors.LIGHT_GREEN)
             print("""
-            \t\t\t+---------------------------------+
-            \t\t\t| Welcome to the pman client test |
-            \t\t\t+---------------------------------+
+            \t\t\t+---------------------------+
+            \t\t\t| Welcome to pman_client.py |
+            \t\t\t+---------------------------+
             """)
             print(Colors.CYAN + """
             This program sends command payloads to a 'pman' process manager. A
@@ -86,7 +86,7 @@ class Client():
             print('%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
             print(Colors.WHITE + "\t\tIter-transmit delay: " + Colors.LIGHT_BLUE, end='')
             print('%d second(s)' % (self.txpause))
-            print('')
+            print('' + Colors.PURPLE)
 
     def man(self, **kwargs):
         """
@@ -110,6 +110,7 @@ class Client():
             self.man_info(      description   =   "short")      + "\n" + \
             self.man_run(       description   =   "short")      + "\n" + \
             self.man_testsuite( description   =   "short")      + "\n" + \
+            self.man_save(      description   =   "short")      + "\n" + \
             self.man_get(       description   =   "short")      + "\n"
 
             return str_commands
@@ -121,6 +122,47 @@ class Client():
         if str_man  == 'run':           return self.man_run(        description  =   str_amount)
         if str_man  == 'get':           return self.man_get(        description  =   str_amount)
         if str_man  == 'testsuite':     return self.man_testsuite(  description  =   str_amount)
+        if str_man  == 'save':          return self.man_save(       description  =   str_amount)
+
+    def man_save(self, **kwargs):
+        """
+        """
+
+        b_fullDescription   = False
+        str_description     = "full"
+
+        for k,v in kwargs.items():
+            if k == 'description':  str_description = v
+        if str_description == "full":   b_fullDescription   = True
+
+        str_manTxt =   Colors.LIGHT_CYAN        + \
+                       "\t\t%-20s" % "save"     + \
+                       Colors.LIGHT_PURPLE      + \
+                       "%-60s" % "saves the internal DB to disk." + \
+                       Colors.NO_COLOUR
+
+        if b_fullDescription:
+            str_manTxt += """
+
+                This saves the internal DB to disk. Note that the DB is saved
+                automatically by a timed thread, however, there are times when
+                it is useful to trigger a save event directly.
+
+                """ + Colors.YELLOW + """EXAMPLE:
+                """ + Colors.LIGHT_GREEN + """
+                ./pman_client.py --ip %s --port 5010  --msg  \\
+                    '{  "action": "run",
+                        "meta": {
+                                    "context":      "db",
+                                    "operation":    "save",
+                                    "dbpath":       "/tmp/pman",
+                                    "fileio":       "json"
+                                }
+                    }'
+                """ % self.str_ip + Colors.NO_COLOUR
+
+        return str_manTxt
+
 
     def man_testsuite(self, **kwargs):
         """
@@ -147,7 +189,7 @@ class Client():
                 in the <cmd> will be replaced by the current loop index. In addition,
                 the <jid> will be appended with the current loop index.
 
-                EXAMPLE:
+                """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_PURPLE + """
 
                 Run 12 instances of "cal %d 2016" with given auid and jid prefix: """+ \
@@ -156,7 +198,7 @@ class Client():
                 ./pman_client.py --ip %s --port 5010      \\
                     --testsuite POST                                \\
                     --cmd "cal %s 2016"                             \\
-                    --loopStart 0 --loopEnd 13                      \\
+                    --loopStart 1 --loopEnd 13                      \\
                     --msg                                           \\
                     '{  "meta": {
                                     "auid": "rudolphpienaar",
@@ -170,7 +212,7 @@ class Client():
 
                 ./pman_client.py --ip %s --port 5010      \\
                     --testsuite GET_cmd                             \\
-                    --loopStart 0 --loopEnd 13                      \\
+                    --loopStart 0 --loopEnd 12                      \\
                     --txpause 0
 
                 """ % self.str_ip + Colors.NO_COLOUR
@@ -201,7 +243,7 @@ class Client():
                 GETting each job in turn and parsing its internal fields for a match.
                 Effectively, the "client" does the search.
 
-                EXAMPLE:
+                """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip 192.168.1.189 --port 5010  --msg  \\
                     '{  "action": "searchREST",
@@ -237,7 +279,10 @@ class Client():
                 This searches for a target in a single call by triggering
                 an internal search. Effectively the "server" does the search.
 
-                EXAMPLE:
+                By default, the search returns the key and value that was
+                queried as found in the target data tree.
+
+                """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "search",
@@ -246,7 +291,38 @@ class Client():
                                     "value":    "rudolphpienaar"
                                 }
                     }'
-                """ % self.str_ip + Colors.NO_COLOUR
+                """ % self.str_ip + Colors.LIGHT_PURPLE + """
+
+                It is also possible to return an arbitrary part of the data
+                tree that resulted from the search, using an optional "path"
+                in the meta dictionary (paths should start with "/"):
+                """ + Colors.LIGHT_GREEN + """
+
+                ./pman_client.py --ip %s --port 5010  --msg  \\
+                    '{  "action": "search",
+                        "meta": {
+                                    "key":      "auid",
+                                    "value":    "rudolphpienaar",
+                                    "path":     "/start/0/startInfo/0/cmd"
+                                }
+                    }'
+
+                """ % self.str_ip + Colors.LIGHT_PURPLE + """
+                to return the "cmd" (or command) part of the starting state
+                of the first part of the command pipeline, or
+                """ + Colors.LIGHT_GREEN + """
+                ./pman_client.py --ip %s --port 5010  --msg  \\
+                    '{  "action": "search",
+                        "meta": {
+                                    "key":      "auid",
+                                    "value":    "rudolphpienaar",
+                                    "path":     "/"
+                                }
+                    }'
+
+                """ % self.str_ip + Colors.LIGHT_PURPLE + """
+                to return the entire jobInfo tree of the target.
+                """ + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -276,7 +352,7 @@ class Client():
                 The hit pattern is specified by searching for a <key> in the
                 job space that has value <value>
 
-                EXAMPLE:
+                """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "info",
@@ -315,7 +391,7 @@ class Client():
                 The hit pattern is specified by searching for a <key> in the
                 job space that has value <value>
 
-                EXAMPLE:
+                """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "done",
@@ -351,7 +427,7 @@ class Client():
                 This runs an actual <cmd>, as well some passing some additional meta
                 information.
 
-                EXAMPLE:
+                """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010 --cmd "cal 7 1970" --msg  \\
                     '{  "action": "run",
@@ -395,7 +471,7 @@ class Client():
                         /_01/start/0/startInfo/0/cmd
                         /_01/end/0/endInfo/0/stdout
 
-                EXAMPLE:
+                """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010 --msg  \\
                     '{  "action": "get",
@@ -496,11 +572,13 @@ class Client():
         """
         Process the "action" in d_msg
         """
+        d_meta          = d_msg['meta']
+        str_context     = ""
+        if "context" in d_meta: str_context = d_meta['context']
 
         if d_msg['action'] == 'searchREST':
-            d_params    = d_msg['meta']
-            str_key     = d_params['key']
-            str_value   = d_params['value']
+            str_key     = d_meta['key']
+            str_value   = d_meta['value']
             # First get list of all "jobs"
             self.shell_reset()
             str_shellCmd    = "http GET http://%s:%s/api/v1/ Content-Type:application/json Accept:application/json" \
@@ -518,58 +596,62 @@ class Client():
                 json_stdout = json.loads(d_ret['stdout'])
                 json_val    = json_stdout['GET'][j][str_key]
                 if json_val == str_value:
+                    if not self.b_quiet: print(Colors.YELLOW)
                     print(j)
 
         if d_msg['action'] == 'search':
-            d_params        = d_msg['meta']
-            str_key         = d_params['key']
-            str_value       = d_params['value']
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"search\",\"meta\":{\"key\":\"%s\", \"value\":\"%s\"}}'" \
-                              % (self.str_ip, self.str_port, str_key, str_value)
+            str_meta        = json.dumps(d_meta)
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"search\",\"meta\":%s}'" \
+                              % (self.str_ip, self.str_port, str_meta)
             d_ret           = self.shell.run(str_shellCmd)
             json_stdout     = json.loads(d_ret['stdout'])
-            json_hits       = json_stdout['hits']
+            if not self.b_quiet: print(Colors.YELLOW)
             print(json.dumps(json_stdout, indent=4))
 
         if d_msg['action'] == 'info':
-            d_params        = d_msg['meta']
-            str_key         = d_params['key']
-            str_value       = d_params['value']
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"info\",\"meta\":{\"key\":\"%s\", \"value\":\"%s\"}}'" \
-                              % (self.str_ip, self.str_port, str_key, str_value)
+            str_meta        = json.dumps(d_meta)
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"info\",\"meta\"%s}'" \
+                              % (self.str_ip, self.str_port, str_meta)
             d_ret           = self.shell.run(str_shellCmd)
             json_stdout     = json.loads(d_ret['stdout'])
-            json_hits       = json_stdout['hits']
+            if not self.b_quiet: print(Colors.YELLOW)
             print(json.dumps(json_stdout, indent=4))
 
         if d_msg['action'] == 'done':
-            d_params        = d_msg['meta']
-            str_key         = d_params['key']
-            str_value       = d_params['value']
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"done\",\"meta\":{\"key\":\"%s\", \"value\":\"%s\"}}'" \
-                              % (self.str_ip, self.str_port, str_key, str_value)
+            str_meta        = json.dumps(d_meta)
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"done\",\"meta\"%s}'" \
+                              % (self.str_ip, self.str_port, str_meta)
             d_ret           = self.shell.run(str_shellCmd)
             json_stdout     = json.loads(d_ret['stdout'])
-            json_hits       = json_stdout['hits']
+            if not self.b_quiet: print(Colors.YELLOW)
+            print(json.dumps(json_stdout, indent=4))
+
+        if d_msg['action'] == 'run' and str_context == 'db':
+            str_meta        = json.dumps(d_meta)
+            str_shellCmd    = "http PUT http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"run\",\"meta\":%s}'" \
+                              % (self.str_ip, self.str_port, str_meta)
+            d_ret       = self.shell.run(str_shellCmd)
+            json_stdout = json.loads(d_ret['stdout'])
+            if not self.b_quiet: print(Colors.YELLOW)
             print(json.dumps(json_stdout, indent=4))
 
         if d_msg['action'] == 'run' and len(self.str_cmd):
-            d_meta          = d_msg['meta']
             str_meta        = json.dumps(d_meta)
             str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
                               % (self.str_ip, self.str_port, self.str_cmd, str_meta)
             d_ret       = self.shell.run(str_shellCmd)
             json_stdout = json.loads(d_ret['stdout'])
+            if not self.b_quiet: print(Colors.YELLOW)
             print(json.dumps(json_stdout, indent=4))
 
         if d_msg['action'] == 'get':
-            d_meta          = d_msg['meta']
             str_meta        = json.dumps(d_meta)
             str_path        = d_meta['path']
             str_shellCmd    = "http GET http://%s:%s/api/v1%s Content-Type:application/json Accept:application/json" \
                               % (self.str_ip, self.str_port, str_path)
             d_ret       = self.shell.run(str_shellCmd)
             json_stdout = json.loads(d_ret['stdout'])
+            if not self.b_quiet: print(Colors.YELLOW)
             print(json.dumps(json_stdout, indent=4))
 
     def run(self):
