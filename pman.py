@@ -32,14 +32,13 @@ import  os
 import  threading
 import  zmq
 import  json
-# from    urllib      import  urlparse
-from    urllib.parse    import  urlparse
 import  argparse
 import  datetime
 from    webob           import  Response
 import  psutil
 import  uuid
 import  shutil
+import  socket
 
 import  queue
 from    functools       import  partial
@@ -1267,12 +1266,13 @@ class Crunner(threading.Thread):
 if __name__ == "__main__":
 
     parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
+    str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
 
     parser.add_argument(
         '--ip',
         action  = 'store',
         dest    = 'ip',
-        default = '127.0.0.1',
+        default = str_defIP,
         help    = 'IP to connect.'
     )
     parser.add_argument(
