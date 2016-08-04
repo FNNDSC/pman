@@ -162,7 +162,31 @@ class Client():
                                     "fileio":       "json"
                                 }
                     }'
-                """ % self.str_ip + Colors.NO_COLOUR
+                """ % self.str_ip + Colors.LIGHT_PURPLE + """
+
+                It is also possible to save an arbitrary sub-set of the
+                data base tree by passing optional 'key' and 'value' fields
+                which are used to determine a <search> operation. The results
+                of this search are then saved as opposed to the entire tree:
+                """ + Colors.LIGHT_GREEN + """
+
+                ./pman_client.py --ip %s --port 5010  --msg  \\
+                    '{  "action": "run",
+                        "meta": {
+                                    "context":      "db",
+                                    "operation":    "save",
+                                    "dbpath":       "/tmp/pman-jid-1",
+                                    "fileio":       "json",
+                                    "key":          "jid",
+                                    "value":        "<jid>-1"
+                                }
+                    }'
+
+                """ % self.str_ip + Colors.LIGHT_PURPLE + """
+                where for example only the part of the database that has a
+                'jid' of '<jid>-1' is saved (and also to a different part
+                of the filesystem).
+                """ + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -617,7 +641,7 @@ class Client():
 
         if d_msg['action'] == 'info':
             str_meta        = json.dumps(d_meta)
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"info\",\"meta\"%s}'" \
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"info\",\"meta\":%s}'" \
                               % (self.str_ip, self.str_port, str_meta)
             d_ret           = self.shell.run(str_shellCmd)
             json_stdout     = json.loads(d_ret['stdout'])
@@ -626,7 +650,7 @@ class Client():
 
         if d_msg['action'] == 'done':
             str_meta        = json.dumps(d_meta)
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"done\",\"meta\"%s}'" \
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"done\",\"meta\":%s}'" \
                               % (self.str_ip, self.str_port, str_meta)
             d_ret           = self.shell.run(str_shellCmd)
             json_stdout     = json.loads(d_ret['stdout'])
