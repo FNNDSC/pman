@@ -318,59 +318,61 @@ class pman(object):
         str_cmd     = 'save'
         str_DBpath  = self.str_DBpath
         str_fileio  = 'json'
+        tree_DB     = self._ptree
 
         for k,v in kwargs.items():
             if k == 'cmd':      str_cmd             = v
             if k == 'fileio':   self.str_fileio     = v
-            if k == 'dbpath':   self.str_DBpath     = v
+            if k == 'dbpath':   str_DBpath          = v
+            if k == 'db':       tree_DB             = v
 
         self.dp.print('cmd      = %s' % str_cmd)
         self.dp.print('fileio   = %s' % self.str_fileio)
-        self.dp.print('dbpath   = %s' % self.str_DBpath)
+        self.dp.print('dbpath   = %s' % str_DBpath)
 
         if str_cmd == 'save':
-            if os.path.isdir(self.str_DBpath):
-                shutil.rmtree(self.str_DBpath)
-            #print(self._ptree)
+            if os.path.isdir(str_DBpath):
+                shutil.rmtree(str_DBpath)
+            #print(tree_DB)
             if self.str_fileio   == 'json':
-                self._ptree.tree_save(
+                tree_DB.tree_save(
                     startPath       = '/',
-                    pathDiskRoot    = self.str_DBpath,
+                    pathDiskRoot    = str_DBpath,
                     failOnDirExist  = False,
                     saveJSON        = True,
                     savePickle      = False)
             if self.str_fileio   == 'pickle':
-                self._ptree.tree_save(
+                tree_DB.tree_save(
                     startPath       = '/',
-                    pathDiskRoot    = self.str_DBpath,
+                    pathDiskRoot    = str_DBpath,
                     failOnDirExist  = False,
                     saveJSON        = False,
                     savePickle      = True)
 
         if str_cmd == 'load':
-            if os.path.isdir(self.str_DBpath):
+            if os.path.isdir(str_DBpath):
                 self.debug("Reading pman DB from disk...\n")
                 if self.str_fileio   == 'json':
-                    self._ptree = C_snode.C_stree.tree_load(
+                    tree_DB = C_snode.C_stree.tree_load(
                         startPath       = '/',
-                        pathDiskRoot    = self.str_DBpath,
+                        pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
                         loadJSON        = True,
                         loadPickle      = False)
                 if self.str_fileio   == 'pickle':
-                    self._ptree = C_snode.C_stree.tree_load(
+                    tree_DB = C_snode.C_stree.tree_load(
                         startPath       = '/',
-                        pathDiskRoot    = self.str_DBpath,
+                        pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
                         loadJSON        = False,
                         loadPickle      = True)
                 self.debug("pman DB read from disk...\n")
                 self.col2_print('Reading pman DB from disk:', 'OK')
+                self._ptree         = tree_DB
             else:
-                P = self._ptree
-                P.tree_save(
+                tree_DB.tree_save(
                     startPath       = '/',
-                    pathDiskRoot    = self.str_DBpath,
+                    pathDiskRoot    = str_DBpath,
                     failOnDirExist  = False,
                     saveJSON        = True,
                     savePickle      = False
@@ -743,39 +745,34 @@ class Listener(threading.Thread):
                 Te.initFromDict(d_end)
 
                 print("Ts.cwd = %s " % Ts.cwd())
-                print("Te.cwd = %s " % Te.cwd())
-
                 print(Ts)
+                print("Te.cwd = %s " % Te.cwd())
+                print(Te)
+
                 l_subJobsStart      = []
                 if Ts.cd('/%s/start' % job)['status']:
                     l_subJobsStart  = Ts.lstr_lsnode()
                     l_subJobsStart  = list(map(int, l_subJobsStart))
                     l_subJobsStart.sort()
-                    print(l_subJobsStart)
+                    print("l_subJobsStart  (pre) = %s" % l_subJobsStart)
                     if len(l_subJobsStart) > 1: l_subJobsStart  = l_subJobsStart[:-1]
 
-                print(Te)
                 l_subJobsEnd        = []
                 if Te.cd('/%s/end' % job)['status']:
                     l_subJobsEnd    = Te.lstr_lsnode()
                     l_subJobsEnd    = list(map(int, l_subJobsEnd))
                     l_subJobsEnd.sort()
-                    print(l_subJobsEnd)
+                    print("l_subJobsEnd    (pre) = %s " % l_subJobsEnd)
                     if len(l_subJobsEnd) > 1: l_subJobsEnd    = l_subJobsEnd[:-1]
 
-                print("subJobsStart = " + str(l_subJobsStart))
-                print("subJobsEnd = " + str(l_subJobsEnd))
+                print("l_subJobsStart (post) = %s" % l_subJobsStart)
+                print("l_subJobsEnd   (post) = %s" % l_subJobsEnd)
 
                 for j in l_subJobsStart:
                     l_subJobsStart[j]   = Ts.cat('/%s/start/%d/startInfo/%d/startTrigger' % \
                                                  (job, j, j))
-
                 for j in l_subJobsEnd:
-                    print("l_subJobsEnd = %s" % l_subJobsEnd)
-                    l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % \
-                                                 (job, j, j))
-
-
+                    l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % (job, j, j))
 
                 d_ret[str(hits)+'.start']   = {"startTrigger":  l_subJobsStart}
                 d_ret[str(hits)+'.end']     = {"returncode":    l_subJobsEnd}
@@ -883,6 +880,7 @@ class Listener(threading.Thread):
         str_cmd         = "save"
         str_DBpath      = self.str_DBpath
         str_fileio      = "json"
+        tree_DB         = self._ptree
 
         for k,v in kwargs.items():
             if k == 'request':  d_request   = v
@@ -892,15 +890,34 @@ class Listener(threading.Thread):
         d_meta              = d_request['meta']
         self.dp.print('action = %s' % str_action)
 
+        # Optional search criteria
+        if 'key'        in d_meta:
+            d_search    = self.t_search_process(request = d_request)
+
+            p           = self._ptree
+            Tj          = C_snode.C_stree()
+            Tdb         = C_snode.C_stree()
+            for j in d_search.keys():
+                d_j = d_search[j]
+                for job in d_j.keys():
+                    str_pathJob         = '/api/v1/' + job
+                    d_job               = self.DB_get(path = str_pathJob)
+                    Tj.initFromDict(d_job)
+                    Tdb.graft(Tj, '/')
+            print(Tdb)
+            tree_DB     = Tdb
+
+
         if 'context'    in d_meta:  str_context     = d_meta['context']
         if 'operation'  in d_meta:  str_cmd         = d_meta['operation']
         if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
         if 'fileio'     in d_meta:  str_type        = d_meta['fileio']
 
         if str_action.lower() == 'run' and str_context.lower() == 'db':
-            self.within.DB_fileIO(  cmd      = str_cmd,
-                                    fileio   = str_fileio,
-                                    dbpath   = str_DBpath)
+            self.within.DB_fileIO(  cmd         = str_cmd,
+                                    fileio      = str_fileio,
+                                    dbpath      = str_DBpath,
+                                    db          = tree_DB)
 
     def DB_get(self, **kwargs):
         """
@@ -1243,7 +1260,7 @@ class Crunner(threading.Thread):
 
         # self.dp.print(self.shell.d_job)
 
-        queue.put(self.shell.d_job)
+        queue.put(self.shell.d_job.copy())
 
     def run(self):
 
