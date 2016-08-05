@@ -24,7 +24,7 @@ class Client():
     def __init__(self, **kwargs):
         # threading.Thread.__init__(self)
 
-        self.str_cmd        = ""
+        # self.str_cmd        = ""
         self.str_ip         = ""
         self.str_port       = ""
         self.str_msg        = ""
@@ -40,7 +40,7 @@ class Client():
         self.b_quiet        = False
 
         for key,val in kwargs.items():
-            if key == 'cmd':        self.str_cmd        = val
+            # if key == 'cmd':        self.str_cmd        = val
             if key == 'msg':        self.str_msg        = val
             if key == 'ip':         self.str_ip         = val
             if key == 'port':       self.str_port       = val
@@ -66,9 +66,9 @@ class Client():
             \t\t\t+---------------------------+
             """)
             print(Colors.CYAN + """
-            This program sends command payloads to a 'pman' process manager. A
+            This program sends command payloads to a 'pman.py' process manager. A
             command is a typical bash command string to be executed and managed
-            by pman.
+            by 'pman.py'.
 
             See 'pman_client.py --man commands' for more help.
 
@@ -106,6 +106,7 @@ class Client():
             self.man_testsuite( description   =   "short")      + "\n" + \
             self.man_save(      description   =   "short")      + "\n" + \
             self.man_get(       description   =   "short")      + "\n" + \
+            self.man_send(      description   =   "short")      + "\n" + \
             Colors.YELLOW + \
             """
             To get detailed help on any of the above commands, type
@@ -124,6 +125,7 @@ class Client():
         if str_man  == 'get':           return self.man_get(        description  =   str_amount)
         if str_man  == 'testsuite':     return self.man_testsuite(  description  =   str_amount)
         if str_man  == 'save':          return self.man_save(       description  =   str_amount)
+        if str_man  == 'send':          return self.man_send(       description  =   str_amount)
 
     def man_save(self, **kwargs):
         """
@@ -221,10 +223,10 @@ class Client():
 
                 ./pman_client.py --ip %s --port 5010      \\
                     --testsuite POST                                \\
-                    --cmd "cal %s 2016"                             \\
                     --loopStart 1 --loopEnd 13                      \\
                     --msg                                           \\
                     '{  "meta": {
+                                    "cmd":  "cal %s 2016",
                                     "auid": "rudolphpienaar",
                                     "jid":  "<jid>-%s"
                                 }
@@ -428,6 +430,45 @@ class Client():
 
         return str_manTxt
 
+    def man_send(self, **kwargs):
+        """
+        """
+
+        b_fullDescription   = False
+        str_description     = "full"
+
+        for k,v in kwargs.items():
+            if k == 'description':  str_description = v
+        if str_description == "full":   b_fullDescription   = True
+
+        str_manTxt =   Colors.LIGHT_CYAN        + \
+                       "\t\t%-20s" % "send"       + \
+                       Colors.LIGHT_PURPLE      + \
+                       "%-60s" % "sends a file over HTTP." + \
+                       Colors.NO_COLOUR
+
+        if b_fullDescription:
+            str_manTxt += """
+
+                This sends a file over HTTP. The 'meta' dictionary
+                can be used to specifiy content specific information
+                and other information.
+
+                """ + Colors.YELLOW + """EXAMPLE:
+                """ + Colors.LIGHT_GREEN + """
+                ./pman_client.py --ip %s --port 5010  --msg  \\
+                    '{  "action": "send",
+                        "meta": {
+                                    "file":             "<someFile>",
+                                    "Content-type":     "text",
+                                    "Application-type": "text
+                                }
+                    }'
+                """ % self.str_ip + Colors.NO_COLOUR
+
+        return str_manTxt
+
+
     def man_run(self, **kwargs):
         """
         """
@@ -453,9 +494,10 @@ class Client():
 
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port 5010 --cmd "cal 7 1970" --msg  \\
+                ./pman_client.py --ip %s --port 5010 --msg  \\
                     '{  "action": "run",
                         "meta": {
+                                    "cmd":      "cal 7 1970",
                                     "auid":     "rudolphpienaar",
                                     "jid":      "<jid>-1"
                                 }
@@ -528,7 +570,9 @@ class Client():
         d_meta          = d_msg['meta']
         str_shellCmd    = ""
         b_tx            = False
-        str_cmd         = self.str_cmd
+        str_baseCmd     = d_meta["cmd"]
+        str_jid         = d_meta['jid']
+        str_cmd         = str_baseCmd
         str_test        = "POST"
         str_suffix      = ""
         l_testsuite     = self.str_testsuite.split('_')
@@ -537,23 +581,25 @@ class Client():
         if len(l_testsuite) == 1:
             [str_test]  = l_testsuite
 
-        str_jid         = d_meta['jid']
         for l in range(self.loopStart, self.loopEnd):
             b_tx        = False
-            if "%d" in self.str_cmd:
-                str_cmd = self.str_cmd.replace("%d", str(l))
+            if "%d" in str_baseCmd:
+                d_meta['cmd']   = d_meta['jid'].replace("%d", str(l))
             if "%d" in d_meta['jid']:
                 d_meta['jid']   = d_meta['jid'].replace("%d", str(l))
             str_meta            = json.dumps(d_meta)
             d_meta['jid']       = str_jid
+            d_meta['cmd']       = str_baseCmd
             self.shell_reset()
 
             if str_test == "POST":
                 #
                 # POST <cmd>
                 #
-                str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
-                                        % (self.str_ip, self.str_port, str_cmd, str_meta)
+                # str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
+                #                         % (self.str_ip, self.str_port, str_cmd, str_meta)
+                str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"run\",\"meta\":%s}'" \
+                                  % (self.str_ip, self.str_port, str_meta)
                 b_tx            = True
             if str_test == "GET":
                 #
@@ -602,8 +648,6 @@ class Client():
         Process the "action" in d_msg
         """
         d_meta          = d_msg['meta']
-        str_context     = ""
-        if "context" in d_meta: str_context = d_meta['context']
 
         if d_msg['action'] == 'searchREST':
             str_key     = d_meta['key']
@@ -628,63 +672,27 @@ class Client():
                     if not self.b_quiet: print(Colors.YELLOW)
                     print(j)
 
-        if d_msg['action'] == 'search':
-            str_meta        = json.dumps(d_meta)
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"search\",\"meta\":%s}'" \
-                              % (self.str_ip, self.str_port, str_meta)
-            d_ret           = self.shell.run(str_shellCmd)
-            json_stdout     = json.loads(d_ret['stdout'])
-            if not self.b_quiet: print(Colors.YELLOW)
-            print(json.dumps(json_stdout, indent=4))
+        self.transmit(d_msg)
 
-        if d_msg['action'] == 'info':
-            str_meta        = json.dumps(d_meta)
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"info\",\"meta\":%s}'" \
-                              % (self.str_ip, self.str_port, str_meta)
-            d_ret           = self.shell.run(str_shellCmd)
-            json_stdout     = json.loads(d_ret['stdout'])
-            if not self.b_quiet: print(Colors.YELLOW)
-            print(json.dumps(json_stdout, indent=4))
+    def transmit(self, d_msg, **kwargs):
+        """
+        Transmit dispatcher.
+        """
 
-        if d_msg['action'] == 'done':
-            str_meta        = json.dumps(d_meta)
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"done\",\"meta\":%s}'" \
-                              % (self.str_ip, self.str_port, str_meta)
-            d_ret           = self.shell.run(str_shellCmd)
-            json_stdout     = json.loads(d_ret['stdout'])
-            if not self.b_quiet: print(Colors.YELLOW)
-            print(json.dumps(json_stdout, indent=4))
+        d_meta          = d_msg['meta']
+        str_action      = d_msg['action']
 
-        if d_msg['action'] == 'run' and str_context == 'db':
-            str_meta        = json.dumps(d_meta)
-            str_shellCmd    = "http PUT http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"run\",\"meta\":%s}'" \
-                              % (self.str_ip, self.str_port, str_meta)
-            d_ret       = self.shell.run(str_shellCmd)
+        str_meta        = json.dumps(d_meta)
+        str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
+                          % (self.str_ip, self.str_port, str_action, str_meta)
+        d_ret       = self.shell.run(str_shellCmd)
+        if len(d_ret['stdout']):
             json_stdout = json.loads(d_ret['stdout'])
-            if not self.b_quiet: print(Colors.YELLOW)
-            print(json.dumps(json_stdout, indent=4))
+        else:
+            json_stdout = d_ret
+        if not self.b_quiet: print(Colors.YELLOW)
+        print(json.dumps(json_stdout, indent=4))
 
-        if d_msg['action'] == 'run' and len(self.str_cmd):
-            str_meta        = json.dumps(d_meta)
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
-                              % (self.str_ip, self.str_port, self.str_cmd, str_meta)
-            d_ret       = self.shell.run(str_shellCmd)
-            if len(d_ret['stdout']):
-                json_stdout = json.loads(d_ret['stdout'])
-            else:
-                json_stdout = d_ret
-            if not self.b_quiet: print(Colors.YELLOW)
-            print(json.dumps(json_stdout, indent=4))
-
-        if d_msg['action'] == 'get':
-            str_meta        = json.dumps(d_meta)
-            str_path        = d_meta['path']
-            str_shellCmd    = "http GET http://%s:%s/api/v1%s Content-Type:application/json Accept:application/json" \
-                              % (self.str_ip, self.str_port, str_path)
-            d_ret       = self.shell.run(str_shellCmd)
-            json_stdout = json.loads(d_ret['stdout'])
-            if not self.b_quiet: print(Colors.YELLOW)
-            print(json.dumps(json_stdout, indent=4))
 
     def run(self):
         ''' Connects to server. Send message, poll for and print result to standard out. '''
@@ -703,13 +711,6 @@ if __name__ == '__main__':
 
     parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
 
-    parser.add_argument(
-        '--cmd',
-        action  = 'store',
-        dest    = 'cmd',
-        default = '',
-        help    = 'Command to be managed by pman.'
-    )
     parser.add_argument(
         '--msg',
         action  = 'store',
@@ -730,20 +731,6 @@ if __name__ == '__main__':
         dest    = 'port',
         default = '5010',
         help    = 'Port to use.'
-    )
-    parser.add_argument(
-        '--jid',
-        help    = 'job ID.',
-        dest    = 'jid',
-        action  = 'store',
-        default = '<jid>'
-    )
-    parser.add_argument(
-        '--auid',
-        help    = 'apparent user id',
-        dest    = 'auid',
-        action  = 'store',
-        default = '<auid>'
     )
     parser.add_argument(
         '--txpause',
@@ -791,7 +778,6 @@ if __name__ == '__main__':
     args    = parser.parse_args()
     client  = Client(
                         msg         = args.msg,
-                        cmd         = args.cmd,
                         ip          = args.ip,
                         port        = args.port,
                         txpause     = args.txpause,
