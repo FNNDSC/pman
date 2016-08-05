@@ -6,7 +6,13 @@
 
 ## TL;DR
 
-In the simplest case, a job can be submitted to 'pman' using a REST type interface
+Start 'pman.py', listening on port 5010 of the current host:
+
+```
+./pman.py --raw 1 --http  --port 5010 --listeners 12
+```
+
+Now, assuming the IP of the host as below, a job can be submitted to 'pman' using a REST type interface
 
 ```
 http POST http://10.17.24.163:5010/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{"exec": {"cmd": "cal 7 1970"}, "action":"run","meta":{"jid": "123-456-1", "auid": "rudolphpienaar"}}'
