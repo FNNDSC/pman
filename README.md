@@ -2,32 +2,22 @@
 
 ## Overview
 
-'pman' is a process management system written in python. Its main purpose is to act as a service that launches and tracks the status of jobs.
+'pman.py' is a process management system that launches and tracks the status of jobs. In the most general sense, jobs are simply applications run on an underlying system shell.
 
 ## TL;DR
 
 In the simplest case, a job can be submitted to 'pman' using a REST type interface
 
 ```
-POST pman.com/api/v1/cmd '{"cmd": "someExecutable", "args":["arg1", "arg2", arg3", "arg4"]}'
+http POST http://10.17.24.163:5010/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{"exec": {"cmd": "cal 7 1970"}, "action":"run","meta":{"jid": "123-456-1", "auid": "rudolphpienaar"}}'
 ```
 
-'pman' will then spawn the process and keep polling the system process table for the job and track the stdout/stderr and exit code.
+'pman.py' will then spawn the process and provide information on the status of the job. Note the <tt>payload</tt> JSON dictionary that provides some additional behaviour options (see later).
 
-Jobs launched by 'pman' can be queried with
-
-```
-GET pman.com/api/v1/
-```
-
-for a list of all running jobs, while specific detail about a given job can be queried with
+Jobs launched by 'pman.py' can be queried with
 
 ```
-GET pman.com/api/v1/1/pid
-GET pman.com/api/v1/1/status
-GET pman.com/api/v1/1/cmd
-... 
-
+http GET http://10.17.24.163:5010/api/v1/_01/endInfo Content-Type:application/json Accept:application/json
 ```
 
 for the pid and status of job "1", for example
