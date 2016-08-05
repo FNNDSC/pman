@@ -578,9 +578,9 @@ class Listener(threading.Thread):
         # Socket to communicate with front facing server.
         self.dp.print('starting...')
         socket = self.zmq_context.socket(zmq.DEALER)
-        socket.setsockopt(zmq.RCVBUF, 65536)
         socket.connect('inproc://backend')
 
+        result = True
         while True:
             print(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id)
             # First string received is socket ID of client
@@ -644,8 +644,8 @@ class Listener(threading.Thread):
             b_pathSpec  = True
             str_path    = d_meta['path']
 
-        print(d_meta)
-        print(b_pathSpec)
+        self.dp.print(d_meta)
+        self.dp.print(b_pathSpec)
         str_fileName    = d_meta['key']
         str_target      = d_meta['value']
         p = self._ptree
@@ -664,7 +664,9 @@ class Listener(threading.Thread):
                     d_ret[str(hits)]    = self.DB_get(path = str_path)
                     hits               += 1
         p.cd(str_origDir)
-        return d_ret
+
+        return {"hits":     d_ret,
+                "status":   bool(hits)}
 
     def t_info_process(self, *args, **kwargs):
         """
@@ -685,7 +687,7 @@ class Listener(threading.Thread):
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
 
-        d_search    = self.t_search_process(request = d_request)
+        d_search    = self.t_search_process(request = d_request)['hits']
 
         p = self._ptree
         for j in d_search.keys():
@@ -730,7 +732,7 @@ class Listener(threading.Thread):
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
 
-        d_search    = self.t_search_process(request = d_request)
+        d_search    = self.t_search_process(request = d_request)['hits']
 
         p   = self._ptree
         Ts  = C_snode.C_stree()
@@ -788,8 +790,8 @@ class Listener(threading.Thread):
                     for j in list(range(0, latestJob+1)):
                         l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % (job, latestJob, j))
 
-                d_ret[str(hits)+'.start']   = {"startTrigger":  l_subJobsStart}
-                d_ret[str(hits)+'.end']     = {"returncode":    l_subJobsEnd}
+                d_ret[str(hits)+'.start']   = {"jobRoot": job, "startTrigger":  l_subJobsStart}
+                d_ret[str(hits)+'.end']     = {"jobRoot": job, "returncode":    l_subJobsEnd}
                 hits               += 1
         if not hits:
             d_ret                   = {
@@ -883,55 +885,6 @@ class Listener(threading.Thread):
         DB, then we need to find the file, and map the relevant
         path to components in that file.
         """
-
-    def processPUT(self, **kwargs):
-        """
-         Dispatcher for PUT
-        """
-
-        d_request       = {}
-        str_action      = "run"
-        str_cmd         = "save"
-        str_DBpath      = self.str_DBpath
-        str_fileio      = "json"
-        tree_DB         = self._ptree
-
-        for k,v in kwargs.items():
-            if k == 'request':  d_request   = v
-
-        str_action      = d_request['action']
-        self.dp.print('action = %s' % str_action)
-        d_meta              = d_request['meta']
-        self.dp.print('action = %s' % str_action)
-
-        # Optional search criteria
-        if 'key'        in d_meta:
-            d_search    = self.t_search_process(request = d_request)
-
-            p           = self._ptree
-            Tj          = C_snode.C_stree()
-            Tdb         = C_snode.C_stree()
-            for j in d_search.keys():
-                d_j = d_search[j]
-                for job in d_j.keys():
-                    str_pathJob         = '/api/v1/' + job
-                    d_job               = self.DB_get(path = str_pathJob)
-                    Tj.initFromDict(d_job)
-                    Tdb.graft(Tj, '/')
-            print(Tdb)
-            tree_DB     = Tdb
-
-
-        if 'context'    in d_meta:  str_context     = d_meta['context']
-        if 'operation'  in d_meta:  str_cmd         = d_meta['operation']
-        if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
-        if 'fileio'     in d_meta:  str_type        = d_meta['fileio']
-
-        if str_action.lower() == 'run' and str_context.lower() == 'db':
-            self.within.DB_fileIO(  cmd         = str_cmd,
-                                    fileio      = str_fileio,
-                                    dbpath      = str_DBpath,
-                                    db          = tree_DB)
 
     def DB_get(self, **kwargs):
         """
@@ -1028,6 +981,11 @@ class Listener(threading.Thread):
 
         if len(request):
 
+            REST_header     = ""
+            REST_verb       = ""
+            str_path        = ""
+            json_payload    = ""
+
             print("Listener ID - %s: process() - handling request" % (self.worker_id))
 
             now             = datetime.datetime.today()
@@ -1050,7 +1008,6 @@ class Listener(threading.Thread):
             REST_verb               = REST_header.split()[0]
             str_path                = REST_header.split()[1]
             json_payload            = l_raw[-1]
-            str_CTL                 = ''
 
             # remove trailing '/' if any on path
             if str_path[-1]         == '/': str_path = str_path[0:-1]
@@ -1061,6 +1018,7 @@ class Listener(threading.Thread):
             d_ret['RESTverb']       = REST_verb
             d_ret['action']         = ""
             d_ret['path']           = str_path
+            d_ret['received']       = l_raw
 
             if REST_verb == 'GET':
                 d_ret['GET']    = self.DB_get(path = str_path)
@@ -1074,10 +1032,6 @@ class Listener(threading.Thread):
                     d_meta          = d_request['meta']
                 d_ret['payloadsize']= len(json_payload)
 
-                # o_URL               = urlparse(str_URL)
-                # str_path            = o_URL.path
-                # l_path              = str_path.split('/')[2:]
-
                 if payload_verb == 'quit':
                     print('Shutting down server...')
                     d_ret['status'] = True
@@ -1087,41 +1041,93 @@ class Listener(threading.Thread):
                     self.processPUT(                            request     = d_request)
                     d_ret['status'] = True
 
-                if payload_verb == 'run' and REST_verb == 'POST':
-                    d_ret['cmd']    = d_meta['cmd']
-                    d_ret['action'] = payload_verb
-                    t_process_d_arg = {'cmd': d_meta['cmd'], 'meta': d_meta}
-
-                    t_process       = threading.Thread(         target      = self.t_job_process,
-                                                                args        = (),
-                                                                kwargs      = t_process_d_arg)
-                    t_process.start()
-                    time.sleep(0.1)
-                    d_ret['jobRootDir'] = self.str_jobRootDir
-                    d_ret['status'] = True
-
-                if payload_verb == 'search' and REST_verb == "POST":
-                    d_ret['action'] = payload_verb
-                    d_ret['meta']   = d_meta
-                    d_ret['hits']   = self.t_search_process(    request     = d_request)
-                    if d_ret['hits']:
-                        d_ret['status'] = True
-
-                if payload_verb == 'done' and REST_verb == "POST":
-                    d_ret['action'] = payload_verb
-                    d_ret['meta']   = d_meta
-                    d_done          = self.t_done_process(      request     = d_request)
-                    d_ret['hits']   = d_done["hits"]
-                    d_ret['status'] = d_done["status"]
-
-                if payload_verb == 'info' and REST_verb == "POST":
-                    d_ret['action'] = payload_verb
-                    d_ret['meta']   = d_meta
-                    d_done          = self.t_info_process(      request     = d_request)
-                    d_ret['hits']   = d_done["hits"]
-                    d_ret['status'] = d_done["status"]
-
+                if REST_verb == 'POST':
+                    self.processPOST(   request = d_request,
+                                        ret     = d_ret)
             return d_ret
+
+    def processPOST(self, **kwargs):
+        """
+         Dispatcher for POST
+        """
+
+        for k,v in kwargs.items():
+            if k == 'request':  d_request   = v
+            if k == 'ret':      d_ret       = v
+
+        payload_verb        = d_request['action']
+        if 'meta' in d_request.keys():
+            d_meta          = d_request['meta']
+
+        d_ret['action'] = payload_verb
+        d_ret['meta']   = d_meta
+        if payload_verb == 'run':
+            d_ret['cmd']        = d_meta['cmd']
+            t_process_d_arg     = {'cmd': d_meta['cmd'], 'meta': d_meta}
+
+            t_process           = threading.Thread(     target      = self.t_job_process,
+                                                        args        = (),
+                                                        kwargs      = t_process_d_arg)
+            t_process.start()
+            time.sleep(0.1)
+            d_ret['jobRootDir'] = self.str_jobRootDir
+            d_ret['status']     = True
+        else:
+            d_done              = eval("self.t_%s_process(request = d_request)" % payload_verb)
+            d_ret['hits']       = d_done["hits"]
+            d_ret['status']     = d_done["status"]
+
+        return d_ret
+
+    def processPUT(self, **kwargs):
+        """
+         Dispatcher for PUT
+        """
+
+        d_request       = {}
+        str_action      = "run"
+        str_cmd         = "save"
+        str_DBpath      = self.str_DBpath
+        str_fileio      = "json"
+        tree_DB         = self._ptree
+
+        for k,v in kwargs.items():
+            if k == 'request':  d_request   = v
+
+        str_action      = d_request['action']
+        self.dp.print('action = %s' % str_action)
+        d_meta              = d_request['meta']
+        self.dp.print('action = %s' % str_action)
+
+        # Optional search criteria
+        if 'key'        in d_meta:
+            d_search    = self.t_search_process(request = d_request)['hits']
+
+            p           = self._ptree
+            Tj          = C_snode.C_stree()
+            Tdb         = C_snode.C_stree()
+            for j in d_search.keys():
+                d_j = d_search[j]
+                for job in d_j.keys():
+                    str_pathJob         = '/api/v1/' + job
+                    d_job               = self.DB_get(path = str_pathJob)
+                    Tj.initFromDict(d_job)
+                    Tdb.graft(Tj, '/')
+            print(Tdb)
+            tree_DB     = Tdb
+
+
+        if 'context'    in d_meta:  str_context     = d_meta['context']
+        if 'operation'  in d_meta:  str_cmd         = d_meta['operation']
+        if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
+        if 'fileio'     in d_meta:  str_type        = d_meta['fileio']
+
+        if str_action.lower() == 'run' and str_context.lower() == 'db':
+            self.within.DB_fileIO(  cmd         = str_cmd,
+                                    fileio      = str_fileio,
+                                    dbpath      = str_DBpath,
+                                    db          = tree_DB)
+
 
 class Poller(threading.Thread):
     """
