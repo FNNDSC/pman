@@ -578,6 +578,7 @@ class Listener(threading.Thread):
         # Socket to communicate with front facing server.
         self.dp.print('starting...')
         socket = self.zmq_context.socket(zmq.DEALER)
+        socket.setsockopt(zmq.RCVBUF, 65536)
         socket.connect('inproc://backend')
 
         while True:
@@ -1068,12 +1069,9 @@ class Listener(threading.Thread):
             if len(json_payload):
                 d_payload           = json.loads(json_payload)
                 d_request           = d_payload['payload']
-                # print("|||||||")
-                # print(d_request)
-                # print("|||||||")
                 payload_verb        = d_request['action']
-                if 'exec' in d_request.keys():
-                    d_exec          = d_request['exec']
+                if 'meta' in d_request.keys():
+                    d_meta          = d_request['meta']
                 d_ret['payloadsize']= len(json_payload)
 
                 # o_URL               = urlparse(str_URL)
@@ -1090,12 +1088,9 @@ class Listener(threading.Thread):
                     d_ret['status'] = True
 
                 if payload_verb == 'run' and REST_verb == 'POST':
-                    d_ret['cmd']    = d_exec['cmd']
+                    d_ret['cmd']    = d_meta['cmd']
                     d_ret['action'] = payload_verb
-                    d_meta          = {}
-                    if "meta" in d_request:
-                        d_meta      = d_request['meta']
-                    t_process_d_arg = {'cmd': d_exec['cmd'], 'meta': d_meta}
+                    t_process_d_arg = {'cmd': d_meta['cmd'], 'meta': d_meta}
 
                     t_process       = threading.Thread(         target      = self.t_job_process,
                                                                 args        = (),
@@ -1107,21 +1102,21 @@ class Listener(threading.Thread):
 
                 if payload_verb == 'search' and REST_verb == "POST":
                     d_ret['action'] = payload_verb
-                    d_ret['meta']   = d_request['meta']
+                    d_ret['meta']   = d_meta
                     d_ret['hits']   = self.t_search_process(    request     = d_request)
                     if d_ret['hits']:
                         d_ret['status'] = True
 
                 if payload_verb == 'done' and REST_verb == "POST":
                     d_ret['action'] = payload_verb
-                    d_ret['meta']   = d_request['meta']
+                    d_ret['meta']   = d_meta
                     d_done          = self.t_done_process(      request     = d_request)
                     d_ret['hits']   = d_done["hits"]
                     d_ret['status'] = d_done["status"]
 
                 if payload_verb == 'info' and REST_verb == "POST":
                     d_ret['action'] = payload_verb
-                    d_ret['meta']   = d_request['meta']
+                    d_ret['meta']   = d_meta
                     d_done          = self.t_info_process(      request     = d_request)
                     d_ret['hits']   = d_done["hits"]
                     d_ret['status'] = d_done["status"]
