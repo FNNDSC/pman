@@ -16,6 +16,8 @@ import  sys
 import  json
 import  pprint
 import  socket
+import  pycurl
+import  io
 
 class Client():
 
@@ -459,9 +461,9 @@ class Client():
                 ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "send",
                         "meta": {
-                                    "file":             "<someFile>",
+                                    "file":             "testfile.txt",
                                     "Content-type":     "text",
-                                    "Application-type": "text
+                                    "Application-type": "text"
                                 }
                     }'
                 """ % self.str_ip + Colors.NO_COLOUR
@@ -674,6 +676,32 @@ class Client():
 
         self.transmit(d_msg)
 
+    def send(self, d_msg, **kwargs):
+        """
+         Send a file
+        """
+
+        d_meta          = d_msg['meta']
+        str_file        = d_meta['file']
+
+        str_meta        = json.dumps(d_meta)
+
+        response        = io.BytesIO()
+
+        c = pycurl.Curl()
+        c.setopt(c.POST, 1)
+        c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (self.str_ip, self.str_port))
+        c.setopt(c.HTTPPOST, [("file1", (c.FORM_FILE, str_file)),
+                              ("meta", str_meta)])
+        c.setopt(c.VERBOSE, 1)
+        c.setopt(c.WRITEFUNCTION, response.write)
+        c.perform()
+        c.close()
+
+        str_response    = response.getvalue().decode()
+        print(str_response)
+        return {'stdout': str_response}
+
     def transmit(self, d_msg, **kwargs):
         """
         Transmit dispatcher.
@@ -683,9 +711,12 @@ class Client():
         str_action      = d_msg['action']
 
         str_meta        = json.dumps(d_meta)
-        str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
-                          % (self.str_ip, self.str_port, str_action, str_meta)
-        d_ret       = self.shell.run(str_shellCmd)
+        if str_action != "send":
+            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
+                              % (self.str_ip, self.str_port, str_action, str_meta)
+            d_ret           = self.shell.run(str_shellCmd)
+        else:
+            d_ret           = self.send(d_msg)
         if len(d_ret['stdout']):
             json_stdout = json.loads(d_ret['stdout'])
         else:
