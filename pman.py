@@ -771,8 +771,21 @@ class Listener(threading.Thread):
                 for j in l_subJobsStart:
                     l_subJobsStart[j]   = Ts.cat('/%s/start/%d/startInfo/%d/startTrigger' % \
                                                  (job, j, j))
-                for j in l_subJobsEnd:
-                    l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % (job, j, j))
+
+                # jobsEnd behaviour can be slightly different to the jobStart, particularly if
+                # the job being executed is killed -- sometimes recording the "death" event of
+                # the job does not happen and the job indexing ends up missing several epochs:
+                #
+                #           l_subJobsStart  (pre) = [0, 1, 2, 3, 4]
+                #           l_subJobsEnd    (pre) = [0, 1, 3, 4]
+                #
+                # to assure correct returncode lookup, we always parse the latest job epoch.
+
+                latestJob       = 0
+                if len(l_subJobsEnd):
+                    latestJob   = l_subJobsEnd[-1]
+                    for j in list(range(0, latestJob+1)):
+                        l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % (job, latestJob, j))
 
                 d_ret[str(hits)+'.start']   = {"startTrigger":  l_subJobsStart}
                 d_ret[str(hits)+'.end']     = {"returncode":    l_subJobsEnd}
