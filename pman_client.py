@@ -55,11 +55,7 @@ class Client():
             print(self.man(on = self.str_man))
             sys.exit(0)
 
-        self.shell                      = crunner.crunner(verbosity=-1)
-        self.shell.b_splitCompound      = True
-        self.shell.b_showStdOut         = not self.b_quiet
-        self.shell.b_showStdErr         = not self.b_quiet
-        self.shell.b_echoCmd            = not self.b_quiet
+        self.shell_reset()
 
         if not self.b_quiet:
 
@@ -74,9 +70,11 @@ class Client():
             command is a typical bash command string to be executed and managed
             by pman.
 
-            See 'pman --man commands' for more help.
+            See 'pman_client.py --man commands' for more help.
 
             """)
+
+            if len(sys.argv) == 1: sys.exit(1)
 
             print(Colors.WHITE + "\t\tWill transmit to: " + Colors.LIGHT_BLUE, end='')
             print('%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
@@ -515,7 +513,7 @@ class Client():
         :return:
         """
         self.shell                      = crunner.crunner(verbosity=-1)
-        self.shell.b_splitCompound      = True
+        self.shell.b_splitCompound      = False
         self.shell.b_showStdOut         = not self.b_quiet
         self.shell.b_showStdErr         = not self.b_quiet
         self.shell.b_echoCmd            = not self.b_quiet
@@ -671,7 +669,10 @@ class Client():
             str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
                               % (self.str_ip, self.str_port, self.str_cmd, str_meta)
             d_ret       = self.shell.run(str_shellCmd)
-            json_stdout = json.loads(d_ret['stdout'])
+            if len(d_ret['stdout']):
+                json_stdout = json.loads(d_ret['stdout'])
+            else:
+                json_stdout = d_ret
             if not self.b_quiet: print(Colors.YELLOW)
             print(json.dumps(json_stdout, indent=4))
 
