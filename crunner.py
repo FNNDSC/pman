@@ -283,6 +283,7 @@ class crunner(object):
             self.l_cmd  = str_cmd.split(";")
         else:
             self.l_cmd.append(str_cmd)
+
         self.t_ctl      = threading.Thread(target = self.ctl,
                                             args   = (str_cmd,),
                                             kwargs = kwargs)
