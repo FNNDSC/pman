@@ -49,6 +49,7 @@ import  logging
 import  C_snode
 import  message
 from    _colors         import  Colors
+import  pfioh
 
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s')
@@ -400,6 +401,10 @@ class pman(object):
         # Front facing socket to accept client connections.
         socket_front = self.zmq_context.socket(zmq.ROUTER)
         socket_front.router_raw = self.router_raw
+        # socket_front.setsockopt(zmq.RCVBUF, 65536)
+        # socket_front.setsockopt(zmq.SNDBUF, 65536)
+        # socket_front.setsockopt(zmq.SNDHWM, 65536)
+        socket_front.setsockopt(zmq.RCVHWM, 65536)
         socket_front.bind('%s://%s:%s' % (self.str_protocol,
                                           self.str_IP,
                                           self.str_port)
@@ -407,6 +412,10 @@ class pman(object):
 
         # Backend socket to distribute work.
         socket_back = self.zmq_context.socket(zmq.DEALER)
+        # socket_back.setsockopt(zmq.RCVBUF, 65536)
+        # socket_back.setsockopt(zmq.SNDBUF, 65536)
+        # socket_back.setsockopt(zmq.SNDHWM, 65536)
+        # socket_back.setsockopt(zmq.RCVHWM, 65536)
         socket_back.bind('inproc://backend')
 
         # Start the 'fileIO' thread
@@ -414,7 +423,7 @@ class pman(object):
                                     within      = self)
         fileIO.start()
 
-        # Start the 'listner' workers.
+        # Start the 'listener' workers.
         for i in range(1,self.listeners+1):
             listener = Listener(    id          = i,
                                     context     = self.zmq_context,
@@ -665,7 +674,7 @@ class Listener(threading.Thread):
                     hits               += 1
         p.cd(str_origDir)
 
-        return {"hits":     d_ret,
+        return {"d_ret":     d_ret,
                 "status":   bool(hits)}
 
     def t_info_process(self, *args, **kwargs):
@@ -687,7 +696,7 @@ class Listener(threading.Thread):
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
 
-        d_search    = self.t_search_process(request = d_request)['hits']
+        d_search    = self.t_search_process(request = d_request)['d_ret']
 
         p = self._ptree
         for j in d_search.keys():
@@ -710,8 +719,45 @@ class Listener(threading.Thread):
             }
         else:
             b_status            = True
-        return {"hits":     d_ret,
+        return {"d_ret":     d_ret,
                 "status":   b_status}
+
+    def t_fileiosetup_process(self, *args, **kwargs):
+        """
+        Setup a thread with a socket listener. Return listener address to client
+        """
+        self.dp.print("In fileiosetup process...")
+
+        d_ret               = {}
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+
+        d_meta  = d_request['meta']
+
+        d_ret['fileioIP']   = "%s" % self.within.str_IP
+        d_ret['fileioport'] = "%s" % (int(self.within.str_port) + self.worker_id)
+        d_ret['serveforever']=d_meta['serveforever']
+
+        d_args              = {}
+        d_args['ip']        = d_ret['fileioIP']
+        d_args['port']      = d_ret['fileioport']
+
+        server              = pfioh.ThreadedHTTPServer((d_args['ip'], int(d_args['port'])), pfioh.StoreHandler)
+        server.setup(args   = d_args)
+        self.dp.print("serveforever = %d" % d_meta['serveforever'])
+        b_serveforever      = False
+        if 'serveforever' in d_meta.keys():
+            b_serveforever  = d_meta['serveforever']
+
+        if b_serveforever:
+            self.dp.print("about to serve_forever()...")
+            server.serve_forever()
+        else:
+            self.dp.print("about to handle_request()...")
+            server.handle_request()
+
+        return {"d_ret":     d_ret,
+                "status":   True}
 
     def t_done_process(self, *args, **kwargs):
         """
@@ -732,7 +778,7 @@ class Listener(threading.Thread):
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
 
-        d_search    = self.t_search_process(request = d_request)['hits']
+        d_search    = self.t_search_process(request = d_request)['d_ret']
 
         p   = self._ptree
         Ts  = C_snode.C_stree()
@@ -803,10 +849,10 @@ class Listener(threading.Thread):
             }
         else:
             b_status            = True
-        return {"hits":     d_ret,
+        return {"d_ret":     d_ret,
                 "status":   b_status}
 
-    def t_job_process(self, *args, **kwargs):
+    def t_run_process(self, *args, **kwargs):
         """
         Main job handler -- this is in turn a thread spawned from the
         parent listener thread.
@@ -816,15 +862,18 @@ class Listener(threading.Thread):
         """
 
         str_cmd             = ""
+        d_request           = {}
         d_meta              = {}
 
         for k,v in kwargs.items():
-            if k == 'cmd':  str_cmd     = v
-            if k == 'meta': d_meta      = v
+            if k == 'request': d_request    = v
+
+        d_meta          = d_request['meta']
 
         if d_meta:
             self.jid    = d_meta['jid']
             self.auid   = d_meta['auid']
+            str_cmd     = d_meta['cmd']
 
         self.dp.print("spawing and starting poller thread")
 
@@ -1018,7 +1067,7 @@ class Listener(threading.Thread):
             d_ret['RESTverb']       = REST_verb
             d_ret['action']         = ""
             d_ret['path']           = str_path
-            d_ret['received']       = l_raw
+            d_ret['receivedByServer'] = l_raw
 
             if REST_verb == 'GET':
                 d_ret['GET']    = self.DB_get(path = str_path)
@@ -1061,20 +1110,32 @@ class Listener(threading.Thread):
 
         d_ret['action'] = payload_verb
         d_ret['meta']   = d_meta
-        if payload_verb == 'run':
-            d_ret['cmd']        = d_meta['cmd']
-            t_process_d_arg     = {'cmd': d_meta['cmd'], 'meta': d_meta}
 
-            t_process           = threading.Thread(     target      = self.t_job_process,
+        b_threaded      = False
+        if 'threaded' in d_meta.keys():
+            b_threaded  = d_meta['threaded']
+
+        if b_threaded:
+            self.dp.print("Will process request in new thread.")
+            method      = None
+            str_method  = 't_%s_process' % payload_verb
+            try:
+                method  = getattr(self, str_method)
+            except AttributeError:
+                raise NotImplementedError("Class `{}` does not implement `{}`".format(my_cls.__class__.__name__, method_name))
+
+            t_process           = threading.Thread(     target      = method,
                                                         args        = (),
-                                                        kwargs      = t_process_d_arg)
+                                                        kwargs      = kwargs)
             t_process.start()
             time.sleep(0.1)
-            d_ret['jobRootDir'] = self.str_jobRootDir
+            if payload_verb == 'run':
+                d_ret['jobRootDir'] = self.str_jobRootDir
             d_ret['status']     = True
         else:
+            self.dp.print("Will process request in current thread.")
             d_done              = eval("self.t_%s_process(request = d_request)" % payload_verb)
-            d_ret['hits']       = d_done["hits"]
+            d_ret['d_ret']      = d_done["d_ret"]
             d_ret['status']     = d_done["status"]
 
         return d_ret
@@ -1101,7 +1162,7 @@ class Listener(threading.Thread):
 
         # Optional search criteria
         if 'key'        in d_meta:
-            d_search    = self.t_search_process(request = d_request)['hits']
+            d_search    = self.t_search_process(request = d_request)['d_ret']
 
             p           = self._ptree
             Tj          = C_snode.C_stree()
