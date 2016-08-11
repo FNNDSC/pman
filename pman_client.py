@@ -18,6 +18,12 @@ import  pprint
 import  socket
 import  pycurl
 import  io
+import  os
+import  uu
+import  zipfile
+import  base64
+import  uuid
+import  shutil
 
 class Client():
 
@@ -100,15 +106,16 @@ class Client():
             str_commands = Colors.CYAN + """
             The following commands are serviced by this script:
             """ + "\n" + \
-            self.man_searchREST(description   =   "short")      + "\n" + \
-            self.man_search(    description   =   "short")      + "\n" + \
-            self.man_done(      description   =   "short")      + "\n" + \
-            self.man_info(      description   =   "short")      + "\n" + \
-            self.man_run(       description   =   "short")      + "\n" + \
-            self.man_testsuite( description   =   "short")      + "\n" + \
-            self.man_save(      description   =   "short")      + "\n" + \
-            self.man_get(       description   =   "short")      + "\n" + \
-            self.man_send(      description   =   "short")      + "\n" + \
+            self.man_searchREST(    description =   "short")      + "\n" + \
+            self.man_search(        description =   "short")      + "\n" + \
+            self.man_done(          description =   "short")      + "\n" + \
+            self.man_info(          description =   "short")      + "\n" + \
+            self.man_run(           description =   "short")      + "\n" + \
+            self.man_testsuite(     description =   "short")      + "\n" + \
+            self.man_save(          description =   "short")      + "\n" + \
+            self.man_get(           description =   "short")      + "\n" + \
+            self.man_fileiosetup(   description =   "short")      + "\n" + \
+            self.man_send(          description =   "short")      + "\n" + \
             Colors.YELLOW + \
             """
             To get detailed help on any of the above commands, type
@@ -127,6 +134,7 @@ class Client():
         if str_man  == 'get':           return self.man_get(        description  =   str_amount)
         if str_man  == 'testsuite':     return self.man_testsuite(  description  =   str_amount)
         if str_man  == 'save':          return self.man_save(       description  =   str_amount)
+        if str_man  == 'fileiosetup':   return self.man_fileiosetup(description  =   str_amount)
         if str_man  == 'send':          return self.man_send(       description  =   str_amount)
 
     def man_save(self, **kwargs):
@@ -456,20 +464,87 @@ class Client():
                 can be used to specifiy content specific information
                 and other information.
 
+                Note that the "file" server is typically *not* on the
+                same port as the pman.py process. Usually a prior call
+                must be made to pman.py to start a one-shot listener
+                on a given port. This port then accepts the file transfer
+                from the 'send' method.
+
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "send",
-                        "meta": {
-                                    "file":             "testfile.txt",
-                                    "Content-type":     "text",
-                                    "Application-type": "text"
-                                }
+                        "meta":
+                            {
+                                "file":
+                                    {
+                                        "path":         "pman_client.py",
+                                        "compress":     "zip",
+                                        "encoding":     "base64"
+                                    },
+                                "destination":
+                                    {
+                                        "ip":           "%s",
+                                        "port":         "%s"
+                                    },
+                                "housekeeping":
+                                    {
+                                        "removeLocalArchive":   false
+                                    }
+                            }
                     }'
-                """ % self.str_ip + Colors.NO_COLOUR
+                """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR
 
         return str_manTxt
 
+    def man_fileiosetup(self, **kwargs):
+        """
+        """
+
+        b_fullDescription   = False
+        str_description     = "full"
+
+        for k,v in kwargs.items():
+            if k == 'description':  str_description = v
+        if str_description == "full":   b_fullDescription   = True
+
+        str_manTxt =   Colors.LIGHT_CYAN                + \
+                       "\t\t%-20s" % "fileiosetup"      + \
+                       Colors.LIGHT_PURPLE              + \
+                       "%-60s" % "starts a single-shot fileio service." + \
+                       Colors.NO_COLOUR
+
+        if b_fullDescription:
+            str_manTxt += """
+
+                This starts a singleshot "fileserver" that can be used to
+                PUSH/PULL files between the remote 'pman.py' server and the
+                local client.
+
+                By singleshot is meant that once the file operation is complete
+                the server ends.
+
+                The "meta" parameters suggest an ip and port for the server.
+                When 'pman.py' starts the service it will return the actual IP
+                and port in a JSON payload.
+
+                The "serveforever", however, is honored by the remote pman.py
+                process.
+
+                """ + Colors.YELLOW + """EXAMPLE:
+                """ + Colors.LIGHT_GREEN + """
+                ./pman_client.py --ip %s --port 5010 --msg  \\
+                    '{  "action": "fileiosetup",
+                        "meta": {
+                                    "ip":               "%s",
+                                    "port":             "5055",
+                                    "serveforever":     false,
+                                    "threaded":         true
+                                }
+                    }'
+                """ % (self.str_ip, self.str_ip) + Colors.NO_COLOUR
+
+        return str_manTxt
 
     def man_run(self, **kwargs):
         """
@@ -501,7 +576,8 @@ class Client():
                         "meta": {
                                     "cmd":      "cal 7 1970",
                                     "auid":     "rudolphpienaar",
-                                    "jid":      "<jid>-1"
+                                    "jid":      "<jid>-1",
+                                    "threaded": true
                                 }
                     }'
                 """ % self.str_ip + Colors.NO_COLOUR
@@ -674,33 +750,137 @@ class Client():
                     if not self.b_quiet: print(Colors.YELLOW)
                     print(j)
 
+        if d_msg['action']  == 'send_meta':
+            self.send_meta(d_msg)
+
         self.transmit(d_msg)
+
+    def zipdir(self, path, ziph):
+        # ziph is zipfile handle
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                try:
+                    ziph.write(os.path.join(root, file))
+                except:
+                    print("Skipping %s" % os.path.join(root, file))
 
     def send(self, d_msg, **kwargs):
         """
-         Send a file
+         Send a file using pycurl.
+
+         This method assumes that a prior call has "setup" a remote fileio
+         listener and has the ip:port of that instance.
+
+         The d_meta contains important operation information:
+
+            "target":   path,
+            "zip":      true/false
+            "encode":   encode type
+
+        If "zip" is true, the "target" is zipped (useful for transmitting whole
+        directory trees.
+
+        Also, if "encode" is present, the target (after optional zip) is also
+        encoded to allow for transmission over ASCII.
+
+        This method is probably inefficent:
+
+            1. First zip the target
+            2. Re-encode the zip as base64 to a new file
+            3. Read that output file to send to the remote server
+
         """
 
-        d_meta          = d_msg['meta']
-        str_file        = d_meta['file']
+        d_meta              = d_msg['meta']
+        str_meta            = json.dumps(d_meta)
+        d_file              = d_meta['file']
+        str_sourcePath      = d_file['path']
+        b_cleanZip          = False
 
-        str_meta        = json.dumps(d_meta)
+        if 'housekeeping' in d_meta.keys():
+            b_cleanZip      = d_meta['housekeeping']['removeLocalArchive']
+
+        # First create a zip of the target (file or dir)
+        str_zipfileName     = '%s.zip' % uuid.uuid4()
+        ziphandler          = zipfile.ZipFile(str_zipfileName, 'w', zipfile.ZIP_DEFLATED)
+        if os.path.isdir(str_sourcePath):
+            self.zipdir(str_sourcePath, ziphandler)
+        else:
+            try:
+                ziphandler.write(str_sourcePath)
+            except:
+                ziphandler.close()
+                os.remove(str_zipfileName)
+                return {"stdout": json.dumps({"msg": "No file or directory found for '%s'" % str_sourcePath})}
+        ziphandler.close()
+
+        # Now encode the zip as ASCII for transmission
+        with open(str_zipfileName, 'rb') as f:
+            data        = f.read()
+            f.close()
+        if d_file['encoding'] == 'base64':
+            data_b64        = base64.b64encode(data)
+            str_b64fileName = '%s.b64' % str_zipfileName
+        with open(str_b64fileName, 'wb') as f:
+            f.write(data_b64)
+            f.close()
 
         response        = io.BytesIO()
+        fread           = open(str_b64fileName, "rb")
+        filesize        = os.path.getsize(str_b64fileName)
+
+        str_ip          = self.str_ip
+        str_port        = self.str_port
+        if 'destination' in d_meta.keys():
+            d_destination   = d_meta['destination']
+            if 'ip' in d_destination.keys():
+                str_ip      = d_destination['ip']
+            if 'port' in d_destination.keys():
+                str_port    = d_destination['port']
 
         c = pycurl.Curl()
         c.setopt(c.POST, 1)
-        c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (self.str_ip, self.str_port))
-        c.setopt(c.HTTPPOST, [("file1", (c.FORM_FILE, str_file)),
-                              ("meta", str_meta)])
+        c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (str_ip, str_port))
+        c.setopt(c.HTTPPOST, [("file",      (c.FORM_FILE, str_b64fileName)),
+                              ("encoding",  d_file['encoding']),
+                              ("d_meta",    str_meta),
+                              ("filename",  str_b64fileName)]
+                 )
+        # c.setopt(pycurl.HTTPHEADER, ['Content-Type: image/jpeg'])
         c.setopt(c.VERBOSE, 1)
-        c.setopt(c.WRITEFUNCTION, response.write)
+        c.setopt(c.POSTFIELDSIZE,   filesize)
+        c.setopt(c.READFUNCTION,    fread.read)
+        c.setopt(c.WRITEFUNCTION,   response.write)
         c.perform()
         c.close()
 
         str_response    = response.getvalue().decode()
-        print(str_response)
+        # print(str_response)
+        print(b_cleanZip)
+        if b_cleanZip:
+            os.remove(str_zipfileName)
         return {'stdout': str_response}
+
+    def send_meta(self, d_msg, **kwargs):
+        """
+         Send a file's contents in the meta header. The file is uuencoded, and
+         the uuencoded contents are packed into the header.
+        """
+
+        d_meta          = d_msg['meta']
+        str_file        = d_meta['file']
+        # str_fileuuc     = '%s.uuc' % str_file
+
+        str_meta        = json.dumps(d_meta)
+
+        # uu.encode(str_file, str_fileuuc)
+        with open(str_file, 'rb') as f:
+            data        = f.read()
+
+        data_b64    = base64.b64encode(data)
+        data_a64    = data_b64.decode('utf-8')
+        d_meta['file_encoded'] = data_a64
+        return d_msg
 
     def transmit(self, d_msg, **kwargs):
         """
@@ -709,7 +889,7 @@ class Client():
 
         d_meta          = d_msg['meta']
         str_action      = d_msg['action']
-
+        # print(d_meta)
         str_meta        = json.dumps(d_meta)
         if str_action != "send":
             str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
@@ -718,6 +898,7 @@ class Client():
         else:
             d_ret           = self.send(d_msg)
         if len(d_ret['stdout']):
+            print(d_ret['stdout'])
             json_stdout = json.loads(d_ret['stdout'])
         else:
             json_stdout = d_ret
