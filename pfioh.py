@@ -14,21 +14,18 @@ str_desc = """
 
                          A simple http file IO handler
 
-    `pfioh.py' is a simple http-based file I/O handler, usually used with
-    `pman.py'.
+    `pfioh.py' is a simple http-based file I/O handler/server, usually started
+    by `pman.py'.
 
-     POST requests essentially transfer a file from the client to the server.
-     The save location of the file can be specified in the header,
-     as well as some rudimentary handling such as unzip.
+    `pfioh.py' handles HTTP REST-like requests on a given port -- it can accept
+    incoming file data from a client, and can also return server-side filetrees
+    to a client.
 
-     GET requests pull a file (or directory tree) from the server to the client.
-     For a directory, an optional zip specifier in the meta dictionary (see examples)
-     can zip up the target directory before transfer.
+    The script assumes that file data is zip'd and base64 encoded.
 
 """
 
-from    os              import curdir
-from    os.path         import join as pjoin
+import  os
 
 from    io              import BytesIO as IO
 from    http.server     import BaseHTTPRequestHandler, HTTPServer
@@ -40,6 +37,8 @@ from    _colors         import Colors
 import  zipfile
 import  json
 import  base64
+import  zipfile
+import  uuid
 
 
 class debug(object):
@@ -139,20 +138,34 @@ class StoreHandler(BaseHTTPRequestHandler):
             d_form[key] = form.getvalue(key)
         print(d_form.keys())
         print(d_form['d_meta'])
+
+
+        print(self.headers['Content-Type'])
         d_meta          = json.loads(d_form['d_meta'])
         fileContent     = d_form['file']
-        str_fileName    = d_form['filename']
+        str_fileName    = d_meta['file']['path']
         str_encoding    = d_form['encoding']
 
+        str_fileOnly    = os.path.split(str_fileName)[-1]
+        str_fileSuffix  = ""
+        if 'file' in d_meta: d_file = d_meta['file']
+        if d_file['compress'] == "zip":
+            str_fileSuffix = ".zip"
+
+        str_localFile   = "%s%s%s" % (self.server.str_fileBase, str_fileOnly, str_fileSuffix)
+
         if str_encoding == "base64":
-            data        = base64.b64decode(fileContent.decode())
-            with open(self.server.str_filezip, 'w') as fh:
-                fh.write(data.decode())
+            data        = base64.b64decode(fileContent)
+            with open(str_localFile, 'wb') as fh:
+                fh.write(data)
         else:
             # print(d_meta)
-            with open(self.server.str_filezip, 'w') as fh:
-                fh.write(fileContent.decode())
-
+            with open(str_localFile, 'wb') as fh:
+                try:
+                    fh.write(fileContent.decode())
+                except:
+                    fh.write(fileContent)
+        fh.close()
         self.send_response(200)
         self.end_headers()
 
@@ -163,9 +176,7 @@ class StoreHandler(BaseHTTPRequestHandler):
         }
 
         self.wfile.write(json.dumps(d_ret).encode())
-
         return
-
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """
@@ -179,8 +190,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
               ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
 
     def setup(self, **kwargs):
-        self.str_fileb64    = "received.b64"
-        self.str_filezip    = "received.zip"
+        self.str_fileBase   = "received-"
         self.LC             = 40
         self.RC             = 40
 
@@ -199,6 +209,82 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
         self.col2_print("Listening on port:",       self.args['port'])
 
         print(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
+
+def zipdir(path, ziph):
+    # ziph is zipfile handle
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            try:
+                ziph.write(os.path.join(root, file))
+            except:
+                print("Skipping %s" % os.path.join(root, file))
+
+def zip_process(**kwargs):
+    """
+    Process zip operations.
+
+    :param kwargs:
+    :return:
+    """
+
+    str_sourcePath  = ""
+    str_action      = "zip"
+    for k,v in kwargs.items():
+        if k == 'path':   str_sourcePath  = v
+        if k == 'action': str_action      = v
+
+    if str_action       == 'zip':
+        str_mode        = 'w'
+    else:
+        str_mode        = 'r'
+    str_zipFileName     = '%s.zip' % uuid.uuid4()
+    ziphandler          = zipfile.ZipFile(str_zipFileName, str_mode, zipfile.ZIP_DEFLATED)
+    if os.path.isdir(str_sourcePath):
+        zipdir(str_sourcePath, ziphandler)
+    else:
+        try:
+            ziphandler.write(str_sourcePath)
+        except:
+            ziphandler.close()
+            os.remove(str_zipFileName)
+            return {
+                'stdout':   json.dumps({"msg": "No file or directory found for '%s'" % str_sourcePath}),
+                'status':   False
+            }
+    ziphandler.close()
+    return {
+        'stdout':           '',
+        'fileProcessed':    str_zipFileName,
+        'status':           True
+    }
+
+def base64_process(**kwargs):
+    """
+    Process base64 file io
+    """
+
+    str_fileToProcess   = ""
+    str_action          = "encode"
+
+    for k,v in kwargs.items():
+        if k == 'path':   str_fileToProcess   = v
+        if k == 'action': str_action          = v
+
+    # Now encode the zip as ASCII for transmission
+    with open(str_fileToProcess, 'rb') as f:
+        data            = f.read()
+        f.close()
+    data_b64            = base64.b64encode(data)
+    str_fileToProcess   = '%s.b64' % str_fileToProcess
+    with open(str_fileToProcess, 'wb') as f:
+        f.write(data_b64)
+        f.close()
+    return {
+        'stdout':           '',
+        'fileProcessed':    str_fileToProcess,
+        'status':           True
+    }
+
 
 def main():
     str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
