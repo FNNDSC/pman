@@ -19,11 +19,12 @@ import  socket
 import  pycurl
 import  io
 import  os
-import  uu
-import  zipfile
-import  base64
-import  uuid
-import  shutil
+# import  uu
+# import  zipfile
+# import  base64
+# import  uuid
+# import  shutil
+import  pfioh
 
 class Client():
 
@@ -755,15 +756,6 @@ class Client():
 
         self.transmit(d_msg)
 
-    def zipdir(self, path, ziph):
-        # ziph is zipfile handle
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                try:
-                    ziph.write(os.path.join(root, file))
-                except:
-                    print("Skipping %s" % os.path.join(root, file))
-
     def send(self, d_msg, **kwargs):
         """
          Send a file using pycurl.
@@ -795,70 +787,87 @@ class Client():
         str_meta            = json.dumps(d_meta)
         d_file              = d_meta['file']
         str_sourcePath      = d_file['path']
+        str_fileToProcess   = str_sourcePath
+        str_zipFile         = ""
+        str_base64File      = ""
+
         b_cleanZip          = False
+        b_zip               = True
+
+        str_encoding        = 'base64'
 
         if 'housekeeping' in d_meta.keys():
             b_cleanZip      = d_meta['housekeeping']['removeLocalArchive']
 
-        # First create a zip of the target (file or dir)
-        str_zipfileName     = '%s.zip' % uuid.uuid4()
-        ziphandler          = zipfile.ZipFile(str_zipfileName, 'w', zipfile.ZIP_DEFLATED)
+        if 'compress' in d_file.keys():
+            str_compress    = d_file['compress']
+            if str_compress == 'zip':   b_zip = True
+            else:                       b_zip = False
         if os.path.isdir(str_sourcePath):
-            self.zipdir(str_sourcePath, ziphandler)
-        else:
-            try:
-                ziphandler.write(str_sourcePath)
-            except:
-                ziphandler.close()
-                os.remove(str_zipfileName)
-                return {"stdout": json.dumps({"msg": "No file or directory found for '%s'" % str_sourcePath})}
-        ziphandler.close()
+            b_zip           = True
+            str_compress    = 'zip'
 
-        # Now encode the zip as ASCII for transmission
-        with open(str_zipfileName, 'rb') as f:
-            data        = f.read()
-            f.close()
-        if d_file['encoding'] == 'base64':
-            data_b64        = base64.b64encode(data)
-            str_b64fileName = '%s.b64' % str_zipfileName
-        with open(str_b64fileName, 'wb') as f:
-            f.write(data_b64)
-            f.close()
+        # If specified (or if the target is a directory), create zip archive
+        # of the source path
+        if b_zip:
+            if not self.b_quiet:
+                print(Colors.BLINK_RED + "Zipping target..." + Colors.NO_COLOUR)
+            d_ret   = pfioh.zip_process(
+                                action  = 'zip',
+                                path    = str_sourcePath
+                    )
+            if not d_ret['status']: return d_ret['stdout']
+            str_fileToProcess   = d_ret['fileProcessed']
+            str_zipFile         = str_fileToProcess
+
+        # Encode possible binary filedata in base64 suitable for text-only
+        # transmission.
+        if 'encoding' in d_file.keys(): str_encoding    = d_file['encoding']
+        if str_encoding     == 'base64':
+            if not self.b_quiet:
+                print(Colors.BLINK_RED + "base64 encoding target..." + Colors.NO_COLOUR)
+            d_ret   = pfioh.base64_process(
+                                action  = 'encode',
+                                path    = str_fileToProcess
+                        )
+            str_fileToProcess   = d_ret['fileProcessed']
+            str_base64File      = str_fileToProcess
 
         response        = io.BytesIO()
-        fread           = open(str_b64fileName, "rb")
-        filesize        = os.path.getsize(str_b64fileName)
+        fread           = open(str_fileToProcess, "rb")
+        filesize        = os.path.getsize(str_fileToProcess)
 
         str_ip          = self.str_ip
         str_port        = self.str_port
         if 'destination' in d_meta.keys():
             d_destination   = d_meta['destination']
-            if 'ip' in d_destination.keys():
-                str_ip      = d_destination['ip']
-            if 'port' in d_destination.keys():
-                str_port    = d_destination['port']
+            if 'ip' in d_destination.keys():    str_ip      = d_destination['ip']
+            if 'port' in d_destination.keys():  str_port    = d_destination['port']
 
         c = pycurl.Curl()
         c.setopt(c.POST, 1)
         c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (str_ip, str_port))
-        c.setopt(c.HTTPPOST, [("file",      (c.FORM_FILE, str_b64fileName)),
+        c.setopt(c.HTTPPOST, [("file",      (c.FORM_FILE, str_fileToProcess)),
                               ("encoding",  d_file['encoding']),
                               ("d_meta",    str_meta),
-                              ("filename",  str_b64fileName)]
+                              ("filename",  str_fileToProcess)]
                  )
-        # c.setopt(pycurl.HTTPHEADER, ['Content-Type: image/jpeg'])
-        c.setopt(c.VERBOSE, 1)
+        # c.setopt(c.VERBOSE, 1)
         c.setopt(c.POSTFIELDSIZE,   filesize)
         c.setopt(c.READFUNCTION,    fread.read)
         c.setopt(c.WRITEFUNCTION,   response.write)
+        if not self.b_quiet:
+            print(Colors.BLINK_RED + "Transmitting data..." + Colors.NO_COLOUR)
         c.perform()
         c.close()
 
         str_response    = response.getvalue().decode()
         # print(str_response)
-        print(b_cleanZip)
         if b_cleanZip:
-            os.remove(str_zipfileName)
+            if not self.b_quiet:
+                print(Colors.BLINK_RED + "Removing temp files..." + Colors.NO_COLOUR)
+            os.remove(str_zipFile)
+            os.remove(str_base64File)
         return {'stdout': str_response}
 
     def send_meta(self, d_msg, **kwargs):
