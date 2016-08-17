@@ -260,7 +260,7 @@ class StoreHandler(BaseHTTPRequestHandler):
                 except:
                     fh.write(fileContent)
         fh.close()
-        if b_unpack:
+        if b_unpack and d_compress['archive'] == 'zip':
             zip_process(action          = 'unzip',
                         path            = str_unpackPath,
                         payloadFile     = str_localFile)
