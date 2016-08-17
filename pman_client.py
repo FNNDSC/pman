@@ -1057,8 +1057,8 @@ class Client():
         if b_cleanZip:
             if not self.b_quiet:
                 print(Colors.BLINK_RED + "Removing temp files..." + Colors.NO_COLOUR)
-            os.remove(str_zipFile)
-            os.remove(str_base64File)
+            if os.path.isfile(str_zipFile):     os.remove(str_zipFile)
+            if os.path.isfile(str_base64File):  os.remove(str_base64File)
         return {'stdout': json.dumps(d_ret)}
 
     def send_meta(self, d_msg, **kwargs):
