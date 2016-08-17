@@ -39,6 +39,8 @@ import  json
 import  base64
 import  zipfile
 import  uuid
+import  urllib
+import  ast
 
 
 class debug(object):
@@ -99,65 +101,157 @@ class StoreHandler(BaseHTTPRequestHandler):
         """
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
+    def do_GET_withCompression(self, d_server):
+        """
+        Process a "GET" using zip/base64 encoding
+
+        :return:
+        """
+        d_compress          = ast.literal_eval(d_server['compress'])
+
+        str_serverPath      = d_server['path']
+        str_fileToProcess   = str_serverPath
+
+        b_cleanup           = False
+        b_zip               = True
+
+        str_encoding        = 'base64'
+
+        if 'cleanup' in d_compress: b_cleanup = d_compress['cleanup']
+
+        str_archive         = d_compress['archive']
+        if str_archive == 'zip':    b_zip = True
+        else:                       b_zip = False
+        if os.path.isdir(str_serverPath):
+            b_zip           = True
+            str_archive    = 'zip'
+
+        # If specified (or if the target is a directory), create zip archive
+        # of the local path
+        if b_zip:
+            if not self.b_quiet:
+                print(Colors.YELLOW + "\nZipping target '%s'..." % str_serverPath + Colors.NO_COLOUR)
+            d_ret   = zip_process(
+                action  = 'zip',
+                path    = str_serverPath,
+                arcroot = str_serverPath
+            )
+            if not d_ret['status']:
+                self.ret_client(d_ret['stdout'])
+                return
+
+            str_fileToProcess   = d_ret['fileProcessed']
+            str_zipFile         = str_fileToProcess
+
+        # Encode possible binary filedata in base64 suitable for text-only
+        # transmission.
+        if 'encoding' in d_server.keys(): str_encoding    = d_server['encoding']
+        if str_encoding     == 'base64':
+            if not self.b_quiet:
+                print(Colors.YELLOW + "base64 encoding target '%s'..." % str_fileToProcess + Colors.NO_COLOUR)
+            d_ret   = base64_process(
+                action      = 'encode',
+                payloadFile = str_fileToProcess,
+                saveToFile  = str_fileToProcess + ".b64"
+            )
+            str_fileToProcess   = d_ret['fileProcessed']
+            str_base64File      = str_fileToProcess
+
+        with open(str_fileToProcess) as fh:
+            filesize    = os.stat(str_fileToProcess).st_size
+            if not self.b_quiet:
+                print(Colors.YELLOW + "Transmitting %d target bytes..." % filesize + Colors.NO_COLOUR)
+            self.send_response(200)
+            # self.send_header('Content-type', 'text/json')
+            self.end_headers()
+            self.wfile.write(fh.read().encode())
+
+        if b_cleanup:
+            if not self.b_quiet:
+                print(Colors.GREEN + "Removing '%s' and '%s'..." % (str_zipFile, str_base64File) + Colors.NO_COLOUR)
+            if str_encoding == 'base64':    os.remove(str_zipFile)
+            if b_zip:                       os.remove(str_base64File)
+
+
     def do_GET(self):
-        if self.path == '/':
-            with open(self.store_path) as fh:
-                self.send_response(200)
-                self.send_header('Content-type', 'text/json')
-                self.end_headers()
-                self.wfile.write(fh.read().encode())
+
+        d_server            = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query))
+        self.b_quiet        = False
+
+        if 'compress' in d_server: self.do_GET_withCompression(d_server)
+
+
+    def form_get(self, str_verb, data):
+        """
+        Returns a form from cgi.FieldStorage
+        """
+        return cgi.FieldStorage(
+            IO(data),
+            headers =   self.headers,
+            environ =
+            {
+                'REQUEST_METHOD':   str_verb,
+                'CONTENT_TYPE':     self.headers['Content-Type'],
+            }
+        )
+
 
     def do_POST(self):
 
         # Parse the form data posted
 
-
         print("\n")
         print(Colors.LIGHT_PURPLE + str(self.headers) + Colors.NO_COLOUR)
 
-        str_contentType     = self.headers['content-type']
         length              = self.headers['content-length']
         data                = self.rfile.read(int(length))
-        l_contentType       = str_contentType.split()
-        str_boundary        = l_contentType[1]
-        str_boundaryOnly    = str_boundary.split("=")[1]
-        print(str_boundaryOnly)
 
-        form = cgi.FieldStorage(
-            IO(data),
-            headers =   self.headers,
-            environ =
-                {
-                    'REQUEST_METHOD':'POST',
-                    'CONTENT_TYPE':    self.headers['Content-Type'],
-                }
-            )
-
-        d_form          = {}
+        form                = self.form_get('POST', data)
+        d_form              = {}
         for key in form:
-            d_form[key] = form.getvalue(key)
-        print(d_form.keys())
-        print(d_form['d_meta'])
+            d_form[key]     = form.getvalue(key)
 
+        d_meta              = json.loads(d_form['d_meta'])
+        fileContent         = d_form['local']
+        str_fileName        = d_meta['local']['path']
+        str_encoding        = d_form['encoding']
 
-        print(self.headers['Content-Type'])
-        d_meta          = json.loads(d_form['d_meta'])
-        fileContent     = d_form['file']
-        str_fileName    = d_meta['file']['path']
-        str_encoding    = d_form['encoding']
+        d_remote            = d_meta['remote']
+        b_unpack            = False
+        # b_serverPath        = False
+        str_unpackBase      = self.server.str_fileBase
+        if 'path' in d_remote:
+            str_unpackPath  = d_remote['path']
+            str_unpackBase  = str_unpackPath + '/'
 
-        str_fileOnly    = os.path.split(str_fileName)[-1]
-        str_fileSuffix  = ""
-        if 'file' in d_meta: d_file = d_meta['file']
-        if d_file['compress'] == "zip":
+        d_transport         = d_meta['transport']
+        d_compress          = d_transport['compress']
+        if 'unpack' in d_compress:
+            b_unpack        = d_compress['unpack']
+
+        str_fileOnly        = os.path.split(str_fileName)[-1]
+        str_fileSuffix      = ""
+        if d_compress['archive'] == "zip":
             str_fileSuffix = ".zip"
 
-        str_localFile   = "%s%s%s" % (self.server.str_fileBase, str_fileOnly, str_fileSuffix)
+        str_localFile   = "%s%s%s" % (str_unpackBase, str_fileOnly, str_fileSuffix)
 
         if str_encoding == "base64":
             data        = base64.b64decode(fileContent)
-            with open(str_localFile, 'wb') as fh:
-                fh.write(data)
+            try:
+                with open(str_localFile, 'wb') as fh:
+                    fh.write(data)
+            except:
+                self.ret_client(
+                    {
+                        "status":       False,
+                        "User-agent":   self.headers['user-agent'],
+                        "d_meta":       d_meta,
+                        "stderr":       "Could not access server path!"
+                    }
+                )
+                return
+
         else:
             # print(d_meta)
             with open(str_localFile, 'wb') as fh:
@@ -166,17 +260,34 @@ class StoreHandler(BaseHTTPRequestHandler):
                 except:
                     fh.write(fileContent)
         fh.close()
+        if b_unpack:
+            zip_process(action          = 'unzip',
+                        path            = str_unpackPath,
+                        payloadFile     = str_localFile)
+            os.remove(str_localFile)
+
         self.send_response(200)
         self.end_headers()
 
-        d_ret = {
-            "status":       True,
-            "User-agent":   self.headers['user-agent'],
-            "d_meta":       d_meta
-        }
+        self.ret_client(
+            {
+                "status":       True,
+                "User-agent":   self.headers['user-agent'],
+                "d_meta":       d_meta
+            }
+        )
 
-        self.wfile.write(json.dumps(d_ret).encode())
         return
+
+    def ret_client(self, d_ret):
+        """
+        Simply "writes" the d_ret using json and the client wfile.
+
+        :param d_ret:
+        :return:
+        """
+        self.wfile.write(json.dumps(d_ret).encode())
+
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """
@@ -210,14 +321,30 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
         print(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
 
-def zipdir(path, ziph):
-    # ziph is zipfile handle
+def zipdir(path, ziph, **kwargs):
+    """
+    Zip up a directory.
+
+    :param path:
+    :param ziph:
+    :param kwargs:
+    :return:
+    """
+    str_arcroot = ""
+    for k, v in kwargs.items():
+        if k == 'arcroot':  str_arcroot = v
+
     for root, dirs, files in os.walk(path):
         for file in files:
+            str_arcfile = os.path.join(root, file)
+            if len(str_arcroot):
+                str_arcname = str_arcroot.split('/')[-1] + str_arcfile.split(str_arcroot)[1]
+            else:
+                str_arcname = str_arcfile
             try:
-                ziph.write(os.path.join(root, file))
+                ziph.write(str_arcfile, arcname = str_arcname)
             except:
-                print("Skipping %s" % os.path.join(root, file))
+                print("Skipping %s" % str_arcfile)
 
 def zip_process(**kwargs):
     """
@@ -227,35 +354,49 @@ def zip_process(**kwargs):
     :return:
     """
 
-    str_sourcePath  = ""
+    str_localPath   = ""
+    str_zipFileName = ""
     str_action      = "zip"
+    str_arcroot     = ""
     for k,v in kwargs.items():
-        if k == 'path':   str_sourcePath  = v
-        if k == 'action': str_action      = v
+        if k == 'path':             str_localPath   = v
+        if k == 'action':           str_action      = v
+        if k == 'payloadFile':      str_zipFileName = v
+        if k == 'arcroot':          str_arcroot     = v
 
     if str_action       == 'zip':
         str_mode        = 'w'
+        str_zipFileName = '%s.zip' % uuid.uuid4()
     else:
         str_mode        = 'r'
-    str_zipFileName     = '%s.zip' % uuid.uuid4()
+
     ziphandler          = zipfile.ZipFile(str_zipFileName, str_mode, zipfile.ZIP_DEFLATED)
-    if os.path.isdir(str_sourcePath):
-        zipdir(str_sourcePath, ziphandler)
-    else:
-        try:
-            ziphandler.write(str_sourcePath)
-        except:
-            ziphandler.close()
-            os.remove(str_zipFileName)
-            return {
-                'stdout':   json.dumps({"msg": "No file or directory found for '%s'" % str_sourcePath}),
-                'status':   False
-            }
+    if str_mode == 'w':
+        if os.path.isdir(str_localPath):
+            zipdir(str_localPath, ziphandler, arcroot = str_arcroot)
+        else:
+            if len(str_arcroot):
+                str_arcname = str_arcroot.split('/')[-1] + str_localPath.split(str_arcroot)[1]
+            else:
+                str_arcname = str_localPath
+            try:
+                ziphandler.write(str_localPath, arcname = str_arcname)
+            except:
+                ziphandler.close()
+                os.remove(str_zipFileName)
+                return {
+                    'stdout':   json.dumps({"msg": "No file or directory found for '%s'" % str_localPath}),
+                    'status':   False
+                }
+    if str_mode     == 'r':
+        ziphandler.extractall(str_localPath)
     ziphandler.close()
     return {
         'stdout':           '',
         'fileProcessed':    str_zipFileName,
-        'status':           True
+        'status':           True,
+        'path':             str_localPath,
+        'zipmode':          str_mode
     }
 
 def base64_process(**kwargs):
@@ -263,27 +404,45 @@ def base64_process(**kwargs):
     Process base64 file io
     """
 
-    str_fileToProcess   = ""
+    str_fileToSave      = ""
     str_action          = "encode"
+    data                = None
 
     for k,v in kwargs.items():
-        if k == 'path':   str_fileToProcess   = v
-        if k == 'action': str_action          = v
+        if k == 'action':           str_action          = v
+        if k == 'payloadBytes':     data                = v
+        if k == 'payloadFile':      str_fileToRead      = v
+        if k == 'saveToFile':       str_fileToSave      = v
+        if k == 'sourcePath':       str_sourcePath      = v
 
-    # Now encode the zip as ASCII for transmission
-    with open(str_fileToProcess, 'rb') as f:
-        data            = f.read()
-        f.close()
-    data_b64            = base64.b64encode(data)
-    str_fileToProcess   = '%s.b64' % str_fileToProcess
-    with open(str_fileToProcess, 'wb') as f:
-        f.write(data_b64)
-        f.close()
-    return {
-        'stdout':           '',
-        'fileProcessed':    str_fileToProcess,
-        'status':           True
-    }
+    if str_action       == "encode":
+        # Encode the contents of the file at targetPath as ASCII for transmission
+        if len(str_fileToRead):
+            with open(str_fileToRead, 'rb') as f:
+                data            = f.read()
+                f.close()
+        data_b64            = base64.b64encode(data)
+        with open(str_fileToSave, 'wb') as f:
+            f.write(data_b64)
+            f.close()
+        return {
+            'stdout':           'Encode successful',
+            'fileProcessed':    str_fileToSave,
+            'status':           True,
+            'encodedBytes':     data_b64
+        }
+
+    if str_action       == "decode":
+        bytes_decoded     = base64.b64decode(data)
+        with open(str_fileToSave, 'wb') as f:
+            f.write(bytes_decoded)
+            f.close()
+        return {
+            'stdout':           'Decode successful',
+            'fileProcessed':    str_fileToSave,
+            'status':           True,
+            'decodedBytes':     bytes_decoded
+        }
 
 
 def main():
