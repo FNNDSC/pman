@@ -118,7 +118,7 @@ class Client():
             self.man_save(          description =   "short")      + "\n" + \
             self.man_get(           description =   "short")      + "\n" + \
             self.man_fileiosetup(   description =   "short")      + "\n" + \
-            self.man_send(          description =   "short")      + "\n" + \
+            self.man_push(          description =   "short")      + "\n" + \
             self.man_pull(          description =   "short")      + "\n" + \
             Colors.YELLOW + \
             """
@@ -139,7 +139,7 @@ class Client():
         if str_man  == 'testsuite':     return self.man_testsuite(  description  =   str_amount)
         if str_man  == 'save':          return self.man_save(       description  =   str_amount)
         if str_man  == 'fileiosetup':   return self.man_fileiosetup(description  =   str_amount)
-        if str_man  == 'send':          return self.man_send(       description  =   str_amount)
+        if str_man  == 'send':          return self.man_push(       description  =   str_amount)
         if str_man  == 'pull':          return self.man_pull(       description  =   str_amount)
 
     def man_save(self, **kwargs):
@@ -445,7 +445,7 @@ class Client():
 
         return str_manTxt
 
-    def man_send(self, **kwargs):
+    def man_push(self, **kwargs):
         """
         """
 
@@ -465,7 +465,7 @@ class Client():
         if b_fullDescription:
             str_manTxt += """
 
-                This sends a file over HTTP. The 'meta' dictionary
+                This pushes a file over HTTP. The 'meta' dictionary
                 can be used to specifiy content specific information
                 and other information.
 
@@ -473,7 +473,7 @@ class Client():
                 same port as the pman.py process. Usually a prior call
                 must be made to pman.py to start a one-shot listener
                 on a given port. This port then accepts the file transfer
-                from the 'send' method.
+                from the 'push' method.
                 
                 The "meta" dictionary consists of several nested 
                 dictionaries. In particular, the "remote/path"
@@ -486,7 +486,7 @@ class Client():
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010  --msg  \\
-                    '{  "action": "send",
+                    '{  "action": "push",
                         "meta":
                             {
                                 "local":
@@ -884,19 +884,37 @@ class Client():
         response            = io.BytesIO()
 
         if not self.b_quiet:
-            print(Colors.BLINK_RED + "Transmitting request to %s:%s..." % (str_ip, str_port) + Colors.NO_COLOUR)
+            print(Colors.YELLOW + "Transmitting request to %s:%s..." % (str_ip, str_port) + Colors.NO_COLOUR)
         c                   = pycurl.Curl()
         c.setopt(c.URL, "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
         # c.setopt(c.VERBOSE, 1)
         c.setopt(c.FOLLOWLOCATION,  1)
         c.setopt(c.WRITEFUNCTION,   response.write)
         if not self.b_quiet:
-            print(Colors.BLINK_RED + "Waiting for response..."  + Colors.NO_COLOUR)
+            print(Colors.YELLOW + "Waiting for response..."  + Colors.NO_COLOUR)
         c.perform()
         c.close()
+        try:
+            str_response        = response.getvalue().decode()
+        except:
+            str_response        = response.getvalue()
+        if len(str_response) < 200:
+            # It's possible an error occurred for the response to be so short.
+            # Try and json load, and examine for 'status' field.
+            b_response      = False
+            try:
+                d_response  = json.loads(str_response)
+                b_response  = True
+            except:
+                pass
+            if b_response:
+                if not d_response['status']:
+                    if not self.b_quiet:
+                        print(Colors.RED + 'Some error occurred at remote location:')
+                return {'stdout': json.dumps(d_response)}
+
         if not self.b_quiet:
-            print(Colors.BLINK_RED + "Response received..."  + Colors.NO_COLOUR)
-        str_response        = response.getvalue().decode()
+            print(Colors.YELLOW + "Received %d bytes..." % len(str_response)  + Colors.NO_COLOUR)
         str_localStem       = os.path.split(str_remotePath)[-1]
         str_fileSuffix      = ""
         if str_archive     == "zip":       str_fileSuffix   = ".zip"
@@ -907,7 +925,7 @@ class Client():
 
         if str_encoding == 'base64':
             if not self.b_quiet:
-                print(Colors.BLINK_RED + "Decoding base64 encoded text stream to %s..." % str_localFile + Colors.NO_COLOUR)
+                print(Colors.YELLOW + "Decoding base64 encoded text stream to %s..." % str_localFile + Colors.NO_COLOUR)
             d_fio = pfioh.base64_process(
                                         action          = 'decode',
                                         payloadBytes    = str_response,
@@ -915,10 +933,20 @@ class Client():
                                     )
             d_ret['encoding']       = str_encoding
             d_ret['contentFile']    = d_fio['fileProcessed']
+            d_ret['canClean']       = True
+        else:
+            if not self.b_quiet:
+                print(Colors.YELLOW + "Writing byte stream to %s..." % str_localFile + Colors.NO_COLOUR)
+            with open(str_localFile, 'wb') as fh:
+                fh.write(str_response)
+                fh.close()
+            d_ret['canClean']   = False
+            d_ret['directSave'] = True
+            d_ret['byteStream'] = str_localFile
 
         if str_archive == 'zip':
             if not self.b_quiet:
-                print(Colors.BLINK_RED + "Unzipping %s to %s"  % (str_localFile, str_localPath) + Colors.NO_COLOUR)
+                print(Colors.YELLOW + "Unzipping %s to %s"  % (str_localFile, str_localPath) + Colors.NO_COLOUR)
             d_fio = pfioh.zip_process(
                                         action          = "unzip",
                                         payloadFile     = str_localFile,
@@ -926,17 +954,17 @@ class Client():
                                     )
             d_ret['unzipPath']  = d_fio['path']
             d_ret['zipmode']    = d_fio['zipmode']
+            d_ret['canClean']   = True
 
-
-        if b_cleanZip:
+        if b_cleanZip and d_ret['canClean']:
             if not self.b_quiet:
-                print(Colors.BLINK_RED + "Removing zip file %s..." % str_localFile + Colors.NO_COLOUR)
+                print(Colors.YELLOW + "Removing zip file %s..." % str_localFile + Colors.NO_COLOUR)
             os.remove(str_localFile)
         return {'stdout': json.dumps(d_ret)}
 
-    def send(self, d_msg, **kwargs):
+    def push(self, d_msg, **kwargs):
         """
-         Send a file using pycurl.
+         Push a file using pycurl.
 
          This method assumes that a prior call has "setup" a remote fileio
          listener and has the ip:port of that instance.
@@ -1003,7 +1031,7 @@ class Client():
         # of the local path
         if b_zip:
             if not self.b_quiet:
-                print(Colors.BLINK_RED + "Zipping target..." + Colors.NO_COLOUR)
+                print(Colors.YELLOW + "Zipping target..." + Colors.NO_COLOUR)
             d_fio   = pfioh.zip_process(
                                 action  = 'zip',
                                 path    = str_localPath,
@@ -1019,7 +1047,7 @@ class Client():
         # transmission.
         if str_encoding     == 'base64':
             if not self.b_quiet:
-                print(Colors.BLINK_RED + "base64 encoding target..." + Colors.NO_COLOUR)
+                print(Colors.YELLOW + "base64 encoding target..." + Colors.NO_COLOUR)
             d_fio   = pfioh.base64_process(
                                 action      = 'encode',
                                 payloadFile = str_fileToProcess,
@@ -1047,7 +1075,7 @@ class Client():
         c.setopt(c.READFUNCTION,    fread.read)
         c.setopt(c.WRITEFUNCTION,   response.write)
         if not self.b_quiet:
-            print(Colors.BLINK_RED + "Transmitting data..." + Colors.NO_COLOUR)
+            print(Colors.YELLOW + "Transmitting %d bytes..." % os.stat(str_fileToProcess).st_size + Colors.NO_COLOUR)
         c.perform()
         c.close()
 
@@ -1056,7 +1084,7 @@ class Client():
         # print(str_response)
         if b_cleanZip:
             if not self.b_quiet:
-                print(Colors.BLINK_RED + "Removing temp files..." + Colors.NO_COLOUR)
+                print(Colors.YELLOW + "Removing temp files..." + Colors.NO_COLOUR)
             if os.path.isfile(str_zipFile):     os.remove(str_zipFile)
             if os.path.isfile(str_base64File):  os.remove(str_base64File)
         return {'stdout': json.dumps(d_ret)}
@@ -1091,12 +1119,12 @@ class Client():
         str_action      = d_msg['action']
         # print(d_meta)
         str_meta        = json.dumps(d_meta)
-        if str_action != "send" and str_action != "pull":
+        if str_action != "push" and str_action != "pull":
             str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
                               % (self.str_ip, self.str_port, str_action, str_meta)
             d_ret           = self.shell.run(str_shellCmd)
-        if str_action == 'send':
-            d_ret           = self.send(d_msg)
+        if str_action == 'push':
+            d_ret           = self.push(d_msg)
         if str_action == 'pull':
             d_ret           = self.pull(d_msg)
         if len(d_ret['stdout']):
