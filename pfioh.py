@@ -137,15 +137,19 @@ class StoreHandler(BaseHTTPRequestHandler):
                 arcroot = str_serverPath
             )
             if not d_ret['status']:
-                self.ret_client(d_ret['stdout'])
+                if not self.b_quiet:
+                    print(Colors.RED + "An error occurred during the zip operation:\n%s" % d_ret['stdout'])
+                self.ret_client(d_ret)
                 return
 
             str_fileToProcess   = d_ret['fileProcessed']
             str_zipFile         = str_fileToProcess
+            if not self.b_quiet:
+                print(Colors.YELLOW + "\nZip file: '%s'..." % str_zipFile + Colors.NO_COLOUR)
 
         # Encode possible binary filedata in base64 suitable for text-only
         # transmission.
-        if 'encoding' in d_server.keys(): str_encoding    = d_server['encoding']
+        if 'encoding' in d_compress: str_encoding    = d_compress['encoding']
         if str_encoding     == 'base64':
             if not self.b_quiet:
                 print(Colors.YELLOW + "base64 encoding target '%s'..." % str_fileToProcess + Colors.NO_COLOUR)
@@ -157,20 +161,28 @@ class StoreHandler(BaseHTTPRequestHandler):
             str_fileToProcess   = d_ret['fileProcessed']
             str_base64File      = str_fileToProcess
 
-        with open(str_fileToProcess) as fh:
+        with open(str_fileToProcess, 'rb') as fh:
             filesize    = os.stat(str_fileToProcess).st_size
             if not self.b_quiet:
-                print(Colors.YELLOW + "Transmitting %d target bytes..." % filesize + Colors.NO_COLOUR)
+                print(Colors.YELLOW + "Transmitting %d target bytes from %s..." %
+                      (filesize, str_fileToProcess) + Colors.NO_COLOUR)
             self.send_response(200)
             # self.send_header('Content-type', 'text/json')
             self.end_headers()
-            self.wfile.write(fh.read().encode())
+            # try:
+            #     self.wfile.write(fh.read().encode())
+            # except:
+            self.wfile.write(fh.read())
 
         if b_cleanup:
-            if not self.b_quiet:
-                print(Colors.GREEN + "Removing '%s' and '%s'..." % (str_zipFile, str_base64File) + Colors.NO_COLOUR)
-            if str_encoding == 'base64':    os.remove(str_zipFile)
-            if b_zip:                       os.remove(str_base64File)
+            if b_zip:
+                if not self.b_quiet:
+                    print(Colors.GREEN + "Removing '%s'..." % (str_zipFile) + Colors.NO_COLOUR)
+                if os.path.isfile(str_zipFile):     os.remove(str_zipFile)
+            if str_encoding == 'base64':
+                if not self.b_quiet:
+                    print(Colors.GREEN + "Removing '%s'..." % (str_base64File) + Colors.NO_COLOUR)
+                if os.path.isfile(str_base64File):  os.remove(str_base64File)
 
 
     def do_GET(self):
