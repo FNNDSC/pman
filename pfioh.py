@@ -101,15 +101,21 @@ class StoreHandler(BaseHTTPRequestHandler):
         """
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
-    def do_GET_withCompression(self, d_server):
+    def do_GET_withCompression(self, d_msg):
         """
         Process a "GET" using zip/base64 encoding
 
         :return:
         """
-        d_compress          = ast.literal_eval(d_server['compress'])
 
-        str_serverPath      = d_server['path']
+        # d_msg               = ast.literal_eval(d_server)
+        d_meta              = d_msg['meta']
+        d_local             = d_meta['local']
+        d_remote            = d_meta['remote']
+        d_transport         = d_meta['transport']
+        d_compress          = d_transport['compress']
+
+        str_serverPath      = d_remote['path']
         str_fileToProcess   = str_serverPath
 
         b_cleanup           = False
@@ -139,8 +145,7 @@ class StoreHandler(BaseHTTPRequestHandler):
             if not d_ret['status']:
                 if not self.b_quiet:
                     print(Colors.RED + "An error occurred during the zip operation:\n%s" % d_ret['stdout'])
-                self.ret_client(d_ret)
-                return
+                return d_ret
 
             str_fileToProcess   = d_ret['fileProcessed']
             str_zipFile         = str_fileToProcess
@@ -184,13 +189,19 @@ class StoreHandler(BaseHTTPRequestHandler):
                     print(Colors.GREEN + "Removing '%s'..." % (str_base64File) + Colors.NO_COLOUR)
                 if os.path.isfile(str_base64File):  os.remove(str_base64File)
 
+        return {'status' : True}
 
     def do_GET(self):
 
         d_server            = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query))
         self.b_quiet        = False
+        d_meta              = ast.literal_eval(d_server['meta'])
 
-        if 'compress' in d_server: self.do_GET_withCompression(d_server)
+        d_msg               = {}
+        d_msg['action']     = d_server['action']
+        d_msg['meta']       = d_meta
+        d_transport         = d_meta['transport']
+        if 'compress' in d_transport: self.do_GET_withCompression(d_msg)
 
 
     def form_get(self, str_verb, data):
