@@ -843,48 +843,21 @@ class Client():
 
         self.transmit(d_msg)
 
-    def pull_viaZip(self, **kwargs):
+    def pull_core(self, d_msg, **kwargs):
         """
-        """
-
-    def pull(self, d_msg, **kwargs):
-        """
-        Pulls data from a server using pycurl.
-
-        :param d_msg:
-        :param kwargs:
-        :return:
+        Just the core of the pycurl logic.
         """
 
         d_meta              = d_msg['meta']
-
-        d_local             = d_meta['local']
-        str_localPath       = d_local['path']
+        str_query           = urllib.parse.urlencode(d_msg)
+        response            = io.BytesIO()
 
         d_remote            = d_meta['remote']
         str_ip              = d_remote['ip']
         str_port            = d_remote['port']
 
-        str_mechanism       = ""
-        str_encoding        = ""
-        str_archive         = ""
-        d_transport         = d_meta['transport']
-        if 'compress' in d_transport:
-            d_compress      = d_transport['compress']
-            str_archive     = d_compress['archive']
-            str_encoding    = d_compress['encoding']
-
-        str_remotePath      = d_remote['path']
-
-        if 'cleanup' in d_compress:
-            b_cleanZip      = d_compress['cleanup']
-
-        d_transport['path'] = d_remote['path']
-        str_query           = urllib.parse.urlencode(d_transport)
-        response            = io.BytesIO()
-
         if not self.b_quiet:
-            print(Colors.YELLOW + "Transmitting request to %s:%s..." % (str_ip, str_port) + Colors.NO_COLOUR)
+            print(Colors.YELLOW + "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
         c                   = pycurl.Curl()
         c.setopt(c.URL, "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
         # c.setopt(c.VERBOSE, 1)
@@ -911,27 +884,107 @@ class Client():
                 if not d_response['status']:
                     if not self.b_quiet:
                         print(Colors.RED + 'Some error occurred at remote location:')
-                return {'stdout': json.dumps(d_response)}
+                return {'status':   False,
+                        'stdout':   'PULL unsuccessful',
+                        'response': json.dumps(d_response)}
 
         if not self.b_quiet:
             print(Colors.YELLOW + "Received %d bytes..." % len(str_response)  + Colors.NO_COLOUR)
-        str_localStem       = os.path.split(str_remotePath)[-1]
-        str_fileSuffix      = ""
-        if str_archive     == "zip":       str_fileSuffix   = ".zip"
 
-        str_localFile       = "%s/%s%s" % (str_localPath, str_localStem, str_fileSuffix)
+        return {'status':   True,
+                'stdout':   'PULL successful',
+                'response': str_response}
+
+    def pull_compress(self, d_msg, **kwargs):
+        """
+        Handle the "compress" pull operation
+        """
+        d_meta              = d_msg['meta']
+
+        d_local             = d_meta['local']
+        str_localPath       = d_local['path']
+
+        d_remote            = d_meta['remote']
+
+        d_transport         = d_meta['transport']
+        d_compress          = d_transport['compress']
+
+        # d_remote            = d_meta['remote']
+        # str_ip              = d_remote['ip']
+        # str_port            = d_remote['port']
+
+        # str_mechanism       = ""
+        # str_encoding        = ""
+        # str_archive         = ""
+        # d_transport         = d_meta['transport']
+        # if 'compress' in d_transport:
+        #     d_compress      = d_transport['compress']
+        #     str_archive     = d_compress['archive']
+        #     str_encoding    = d_compress['encoding']
+        #
+        # str_remotePath      = d_remote['path']
+
+        if 'cleanup' in d_compress:
+            b_cleanZip      = d_compress['cleanup']
+
+        d_pull = self.pull_core(d_msg)
+        if not d_pull['status']:
+            return {'stdout': json.dumps(d_pull['stdout'])}
+
+        # d_transport['path'] = d_remote['path']
+        # str_query           = urllib.parse.urlencode(d_transport)
+        # response            = io.BytesIO()
+        #
+        # if not self.b_quiet:
+        #     print(Colors.YELLOW + "Transmitting request to %s:%s..." % (str_ip, str_port) + Colors.NO_COLOUR)
+        # c                   = pycurl.Curl()
+        # c.setopt(c.URL, "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
+        # # c.setopt(c.VERBOSE, 1)
+        # c.setopt(c.FOLLOWLOCATION,  1)
+        # c.setopt(c.WRITEFUNCTION,   response.write)
+        # if not self.b_quiet:
+        #     print(Colors.YELLOW + "Waiting for response..."  + Colors.NO_COLOUR)
+        # c.perform()
+        # c.close()
+        # try:
+        #     str_response        = response.getvalue().decode()
+        # except:
+        #     str_response        = response.getvalue()
+        # if len(str_response) < 200:
+        #     # It's possible an error occurred for the response to be so short.
+        #     # Try and json load, and examine for 'status' field.
+        #     b_response      = False
+        #     try:
+        #         d_response  = json.loads(str_response)
+        #         b_response  = True
+        #     except:
+        #         pass
+        #     if b_response:
+        #         if not d_response['status']:
+        #             if not self.b_quiet:
+        #                 print(Colors.RED + 'Some error occurred at remote location:')
+        #         return {'stdout': json.dumps(d_response)}
+
+        # if not self.b_quiet:
+        #     print(Colors.YELLOW + "Received %d bytes..." % len(str_response)  + Colors.NO_COLOUR)
+        str_localStem       = os.path.split(d_remote['path'])[-1]
+        str_fileSuffix      = ""
+        if d_compress['archive']     == "zip":       str_fileSuffix   = ".zip"
+
+        str_localFile       = "%s/%s%s" % (d_meta['local']['path'], str_localStem, str_fileSuffix)
+        str_response        = d_pull['response']
 
         d_ret               = {}
 
-        if str_encoding == 'base64':
+        if d_compress['encoding'] == 'base64':
             if not self.b_quiet:
                 print(Colors.YELLOW + "Decoding base64 encoded text stream to %s..." % str_localFile + Colors.NO_COLOUR)
             d_fio = pfioh.base64_process(
-                                        action          = 'decode',
-                                        payloadBytes    = str_response,
-                                        saveToFile      = str_localFile
-                                    )
-            d_ret['encoding']       = str_encoding
+                action          = 'decode',
+                payloadBytes    = str_response,
+                saveToFile      = str_localFile
+            )
+            d_ret['encoding']       = d_compress['encoding']
             d_ret['contentFile']    = d_fio['fileProcessed']
             d_ret['canClean']       = True
         else:
@@ -944,14 +997,14 @@ class Client():
             d_ret['directSave'] = True
             d_ret['byteStream'] = str_localFile
 
-        if str_archive == 'zip':
+        if d_compress['archive'] == 'zip':
             if not self.b_quiet:
                 print(Colors.YELLOW + "Unzipping %s to %s"  % (str_localFile, str_localPath) + Colors.NO_COLOUR)
             d_fio = pfioh.zip_process(
-                                        action          = "unzip",
-                                        payloadFile     = str_localFile,
-                                        path            = str_localPath
-                                    )
+                action          = "unzip",
+                payloadFile     = str_localFile,
+                path            = str_localPath
+            )
             d_ret['unzipPath']  = d_fio['path']
             d_ret['zipmode']    = d_fio['zipmode']
             d_ret['canClean']   = True
@@ -960,6 +1013,127 @@ class Client():
             if not self.b_quiet:
                 print(Colors.YELLOW + "Removing zip file %s..." % str_localFile + Colors.NO_COLOUR)
             os.remove(str_localFile)
+        return {'stdout': json.dumps(d_ret)}
+
+
+    def pull_remoteLocationCheck(self, d_msg, **kwargs):
+        """
+        This method checks if the "remote" path is valid.
+        """
+
+
+    def pull(self, d_msg, **kwargs):
+        """
+        Pulls data from a server using pycurl.
+
+        :param d_msg:
+        :param kwargs:
+        :return:
+        """
+
+        d_meta              = d_msg['meta']
+
+        d_local             = d_meta['local']
+        str_localPath       = d_local['path']
+
+        d_transport         = d_meta['transport']
+        if 'compress' in d_transport:
+            d_ret = self.pull_compress(d_msg, **kwargs)
+
+        # #     d_compress      = d_transport['compress']
+        # #     str_archive     = d_compress['archive']
+        # #     str_encoding    = d_compress['encoding']
+        # #
+        # # str_remotePath      = d_remote['path']
+        #
+        # if 'cleanup' in d_compress:
+        #     b_cleanZip      = d_compress['cleanup']
+        #
+        # d_pull = self.pull_core(d_msg)
+        # if not d_pull['status']:
+        #     return {'stdout': json.dumps(d_pull['stdout'])}
+        #
+        # # d_transport['path'] = d_remote['path']
+        # # str_query           = urllib.parse.urlencode(d_transport)
+        # # response            = io.BytesIO()
+        # #
+        # # if not self.b_quiet:
+        # #     print(Colors.YELLOW + "Transmitting request to %s:%s..." % (str_ip, str_port) + Colors.NO_COLOUR)
+        # # c                   = pycurl.Curl()
+        # # c.setopt(c.URL, "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
+        # # # c.setopt(c.VERBOSE, 1)
+        # # c.setopt(c.FOLLOWLOCATION,  1)
+        # # c.setopt(c.WRITEFUNCTION,   response.write)
+        # # if not self.b_quiet:
+        # #     print(Colors.YELLOW + "Waiting for response..."  + Colors.NO_COLOUR)
+        # # c.perform()
+        # # c.close()
+        # # try:
+        # #     str_response        = response.getvalue().decode()
+        # # except:
+        # #     str_response        = response.getvalue()
+        # # if len(str_response) < 200:
+        # #     # It's possible an error occurred for the response to be so short.
+        # #     # Try and json load, and examine for 'status' field.
+        # #     b_response      = False
+        # #     try:
+        # #         d_response  = json.loads(str_response)
+        # #         b_response  = True
+        # #     except:
+        # #         pass
+        # #     if b_response:
+        # #         if not d_response['status']:
+        # #             if not self.b_quiet:
+        # #                 print(Colors.RED + 'Some error occurred at remote location:')
+        # #         return {'stdout': json.dumps(d_response)}
+        #
+        # if not self.b_quiet:
+        #     print(Colors.YELLOW + "Received %d bytes..." % len(str_response)  + Colors.NO_COLOUR)
+        # str_localStem       = os.path.split(str_remotePath)[-1]
+        # str_fileSuffix      = ""
+        # if str_archive     == "zip":       str_fileSuffix   = ".zip"
+        #
+        # str_localFile       = "%s/%s%s" % (str_localPath, str_localStem, str_fileSuffix)
+        #
+        # d_ret               = {}
+        #
+        # if str_encoding == 'base64':
+        #     if not self.b_quiet:
+        #         print(Colors.YELLOW + "Decoding base64 encoded text stream to %s..." % str_localFile + Colors.NO_COLOUR)
+        #     d_fio = pfioh.base64_process(
+        #                                 action          = 'decode',
+        #                                 payloadBytes    = str_response,
+        #                                 saveToFile      = str_localFile
+        #                             )
+        #     d_ret['encoding']       = str_encoding
+        #     d_ret['contentFile']    = d_fio['fileProcessed']
+        #     d_ret['canClean']       = True
+        # else:
+        #     if not self.b_quiet:
+        #         print(Colors.YELLOW + "Writing byte stream to %s..." % str_localFile + Colors.NO_COLOUR)
+        #     with open(str_localFile, 'wb') as fh:
+        #         fh.write(str_response)
+        #         fh.close()
+        #     d_ret['canClean']   = False
+        #     d_ret['directSave'] = True
+        #     d_ret['byteStream'] = str_localFile
+        #
+        # if str_archive == 'zip':
+        #     if not self.b_quiet:
+        #         print(Colors.YELLOW + "Unzipping %s to %s"  % (str_localFile, str_localPath) + Colors.NO_COLOUR)
+        #     d_fio = pfioh.zip_process(
+        #                                 action          = "unzip",
+        #                                 payloadFile     = str_localFile,
+        #                                 path            = str_localPath
+        #                             )
+        #     d_ret['unzipPath']  = d_fio['path']
+        #     d_ret['zipmode']    = d_fio['zipmode']
+        #     d_ret['canClean']   = True
+        #
+        # if b_cleanZip and d_ret['canClean']:
+        #     if not self.b_quiet:
+        #         print(Colors.YELLOW + "Removing zip file %s..." % str_localFile + Colors.NO_COLOUR)
+        #     os.remove(str_localFile)
         return {'stdout': json.dumps(d_ret)}
 
     def push(self, d_msg, **kwargs):
