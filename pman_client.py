@@ -899,13 +899,12 @@ class Client():
         """
         Handle the "compress" pull operation
         """
-        d_meta              = d_msg['meta']
 
+        # Parse "header" information
+        d_meta              = d_msg['meta']
         d_local             = d_meta['local']
         str_localPath       = d_local['path']
-
         d_remote            = d_meta['remote']
-
         d_transport         = d_meta['transport']
         d_compress          = d_transport['compress']
 
@@ -927,7 +926,9 @@ class Client():
         if 'cleanup' in d_compress:
             b_cleanZip      = d_compress['cleanup']
 
+        # Pull the actual data into a dictionary holder
         d_pull = self.pull_core(d_msg)
+
         if not d_pull['status']:
             return {'stdout': json.dumps(d_pull['stdout'])}
 
