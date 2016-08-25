@@ -96,10 +96,55 @@ class debug(object):
 
 class StoreHandler(BaseHTTPRequestHandler):
 
+    b_quiet     = False
+
     def __init__(self, *args, **kwargs):
         """
         """
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
+
+    def qprint(self, msg, **kwargs):
+
+        str_comms  = ""
+        for k,v in kwargs.items():
+            if k == 'comms':    str_comms  = v
+
+        if not StoreHandler.b_quiet:
+            if str_comms == 'status':   print(Colors.PURPLE,    end="")
+            if str_comms == 'error':    print(Colors.RED,       end="")
+            if str_comms == "tx":       print(Colors.YELLOW + "<----")
+            if str_comms == "rx":       print(Colors.GREEN  + "---->")
+            print(msg)
+            if str_comms == "tx":       print(Colors.YELLOW + "<----")
+            if str_comms == "rx":       print(Colors.GREEN  + "---->")
+            print(Colors.NO_COLOUR, end="")
+
+    def do_GET_remoteStatus(self, d_msg, **kwargs):
+        """
+        This method is used to get information about the remote
+        server -- for example, is a remote directory/file valid?
+        """
+        d_meta              = d_msg['meta']
+        d_remote            = d_meta['remote']
+
+        str_serverPath      = d_remote['path']
+
+        b_isFile            = os.path.isfile(str_serverPath)
+        b_isDir             = os.path.isdir(str_serverPath)
+        b_exists            = os.path.exists(str_serverPath)
+
+        d_ret               = {
+            'status':  b_exists,
+            'isfile':  b_isFile,
+            'isdir':   b_isDir
+        }
+
+
+        self.ret_client(d_ret)
+
+        self.qprint(d_ret, comms = 'tx')
+
+        return {'status': b_exists}
 
     def do_GET_withCompression(self, d_msg):
         """
@@ -135,29 +180,28 @@ class StoreHandler(BaseHTTPRequestHandler):
         # If specified (or if the target is a directory), create zip archive
         # of the local path
         if b_zip:
-            if not self.b_quiet:
-                print(Colors.YELLOW + "\nZipping target '%s'..." % str_serverPath + Colors.NO_COLOUR)
+            self.qprint("Zipping target '%s'..." % str_serverPath, comms = 'status')
             d_ret   = zip_process(
                 action  = 'zip',
                 path    = str_serverPath,
                 arcroot = str_serverPath
             )
             if not d_ret['status']:
-                if not self.b_quiet:
-                    print(Colors.RED + "An error occurred during the zip operation:\n%s" % d_ret['stdout'])
+                self.qprint("An error occurred during the zip operation:\n%s" % d_ret['stdout'],
+                            comms = 'error')
                 return d_ret
 
             str_fileToProcess   = d_ret['fileProcessed']
             str_zipFile         = str_fileToProcess
-            if not self.b_quiet:
-                print(Colors.YELLOW + "\nZip file: '%s'..." % str_zipFile + Colors.NO_COLOUR)
+            self.qprint("Zip file: " + Colors.YELLOW + "%s" % str_zipFile +
+                        Colors.PURPLE + '...' , comms = 'status')
 
         # Encode possible binary filedata in base64 suitable for text-only
         # transmission.
         if 'encoding' in d_compress: str_encoding    = d_compress['encoding']
         if str_encoding     == 'base64':
-            if not self.b_quiet:
-                print(Colors.YELLOW + "base64 encoding target '%s'..." % str_fileToProcess + Colors.NO_COLOUR)
+            self.qprint("base64 encoding target '%s'..." % str_fileToProcess,
+                        comms = 'status')
             d_ret   = base64_process(
                 action      = 'encode',
                 payloadFile = str_fileToProcess,
@@ -168,41 +212,53 @@ class StoreHandler(BaseHTTPRequestHandler):
 
         with open(str_fileToProcess, 'rb') as fh:
             filesize    = os.stat(str_fileToProcess).st_size
-            if not self.b_quiet:
-                print(Colors.YELLOW + "Transmitting %d target bytes from %s..." %
-                      (filesize, str_fileToProcess) + Colors.NO_COLOUR)
+            self.qprint("Transmitting " + Colors.YELLOW + '%d ' % filesize + Colors.PURPLE +
+                        "target bytes from " + Colors.YELLOW +
+                        "%s" % (str_fileToProcess) + Colors.PURPLE + '...', comms = 'status')
             self.send_response(200)
             # self.send_header('Content-type', 'text/json')
             self.end_headers()
             # try:
             #     self.wfile.write(fh.read().encode())
             # except:
+            self.qprint('<tranmission>', comms = 'tx')
             self.wfile.write(fh.read())
-
         if b_cleanup:
             if b_zip:
-                if not self.b_quiet:
-                    print(Colors.GREEN + "Removing '%s'..." % (str_zipFile) + Colors.NO_COLOUR)
+                self.qprint("Removing '%s'..." % (str_zipFile), comms = 'status')
                 if os.path.isfile(str_zipFile):     os.remove(str_zipFile)
             if str_encoding == 'base64':
-                if not self.b_quiet:
-                    print(Colors.GREEN + "Removing '%s'..." % (str_base64File) + Colors.NO_COLOUR)
+                self.qprint("Removing '%s'..." % (str_base64File), comms = 'status')
                 if os.path.isfile(str_base64File):  os.remove(str_base64File)
 
         return {'status' : True}
 
+    def log_message(self, format, *args):
+        """
+        This silences the server from spewing to stdout!
+        """
+        return
+
     def do_GET(self):
 
         d_server            = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query))
-        self.b_quiet        = False
         d_meta              = ast.literal_eval(d_server['meta'])
 
         d_msg               = {}
         d_msg['action']     = d_server['action']
         d_msg['meta']       = d_meta
         d_transport         = d_meta['transport']
-        if 'compress' in d_transport: self.do_GET_withCompression(d_msg)
 
+        self.qprint(self.path, comms = 'rx')
+
+        if 'checkRemote'    in d_transport and d_transport['checkRemote']:
+            self.qprint('Getting status on server filesystem...', comms = 'status')
+            d_ret = self.do_GET_remoteStatus(d_msg)
+            return d_ret
+
+        if 'compress'       in d_transport:
+            d_ret = self.do_GET_withCompression(d_msg)
+            return d_ret
 
     def form_get(self, str_verb, data):
         """
@@ -218,21 +274,68 @@ class StoreHandler(BaseHTTPRequestHandler):
             }
         )
 
-
     def do_POST(self):
 
         # Parse the form data posted
 
-        print("\n")
-        print(Colors.LIGHT_PURPLE + str(self.headers) + Colors.NO_COLOUR)
+        self.qprint(str(self.headers), comms = 'rx')
 
         length              = self.headers['content-length']
         data                = self.rfile.read(int(length))
-
         form                = self.form_get('POST', data)
         d_form              = {}
         for key in form:
             d_form[key]     = form.getvalue(key)
+
+        d_meta              = json.loads(d_form['d_meta'])
+
+        if 'ctl' in d_meta:
+            self.do_POST_serverctl(d_meta)
+
+        if 'transport' in d_meta:
+            d_transport     = d_meta['transport']
+            if 'compress' in d_transport:
+                self.do_POST_withCompression(
+                    data    = data,
+                    length  = length,
+                    form    = form,
+                    d_form  = d_form
+                )
+        return
+
+    def do_POST_serverctl(self, d_meta):
+        """
+        """
+        d_ctl               = d_meta['ctl']
+        self.qprint('Processing server ctl...', comms = 'status')
+        self.qprint(d_meta, comms = 'rx')
+        if 'serverCmd' in d_ctl:
+            if d_ctl['serverCmd'] == 'quit':
+                self.qprint('Shutting down server', comms = 'status')
+                d_ret = {
+                    'msg':      'Server shut down',
+                    'status':   True
+                }
+                self.qprint(d_ret, comms = 'tx')
+                self.ret_client(d_ret)
+                os._exit(0)
+
+    def do_POST_withCompression(self, **kwargs):
+
+        # Parse the form data posted
+
+        self.qprint(str(self.headers),              comms = 'rx')
+        self.qprint('do_POST_withCompression()',    comms = 'status')
+
+        data    = None
+        length  = 0
+        form    = None
+        d_form  = {}
+        for k,v in kwargs.items():
+            if k == 'data':     data    = v
+            if k == 'length':   length  = v
+            if k == 'form':     form    = v
+            if k == 'd_form':   d_form  = v
 
         d_meta              = json.loads(d_form['d_meta'])
         fileContent         = d_form['local']
@@ -265,14 +368,15 @@ class StoreHandler(BaseHTTPRequestHandler):
                 with open(str_localFile, 'wb') as fh:
                     fh.write(data)
             except:
-                self.ret_client(
-                    {
-                        "status":       False,
-                        "User-agent":   self.headers['user-agent'],
-                        "d_meta":       d_meta,
-                        "stderr":       "Could not access server path!"
-                    }
-                )
+                d_ret = {
+                    "status":       False,
+                    "User-agent":   self.headers['user-agent'],
+                    "d_meta":       d_meta,
+                    "stderr":       "Could not access server path!"
+                }
+
+                self.ret_client(d_ret)
+                self.qprint(d_ret, comms = 'tx')
                 return
 
         else:
@@ -292,13 +396,14 @@ class StoreHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
 
-        self.ret_client(
-            {
-                "status":       True,
-                "User-agent":   self.headers['user-agent'],
-                "d_meta":       d_meta
-            }
-        )
+        d_ret = {
+            "status":       True,
+            "User-agent":   self.headers['user-agent'],
+            "d_meta":       d_meta
+        }
+
+        self.ret_client(d_ret)
+        self.qprint(d_ret, comms = 'tx')
 
         return
 
