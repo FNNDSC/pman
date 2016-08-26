@@ -41,6 +41,7 @@ import  zipfile
 import  uuid
 import  urllib
 import  ast
+import  shutil
 
 
 class debug(object):
@@ -233,6 +234,58 @@ class StoreHandler(BaseHTTPRequestHandler):
 
         return {'status' : True}
 
+    def do_GET_withCopy(self, d_msg):
+        """
+        Process a "GET" using copy operations
+
+        :return:
+        """
+
+        d_meta              = d_msg['meta']
+        d_local             = d_meta['local']
+        d_remote            = d_meta['remote']
+        d_transport         = d_meta['transport']
+        d_copy              = d_transport['copy']
+
+        str_serverPath      = d_remote['path']
+        str_clientPath      = d_local['path']
+        str_fileToProcess   = str_serverPath
+
+        b_copyTree          = False
+        b_copyFile          = False
+
+        d_ret               = {}
+        d_ret['status']     = True
+
+        if not d_copy['symlink']:
+            if os.path.isdir(str_serverPath):
+                b_copyTree      = True
+                str_serverNode  = str_serverPath.split('/')[-1]
+                try:
+                    shutil.copytree(str_serverPath, os.path.join(str_clientPath, str_serverNode))
+                except BaseException as e:
+                    d_ret['status'] = False
+                    d_ret['msg']    = str(e)
+            if os.path.isfile(str_serverPath):
+                b_copyFile      = True
+                shutil.copy2(str_serverPath, str_clientPath)
+        if d_copy['symlink']:
+            str_serverNode  = str_serverPath.split('/')[-1]
+            try:
+                os.symlink(str_serverPath, os.path.join(str_clientPath, str_serverNode))
+            except BaseException as e:
+                d_ret['status'] = False
+                d_ret['msg']    = str(e)
+
+        d_ret['source']         = str_serverPath
+        d_ret['destination']    = str_clientPath
+        d_ret['copytree']       = b_copyTree
+        d_ret['copyfile']       = b_copyFile
+
+        self.ret_client(d_ret)
+
+        return d_ret
+
     def log_message(self, format, *args):
         """
         This silences the server from spewing to stdout!
@@ -258,6 +311,10 @@ class StoreHandler(BaseHTTPRequestHandler):
 
         if 'compress'       in d_transport:
             d_ret = self.do_GET_withCompression(d_msg)
+            return d_ret
+
+        if 'copy'           in d_transport:
+            d_ret = self.do_GET_withCopy(d_msg)
             return d_ret
 
     def form_get(self, str_verb, data):
@@ -301,7 +358,10 @@ class StoreHandler(BaseHTTPRequestHandler):
                     form    = form,
                     d_form  = d_form
                 )
-        return
+            if 'copy' in d_transport:
+                d_ret   = self.do_POST_withCopy(d_meta)
+
+        return d_ret
 
     def do_POST_serverctl(self, d_meta):
         """
@@ -319,6 +379,59 @@ class StoreHandler(BaseHTTPRequestHandler):
                 self.qprint(d_ret, comms = 'tx')
                 self.ret_client(d_ret)
                 os._exit(0)
+
+    def do_POST_withCopy(self, d_meta):
+        """
+        Process a "POST" using copy operations
+
+        :return:
+        """
+
+        # d_meta              = d_msg['meta']
+        d_local             = d_meta['local']
+        d_remote            = d_meta['remote']
+        d_transport         = d_meta['transport']
+        d_copy              = d_transport['copy']
+
+        str_serverPath      = d_remote['path']
+        str_clientPath      = d_local['path']
+        str_fileToProcess   = str_serverPath
+
+        b_copyTree          = False
+        b_copyFile          = False
+
+        d_ret               = {}
+        d_ret['status']     = True
+
+        if not d_copy['symlink']:
+            if os.path.isdir(str_clientPath):
+                b_copyTree      = True
+                str_clientNode  = str_clientPath.split('/')[-1]
+                try:
+                    shutil.copytree(str_clientPath, os.path.join(str_serverPath, str_clientNode))
+                except BaseException as e:
+                    d_ret['status'] = False
+                    d_ret['msg']    = str(e)
+            if os.path.isfile(str_clientPath):
+                b_copyFile      = True
+                shutil.copy2(str_clientPath, str_serverPath)
+            d_ret['copytree']       = b_copyTree
+            d_ret['copyfile']       = b_copyFile
+        if d_copy['symlink']:
+            str_clientNode  = str_clientPath.split('/')[-1]
+            try:
+                os.symlink(str_clientPath, os.path.join(str_serverPath, str_clientNode))
+            except BaseException as e:
+                d_ret['status'] = False
+                d_ret['msg']    = str(e)
+            d_ret['symlink']    = 'ln -s %s %s' % (str_clientPath, str_serverPath)
+
+        d_ret['source']         = str_clientPath
+        d_ret['destination']    = str_serverPath
+
+        self.ret_client(d_ret)
+
+        return d_ret
 
     def do_POST_withCompression(self, **kwargs):
 
