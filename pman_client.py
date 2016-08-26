@@ -892,7 +892,7 @@ class Client():
             str_response        = response.getvalue().decode()
         except:
             str_response        = response.getvalue()
-        if len(str_response) < 200:
+        if len(str_response) < 300:
             # It's possible an error occurred for the response to be so short.
             # Try and json load, and examine for 'status' field.
             b_response      = False
@@ -993,6 +993,23 @@ class Client():
             os.remove(str_localFile)
         return {'stdout': d_ret}
 
+    def pull_copy(self, d_msg, **kwargs):
+        """
+        Handle the "copy" pull operation
+        """
+
+        # Parse "header" information
+        d_meta              = d_msg['meta']
+        d_local             = d_meta['local']
+        str_localPath       = d_local['path']
+        d_remote            = d_meta['remote']
+        d_transport         = d_meta['transport']
+        d_copy              = d_transport['copy']
+
+        # Pull the actual data into a dictionary holder
+        d_pull = self.pull_core(d_msg)
+
+        return {'stdout': d_pull}
 
     def pull_remoteLocationCheck(self, d_msg, **kwargs):
         """
@@ -1027,6 +1044,9 @@ class Client():
 
         if 'compress' in d_transport:
             d_ret = self.pull_compress(d_msg, **kwargs)
+
+        if 'copy' in d_transport:
+            d_ret = self.pull_copy(d_msg, **kwargs)
 
         d_meta['ctl']       = {
             'serverCmd':    'quit'
@@ -1096,11 +1116,11 @@ class Client():
         c.close()
 
         str_response        = response.getvalue().decode()
-        d_ret['response']   = json.loads(str_response)
+        d_ret['fromServer']   = json.loads(str_response)
         self.qprint(d_ret, comms = 'rx')
 
         # return {'stdout': json.dumps(d_ret)}
-        return {'stdout': d_ret}
+        return {'return': d_ret}
 
     def push_compress(self, d_msg, **kwargs):
         """
@@ -1193,6 +1213,24 @@ class Client():
             if os.path.isfile(str_base64File):  os.remove(str_base64File)
         return {'stdout': d_ret}
 
+    def push_copy(self, d_msg, **kwargs):
+        """
+        Handle the "copy" pull operation
+        """
+
+        # Parse "header" information
+        d_meta              = d_msg['meta']
+        d_local             = d_meta['local']
+        str_localPath       = d_local['path']
+        d_remote            = d_meta['remote']
+        d_transport         = d_meta['transport']
+        d_copy              = d_transport['copy']
+
+        # Pull the actual data into a dictionary holder
+        d_pull = self.push_core(d_msg)
+
+        return {'stdout': d_pull}
+
     def push(self, d_msg, **kwargs):
         """
         Push data to a remote server.
@@ -1220,6 +1258,9 @@ class Client():
 
         if 'compress' in d_transport and d_ret['status']:
             d_ret           = self.push_compress(d_msg, **kwargs)
+
+        if 'copy' in d_transport:
+            d_ret           = self.push_copy(d_msg, **kwargs)
 
         d_meta['ctl']       = {
             'serverCmd':    'quit'
