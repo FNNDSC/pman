@@ -536,6 +536,32 @@ class Client():
                                     }
                             }
                     }'
+                """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR  + """
+                """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
+                """ + Colors.LIGHT_GREEN + """
+                ./pman_client.py --ip %s --port 5010  --msg  \\
+                    '{  "action": "push",
+                        "meta":
+                            {
+                                "local":
+                                    {
+                                        "path":         "/tmp"
+                                    },
+                                "remote":
+                                    {
+                                        "ip":           "%s",
+                                        "port":         "%s",
+                                        "path":         "/tmp"
+                                    },
+                                "transport":
+                                    {
+                                        "mechanism":    "copy",
+                                        "copy": {
+                                            "symlink": true
+                                        }
+                                    }
+                            }
+                    }'
                 """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR
 
         return str_manTxt
@@ -577,7 +603,7 @@ class Client():
                 depends on whether or not the remote server process actually
                 has permission to read in that location.
 
-                """ + Colors.YELLOW + """EXAMPLE:
+                """ + Colors.YELLOW + """EXAMPLE -- using zip:
                 """ + Colors.LIGHT_GREEN + """
                 ./pman_client.py --ip %s --port 5010  --msg  \\
                     '{  "action": "pull",
@@ -601,6 +627,32 @@ class Client():
                                             "archive":  "zip",
                                             "unpack":   true,
                                             "cleanup":  true
+                                        }
+                                    }
+                            }
+                    }'
+                """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR + """
+                """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
+                """ + Colors.LIGHT_GREEN + """
+                ./pman_client.py --ip %s --port 5010  --msg  \\
+                    '{  "action": "pull",
+                        "meta":
+                            {
+                                "local":
+                                    {
+                                        "path":         "/tmp"
+                                    },
+                                "remote":
+                                    {
+                                        "ip":           "%s",
+                                        "port":         "%s",
+                                        "path":         "/tmp"
+                                    },
+                                "transport":
+                                    {
+                                        "mechanism":    "copy",
+                                        "copy": {
+                                            "symlink": true
                                         }
                                     }
                             }
@@ -906,11 +958,11 @@ class Client():
                     self.qprint('Some error occurred at remote location:',
                                 comms = 'error')
                     return {'status':   False,
-                            'stdout':   'PULL unsuccessful',
+                            'mag':      'PULL unsuccessful',
                             'response': d_response}
                 else:
                     return {'status':   d_response['status'],
-                            'stdout':   'PULL successful',
+                            'msg':      'PULL successful',
                             'response': d_response}
 
         self.qprint("Received " + Colors.YELLOW + "%d" % len(str_response) +
@@ -918,7 +970,7 @@ class Client():
                     comms = 'status')
 
         return {'status':   True,
-                'stdout':   'PULL successful',
+                'msg':      'PULL successful',
                 'response': str_response}
 
     def pull_compress(self, d_msg, **kwargs):
@@ -1020,42 +1072,47 @@ class Client():
         d_pull = self.pull_core(d_msg)
         return d_pull
 
+    def localPath_check(self, d_msg, **kwargs):
+        """
+        Check if a path exists on the local filesystem
+
+        :param self:
+        :param kwargs:
+        :return:
+        """
+        d_meta              = d_msg['meta']
+        d_local             = d_meta['local']
+
+        str_localPath       = d_local['path']
+
+        b_isFile            = os.path.isfile(str_localPath)
+        b_isDir             = os.path.isdir(str_localPath)
+        b_exists            = os.path.exists(str_localPath)
+
+        d_ret               = {
+            'status':  b_exists,
+            'isfile':  b_isFile,
+            'isdir':   b_isDir
+        }
+
+        return {'response': d_ret}
+
     def pull(self, d_msg, **kwargs):
         """
-        Pulls data from a server using pycurl.
+        Pulls data from a remote server using pycurl.
+
+        This method assumes that a prior call has "setup" a remote fileio
+        listener and has the ip:port of that instance.
+
+        Essentially, this method is the central dispatching nexus to various
+        specialized pull operations.
 
         :param d_msg:
         :param kwargs:
         :return:
         """
 
-        d_meta              = d_msg['meta']
-        d_transport         = d_meta['transport']
-
-        # First check on the remote path
-        d_transport['checkRemote']  = True
-        self.qprint('Checking remote status...', comms = 'status')
-        d_ret   = self.pull_remoteLocationCheck(d_msg)
-        self.qprint(str(d_ret), comms = 'rx')
-        if not d_ret['status']:
-            self.qprint('An error occurred while checking the remote server',
-                        comms = 'error')
-        d_transport['checkRemote']  = False
-
-        if 'compress' in d_transport:
-            d_ret = self.pull_compress(d_msg, **kwargs)
-
-        if 'copy' in d_transport:
-            d_ret = self.pull_copy(d_msg, **kwargs)
-
-        d_meta['ctl']       = {
-            'serverCmd':    'quit'
-        }
-
-        self.qprint('Shutting down server...', comms = 'status')
-        d_shutdown  = self.push_core(d_msg, fileToPush = None)
-
-        return {'stdout': json.dumps(d_ret)}
+        return self.remoteOp_do(d_msg, action = 'pull')
 
     def push_core(self, d_msg, **kwargs):
         """
@@ -1231,9 +1288,9 @@ class Client():
 
         return {'stdout': d_pull}
 
-    def push(self, d_msg, **kwargs):
+    def remoteOp_do(self, d_msg, **kwargs):
         """
-        Push data to a remote server.
+        Push data to a remote server using pycurl.
 
         This method assumes that a prior call has "setup" a remote fileio
         listener and has the ip:port of that instance.
@@ -1245,22 +1302,50 @@ class Client():
 
         d_meta              = d_msg['meta']
         d_transport         = d_meta['transport']
+        b_OK                = True
 
-        # First check on the remote path
-        d_transport['checkRemote']  = True
-        self.qprint('Checking remote status...', comms = 'status')
-        d_ret   = self.pull_remoteLocationCheck(d_msg)
-        self.qprint(str(d_ret), comms = 'rx')
-        if not d_ret['status']:
-            self.qprint('An error occurred while checking the remote server',
+        str_action          = "pull"
+        for k,v, in kwargs.items():
+            if k == 'action':   str_action  = v
+
+        # First check on the paths, both local and remote
+        self.qprint('Checking local path status...', comms = 'status')
+        d_ret               = self.localPath_check(d_msg)
+        if not d_ret['response']['status']:
+            self.qprint('An error occurred while checking on the local path.',
                         comms = 'error')
-        d_transport['checkRemote']  = False
+            d_ret['msg']    = 'It seems the local path spec is invalid.'
+            d_ret['status'] = False
+            b_OK            = False
 
-        if 'compress' in d_transport and d_ret['status']:
-            d_ret           = self.push_compress(d_msg, **kwargs)
+        if b_OK:
+            d_transport['checkRemote']  = True
+            self.qprint('Checking remote path status...', comms = 'status')
+            d_ret   = self.pull_remoteLocationCheck(d_msg)
+            self.qprint(str(d_ret), comms = 'rx')
+            if not d_ret['status']:
+                self.qprint('An error occurred while checking the remote server.',
+                            comms = 'error')
+                b_OK        = False
+            else:
+                d_ret['response']['msg']    = "Check on remote path successful."
+            d_transport['checkRemote']  = False
 
-        if 'copy' in d_transport:
-            d_ret           = self.push_copy(d_msg, **kwargs)
+        b_jobExec           = False
+        if b_OK:
+            if 'compress' in d_transport and d_ret['status']:
+                self.qprint('Calling %s_compress()...' % str_action, comms = 'status')
+                d_ret           = eval("self.%s_compress(d_msg, **kwargs)" % str_action)
+                b_jobExec       = True
+
+            if 'copy' in d_transport:
+                self.qprint('Calling %s_copy()...' % str_action, comms = 'status')
+                d_ret           = eval("self.%s_copy(d_msg, **kwargs)" % str_action)
+                b_jobExec       = True
+
+        if not b_jobExec:
+            d_ret['status']   = False
+            d_ret['msg']      = 'No push/pull operation was performed!'
 
         d_meta['ctl']       = {
             'serverCmd':    'quit'
@@ -1270,6 +1355,21 @@ class Client():
         d_shutdown  = self.push_core(d_msg, fileToPush = None)
 
         return {'stdout': json.dumps(d_ret)}
+
+
+    def push(self, d_msg, **kwargs):
+        """
+        Push data to a remote server using pycurl.
+
+        This method assumes that a prior call has "setup" a remote fileio
+        listener and has the ip:port of that instance.
+
+        Essentially, this method is the central dispatching nexus to various
+        specialized push operations.
+
+        """
+
+        return self.remoteOp_do(d_msg, action = 'push')
 
     def transmit(self, d_msg, **kwargs):
         """
