@@ -21,8 +21,6 @@ str_desc = """
     incoming file data from a client, and can also return server-side filetrees
     to a client.
 
-    The script assumes that file data is zip'd and base64 encoded.
-
 """
 
 import  os
@@ -730,7 +728,7 @@ def main():
     args            = parser.parse_args()
     args.port       = int(args.port)
 
-    print(vars(args))
+    # print(vars(args))
     server          = ThreadedHTTPServer((args.ip, args.port), StoreHandler)
     server.setup(args = vars(args))
 
