@@ -230,7 +230,16 @@ class StoreHandler(BaseHTTPRequestHandler):
                 self.qprint("Removing '%s'..." % (str_base64File), comms = 'status')
                 if os.path.isfile(str_base64File):  os.remove(str_base64File)
 
-        return {'status' : True}
+        d_ret = {
+            "status":       True,
+            "User-agent":   self.headers['user-agent'],
+            "d_meta":       d_meta
+        }
+
+        self.ret_client(d_ret)
+        self.qprint(d_ret, comms = 'tx')
+
+        return d_ret
 
     def do_GET_withCopy(self, d_msg):
         """
@@ -350,7 +359,7 @@ class StoreHandler(BaseHTTPRequestHandler):
         if 'transport' in d_meta:
             d_transport     = d_meta['transport']
             if 'compress' in d_transport:
-                self.do_POST_withCompression(
+                d_ret = self.do_POST_withCompression(
                     data    = data,
                     length  = length,
                     form    = form,
@@ -424,6 +433,7 @@ class StoreHandler(BaseHTTPRequestHandler):
                 d_ret['msg']    = str(e)
             d_ret['symlink']    = 'ln -s %s %s' % (str_clientPath, str_serverPath)
 
+        # d_ret['d_meta']         = d_meta
         d_ret['source']         = str_clientPath
         d_ret['destination']    = str_serverPath
 
@@ -442,6 +452,8 @@ class StoreHandler(BaseHTTPRequestHandler):
         length  = 0
         form    = None
         d_form  = {}
+        d_ret   = {}
+
         for k,v in kwargs.items():
             if k == 'data':     data    = v
             if k == 'length':   length  = v
@@ -474,49 +486,51 @@ class StoreHandler(BaseHTTPRequestHandler):
         str_localFile   = "%s%s%s" % (str_unpackBase, str_fileOnly, str_fileSuffix)
 
         if str_encoding == "base64":
-            data        = base64.b64decode(fileContent)
+            d_ret['decode'] = {}
+            data            = base64.b64decode(fileContent)
             try:
                 with open(str_localFile, 'wb') as fh:
                     fh.write(data)
             except:
-                d_ret = {
-                    "status":       False,
-                    "User-agent":   self.headers['user-agent'],
-                    "d_meta":       d_meta,
-                    "stderr":       "Could not access server path!"
-                }
+                d_ret['decode']['status']   = False
+                d_ret['decode']['msg']      = 'base64 decode unsuccessful!'
 
                 self.ret_client(d_ret)
                 self.qprint(d_ret, comms = 'tx')
-                return
-
+                return d_ret
         else:
-            # print(d_meta)
+            d_ret['write']   = {}
             with open(str_localFile, 'wb') as fh:
                 try:
                     fh.write(fileContent.decode())
+                    d_ret['write']['decode'] = True
                 except:
                     fh.write(fileContent)
+                    d_ret['write']['decode'] = False
+            d_ret['write']['file']      = str_localFile
+            d_ret['write']['status']    = True
+            d_ret['write']['msg']       = 'File written successfully!'
+            d_ret['status']             = True
+            d_ret['msg']                = d_ret['write']['msg']
         fh.close()
         if b_unpack and d_compress['archive'] == 'zip':
-            zip_process(action          = 'unzip',
-                        path            = str_unpackPath,
-                        payloadFile     = str_localFile)
+            d_fio   =   zip_process(action          = 'unzip',
+                                    path            = str_unpackPath,
+                                    payloadFile     = str_localFile)
+            d_ret['unzip']  = d_fio
+            d_ret['status'] = d_fio['status']
+            d_ret['msg']    = d_fio['msg']
             os.remove(str_localFile)
 
         self.send_response(200)
         self.end_headers()
 
-        d_ret = {
-            "status":       True,
-            "User-agent":   self.headers['user-agent'],
-            "d_meta":       d_meta
-        }
+        d_ret['User-agent'] = self.headers['user-agent']
 
         self.ret_client(d_ret)
         self.qprint(d_ret, comms = 'tx')
 
-        return
+        return d_ret
 
     def ret_client(self, d_ret):
         """
@@ -624,14 +638,14 @@ def zip_process(**kwargs):
                 ziphandler.close()
                 os.remove(str_zipFileName)
                 return {
-                    'stdout':   json.dumps({"msg": "No file or directory found for '%s'" % str_localPath}),
+                    'msg':      json.dumps({"msg": "No file or directory found for '%s'" % str_localPath}),
                     'status':   False
                 }
     if str_mode     == 'r':
         ziphandler.extractall(str_localPath)
     ziphandler.close()
     return {
-        'stdout':           '',
+        'msg':              'zip operation successful',
         'fileProcessed':    str_zipFileName,
         'status':           True,
         'path':             str_localPath,
@@ -665,10 +679,10 @@ def base64_process(**kwargs):
             f.write(data_b64)
             f.close()
         return {
-            'stdout':           'Encode successful',
+            'msg':              'Encode successful',
             'fileProcessed':    str_fileToSave,
-            'status':           True,
-            'encodedBytes':     data_b64
+            'status':           True
+            # 'encodedBytes':     data_b64
         }
 
     if str_action       == "decode":
@@ -677,10 +691,10 @@ def base64_process(**kwargs):
             f.write(bytes_decoded)
             f.close()
         return {
-            'stdout':           'Decode successful',
+            'msg':              'Decode successful',
             'fileProcessed':    str_fileToSave,
-            'status':           True,
-            'decodedBytes':     bytes_decoded
+            'status':           True
+            # 'decodedBytes':     bytes_decoded
         }
 
 
