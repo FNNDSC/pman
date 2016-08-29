@@ -510,19 +510,17 @@ class Client():
 
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port 5010  --msg  \\
+                ./pman_client.py --ip %s --port %s  --msg  \\
                     '{  "action": "push",
                         "meta":
                             {
                                 "local":
                                     {
-                                        "path":         "pman_client.py"
+                                        "path":         "/path/on/client"
                                     },
                                 "remote":
                                     {
-                                        "ip":           "%s",
-                                        "port":         "%s",
-                                        "path":         "/tmp"
+                                        "path":         "/path/on/server"
                                     },
                                 "transport":
                                     {
@@ -536,22 +534,20 @@ class Client():
                                     }
                             }
                     }'
-                """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR  + """
+                """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR  + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port 5010  --msg  \\
+                ./pman_client.py --ip %s --port %s --msg  \\
                     '{  "action": "push",
                         "meta":
                             {
                                 "local":
                                     {
-                                        "path":         "/tmp"
+                                        "path":         "/path/on/client"
                                     },
                                 "remote":
                                     {
-                                        "ip":           "%s",
-                                        "port":         "%s",
-                                        "path":         "/tmp"
+                                        "path":         "/path/on/server"
                                     },
                                 "transport":
                                     {
@@ -562,7 +558,7 @@ class Client():
                                     }
                             }
                     }'
-                """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR
+                """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -605,19 +601,17 @@ class Client():
 
                 """ + Colors.YELLOW + """EXAMPLE -- using zip:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port 5010  --msg  \\
+                ./pman_client.py --ip %s --port %s  --msg  \\
                     '{  "action": "pull",
                         "meta":
                             {
                                 "local":
                                     {
-                                        "path":         "/tmp"
+                                        "path":         "/path/on/client"
                                     },
                                 "remote":
                                     {
-                                        "ip":           "%s",
-                                        "port":         "%s",
-                                        "path":         "/tmp"
+                                        "path":         "/path/on/server"
                                     },
                                 "transport":
                                     {
@@ -631,22 +625,20 @@ class Client():
                                     }
                             }
                     }'
-                """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR + """
+                """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port 5010  --msg  \\
+                ./pman_client.py --ip %s --port %s --msg  \\
                     '{  "action": "pull",
                         "meta":
                             {
                                 "local":
                                     {
-                                        "path":         "/tmp"
+                                        "path":         "/path/on/client"
                                     },
                                 "remote":
                                     {
-                                        "ip":           "%s",
-                                        "port":         "%s",
-                                        "path":         "/tmp"
+                                        "path":         "/path/on/server"
                                     },
                                 "transport":
                                     {
@@ -657,7 +649,7 @@ class Client():
                                     }
                             }
                     }'
-                """ % (self.str_ip, self.str_ip, self.str_port) + Colors.NO_COLOUR
+                """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR
 
         return str_manTxt
 
@@ -926,8 +918,12 @@ class Client():
         response            = io.BytesIO()
 
         d_remote            = d_meta['remote']
-        str_ip              = d_remote['ip']
-        str_port            = d_remote['port']
+        str_ip              = self.str_ip
+        str_port            = self.str_port
+        if 'ip' in d_remote:
+            str_ip          = d_remote['ip']
+        if 'port' in d_remote:
+            str_port        = d_remote['port']
 
         self.qprint("http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query),
                     comms  = 'tx')
@@ -1002,7 +998,8 @@ class Client():
         str_localFile       = "%s/%s%s" % (d_meta['local']['path'], str_localStem, str_fileSuffix)
         str_response        = d_pull['response']
 
-        d_ret               = {}
+        d_ret                   = {}
+        d_ret['remoteServer']   = {}
 
         if d_compress['encoding'] == 'base64':
             self.qprint("Decoding base64 encoded text stream to %s..." % \
@@ -1012,18 +1009,15 @@ class Client():
                 payloadBytes    = str_response,
                 saveToFile      = str_localFile
             )
-            d_ret['encoding']       = d_compress['encoding']
-            d_ret['contentFile']    = d_fio['fileProcessed']
-            d_ret['canClean']       = True
+            d_ret['remoteServer']['decode']   = d_fio
         else:
             self.qprint("Writing byte stream to %s..." % str_localFile,
                         comms = 'status')
             with open(str_localFile, 'wb') as fh:
                 fh.write(str_response)
                 fh.close()
-            d_ret['canClean']   = True
-            d_ret['directSave'] = True
-            d_ret['byteStream'] = str_localFile
+            d_ret['remoteServer']['stream']         = True
+            d_ret['remoteServer']['fileWritten']    = str_localFile
 
         if d_compress['archive'] == 'zip':
             self.qprint("Unzipping %s to %s"  % (str_localFile, str_localPath),
@@ -1033,17 +1027,17 @@ class Client():
                 payloadFile     = str_localFile,
                 path            = str_localPath
             )
-            d_ret['zip']                = {}
-            d_ret['zip']['zipSource']   = d_fio['path']
-            d_ret['zip']['zipFile']     = d_fio['fileProcessed']
-            d_ret['zip']['zipmode']     = d_fio['zipmode']
-            d_ret['zip']['canClean']    = True
+            d_ret['remoteServer']['unzip']  = d_fio
+            d_ret['status']                 = d_ret['remoteServer']['status']
+            d_ret['msg']                    = d_ret['remoteServer']['msg']
 
-        if b_cleanZip and d_ret['canClean']:
+        print(d_ret)
+        if b_cleanZip and d_ret['remoteServer']['status']:
             self.qprint("Removing zip file %s..." % str_localFile,
                         comms = 'status')
             os.remove(str_localFile)
-        return {'stdout': d_ret}
+
+        return d_ret
 
     def pull_copy(self, d_msg, **kwargs):
         """
@@ -1059,9 +1053,16 @@ class Client():
         d_copy              = d_transport['copy']
 
         # Pull the actual data into a dictionary holder
-        d_pull = self.pull_core(d_msg)
+        d_curl                      = {}
+        d_curl['remoteServer']      = self.pull_core(d_msg)
+        d_curl['copy']              = {}
+        d_curl['copy']['status']    = d_curl['remoteServer']['status']
+        if not d_curl['copy']['status']:
+            d_curl['copy']['msg']   = "Copy on remote server failed!"
+        else:
+            d_curl['copy']['msg']   = "Copy on remote server success!"
 
-        return {'stdout': d_pull}
+        return d_curl
 
     def pull_remoteLocationCheck(self, d_msg, **kwargs):
         """
@@ -1095,7 +1096,7 @@ class Client():
             'isdir':   b_isDir
         }
 
-        return {'response': d_ret}
+        return {'check': d_ret, 'status': d_ret['status']}
 
     def pull(self, d_msg, **kwargs):
         """
@@ -1131,8 +1132,12 @@ class Client():
         str_meta            = json.dumps(d_meta)
 
         d_remote            = d_meta['remote']
-        str_ip              = d_remote['ip']
-        str_port            = d_remote['port']
+        str_ip              = self.str_ip
+        str_port            = self.str_port
+        if 'ip' in d_remote:
+            str_ip          = d_remote['ip']
+        if 'port' in d_remote:
+            str_port        = d_remote['port']
 
         d_transport         = d_meta['transport']
 
@@ -1173,11 +1178,12 @@ class Client():
         c.close()
 
         str_response        = response.getvalue().decode()
-        d_ret['fromServer']   = json.loads(str_response)
+        d_ret['push_core']  = json.loads(str_response)
+        d_ret['status']     = d_ret['push_core']['status']
+        d_ret['msg']        = 'push OK.'
         self.qprint(d_ret, comms = 'rx')
 
-        # return {'stdout': json.dumps(d_ret)}
-        return {'return': d_ret}
+        return d_ret
 
     def push_compress(self, d_msg, **kwargs):
         """
@@ -1189,8 +1195,12 @@ class Client():
         str_localPath       = d_local['path']
 
         d_remote            = d_meta['remote']
-        str_ip              = d_remote['ip']
-        str_port            = d_remote['port']
+        str_ip              = self.str_ip
+        str_port            = self.str_port
+        if 'ip' in d_remote:
+            str_ip          = d_remote['ip']
+        if 'port' in d_remote:
+            str_port        = d_remote['port']
 
         str_mechanism       = ""
         str_encoding        = ""
@@ -1221,6 +1231,7 @@ class Client():
             str_archive     = 'zip'
 
         d_ret               = {}
+        d_ret['local']      = {}
         # If specified (or if the target is a directory), create zip archive
         # of the local path
         if b_zip:
@@ -1233,11 +1244,7 @@ class Client():
             if not d_fio['status']: return {'stdout': json.dumps(d_fio)}
             str_fileToProcess   = d_fio['fileProcessed']
             str_zipFile         = str_fileToProcess
-            d_ret['zip']        = {}
-            d_ret['zip']['zipSource']  = d_fio['path']
-            d_ret['zip']['zipFile']    = d_fio['fileProcessed']
-            d_ret['zip']['zipmode']    = d_fio['zipmode']
-            d_ret['zip']['canClean']   = True
+            d_ret['local']['zip']               = d_fio
 
         # Encode possible binary filedata in base64 suitable for text-only
         # transmission.
@@ -1250,25 +1257,25 @@ class Client():
             )
             str_fileToProcess       = d_fio['fileProcessed']
             str_base64File          = str_fileToProcess
-            d_ret['encoding']       = str_encoding
-            d_ret['contentFile']    = d_fio['fileProcessed']
+            d_ret['local']['encoding']                   = d_fio
 
-        # Push the actual file
-        d_push   = self.push_core(  d_msg,
-                                    fileToPush  = str_fileToProcess,
-                                    encoding    = str_encoding,
-                                    d_ret       = d_ret)
-        # d_response      = json.loads(d_push['stdout'])
-        d_response      = d_push['stdout']
-        str_response    = d_response['response']
-
-        d_ret['response']   = str_response
+        # Push the actual file -- note the d_ret!
+        d_ret['remoteServer']  = self.push_core(    d_msg,
+                                                    fileToPush  = str_fileToProcess,
+                                                    encoding    = str_encoding)
+                                                    # d_ret       = d_ret)
+        d_ret['status'] = d_ret['remoteServer']['status']
+        d_ret['msg']    = d_ret['remoteServer']['msg']
 
         if b_cleanZip:
             self.qprint("Removing temp files...", comms = 'status')
             if os.path.isfile(str_zipFile):     os.remove(str_zipFile)
             if os.path.isfile(str_base64File):  os.remove(str_base64File)
-        return {'stdout': d_ret}
+
+        return d_ret
+
+        # return {'stdout': {'return' : d_ret},
+        #         'status': d_ret['fromServer']['status']}
 
     def push_copy(self, d_msg, **kwargs):
         """
@@ -1284,9 +1291,16 @@ class Client():
         d_copy              = d_transport['copy']
 
         # Pull the actual data into a dictionary holder
-        d_pull = self.push_core(d_msg)
+        d_curl                      = {}
+        d_curl['remoteServer']      = self.push_core(d_msg)
+        d_curl['copy']              = {}
+        d_curl['copy']['status']    = d_curl['remoteServer']['status']
+        if not d_curl['copy']['status']:
+            d_curl['copy']['msg']   = "Copy on remote server failed!"
+        else:
+            d_curl['copy']['msg']   = "Copy on remote server success!"
 
-        return {'stdout': d_pull}
+        return d_curl
 
     def remoteOp_do(self, d_msg, **kwargs):
         """
@@ -1303,6 +1317,7 @@ class Client():
         d_meta              = d_msg['meta']
         d_transport         = d_meta['transport']
         b_OK                = True
+        d_ret               = {}
 
         str_action          = "pull"
         for k,v, in kwargs.items():
@@ -1310,42 +1325,53 @@ class Client():
 
         # First check on the paths, both local and remote
         self.qprint('Checking local path status...', comms = 'status')
-        d_ret               = self.localPath_check(d_msg)
-        if not d_ret['response']['status']:
+        d_ret['localCheck'] = self.localPath_check(d_msg)
+        if not d_ret['localCheck']['status']:
             self.qprint('An error occurred while checking on the local path.',
                         comms = 'error')
-            d_ret['msg']    = 'It seems the local path spec is invalid.'
-            d_ret['status'] = False
+            d_ret['localCheck']['msg']          = 'The local path spec is invalid!'
+            d_ret['localCheck']['status'] = False
             b_OK            = False
+        else:
+            d_ret['localCheck']['msg']          = "Check on local path successful."
+        d_ret['status']     = d_ret['localCheck']['status']
+        d_ret['msg']        = d_ret['localCheck']['msg']
 
         if b_OK:
             d_transport['checkRemote']  = True
             self.qprint('Checking remote path status...', comms = 'status')
-            d_ret   = self.pull_remoteLocationCheck(d_msg)
+            d_ret['remoteCheck']   = self.pull_remoteLocationCheck(d_msg)
             self.qprint(str(d_ret), comms = 'rx')
-            if not d_ret['status']:
+            if not d_ret['remoteCheck']['status']:
                 self.qprint('An error occurred while checking the remote server.',
                             comms = 'error')
+                d_ret['remoteCheck']['msg']     = "The remote path spec is invalid!"
                 b_OK        = False
             else:
-                d_ret['response']['msg']    = "Check on remote path successful."
+                d_ret['remoteCheck']['msg']     = "Check on remote path successful."
             d_transport['checkRemote']  = False
+            d_ret['status']             = d_ret['localCheck']['status']
+            d_ret['msg']                = d_ret['localCheck']['msg']
 
         b_jobExec           = False
         if b_OK:
             if 'compress' in d_transport and d_ret['status']:
                 self.qprint('Calling %s_compress()...' % str_action, comms = 'status')
-                d_ret           = eval("self.%s_compress(d_msg, **kwargs)" % str_action)
+                d_ret['compress']   = eval("self.%s_compress(d_msg, **kwargs)" % str_action)
+                d_ret['status']     = d_ret['compress']['status']
+                d_ret['msg']        = d_ret['compress']['msg']
                 b_jobExec       = True
 
             if 'copy' in d_transport:
                 self.qprint('Calling %s_copy()...' % str_action, comms = 'status')
-                d_ret           = eval("self.%s_copy(d_msg, **kwargs)" % str_action)
+                d_ret['copyOp']     = eval("self.%s_copy(d_msg, **kwargs)" % str_action)
+                d_ret['status']     = d_ret['copyOp']['copy']['status']
+                d_ret['msg']        = d_ret['copyOp']['copy']['msg']
                 b_jobExec       = True
 
         if not b_jobExec:
             d_ret['status']   = False
-            d_ret['msg']      = 'No push/pull operation was performed!'
+            d_ret['msg']      = 'No push/pull operation was performed! The local check failed!'
 
         d_meta['ctl']       = {
             'serverCmd':    'quit'
