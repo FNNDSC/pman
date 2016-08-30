@@ -1028,11 +1028,11 @@ class Client():
                 path            = str_localPath
             )
             d_ret['remoteServer']['unzip']  = d_fio
-            d_ret['status']                 = d_ret['remoteServer']['status']
-            d_ret['msg']                    = d_ret['remoteServer']['msg']
+            d_ret['status']                 = d_fio['status']
+            d_ret['msg']                    = d_fio['msg']
 
         print(d_ret)
-        if b_cleanZip and d_ret['remoteServer']['status']:
+        if b_cleanZip and d_ret['status']:
             self.qprint("Removing zip file %s..." % str_localFile,
                         comms = 'status')
             os.remove(str_localFile)
