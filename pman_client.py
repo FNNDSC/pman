@@ -26,6 +26,7 @@ import  os
 # import  shutil
 import  pfioh
 import  urllib
+import  datetime
 import  codecs
 
 class Client():
@@ -43,6 +44,7 @@ class Client():
             if str_comms == 'error':    print(Colors.RED,       end="")
             if str_comms == "tx":       print(Colors.YELLOW + "---->")
             if str_comms == "rx":       print(Colors.GREEN  + "<----")
+            print('%s' % datetime.datetime.now() + " | ",       end="")
             print(msg)
             if str_comms == "tx":       print(Colors.YELLOW + "---->")
             if str_comms == "rx":       print(Colors.GREEN  + "<----")
@@ -953,21 +955,24 @@ class Client():
                 if not d_response['status']:
                     self.qprint('Some error occurred at remote location:',
                                 comms = 'error')
-                    return {'status':   False,
-                            'mag':      'PULL unsuccessful',
-                            'response': d_response}
+                    return {'status':       False,
+                            'mag':          'PULL unsuccessful',
+                            'response':     d_response,
+                            'timestamp':    '%s' % datetime.datetime.now()}
                 else:
-                    return {'status':   d_response['status'],
-                            'msg':      'PULL successful',
-                            'response': d_response}
+                    return {'status':       d_response['status'],
+                            'msg':          'PULL successful',
+                            'response':     d_response,
+                            'timestamp':    '%s' % datetime.datetime.now()}
 
         self.qprint("Received " + Colors.YELLOW + "%d" % len(str_response) +
                     Colors.PURPLE + " bytes..." ,
                     comms = 'status')
 
-        return {'status':   True,
-                'msg':      'PULL successful',
-                'response': str_response}
+        return {'status':       True,
+                'msg':          'PULL successful',
+                'response':     str_response,
+                'timestamp':    '%s' % datetime.datetime.now()}
 
     def pull_compress(self, d_msg, **kwargs):
         """
@@ -975,18 +980,22 @@ class Client():
         """
 
         # Parse "header" information
-        d_meta              = d_msg['meta']
-        d_local             = d_meta['local']
-        str_localPath       = d_local['path']
-        d_remote            = d_meta['remote']
-        d_transport         = d_meta['transport']
-        d_compress          = d_transport['compress']
+        d_meta                  = d_msg['meta']
+        d_local                 = d_meta['local']
+        str_localPath           = d_local['path']
+        d_remote                = d_meta['remote']
+        d_transport             = d_meta['transport']
+        d_compress              = d_transport['compress']
+        d_ret                   = {}
+        d_ret['remoteServer']   = {}
+        d_ret['localOp']        = {}
 
         if 'cleanup' in d_compress:
             b_cleanZip      = d_compress['cleanup']
 
         # Pull the actual data into a dictionary holder
-        d_pull = self.pull_core(d_msg)
+        d_pull                  = self.pull_core(d_msg)
+        d_ret['remoteServer']   = d_pull
 
         if not d_pull['status']:
             return {'stdout': json.dumps(d_pull['stdout'])}
@@ -997,9 +1006,8 @@ class Client():
 
         str_localFile       = "%s/%s%s" % (d_meta['local']['path'], str_localStem, str_fileSuffix)
         str_response        = d_pull['response']
+        d_pull['response']  = '<truncated>'
 
-        d_ret                   = {}
-        d_ret['remoteServer']   = {}
 
         if d_compress['encoding'] == 'base64':
             self.qprint("Decoding base64 encoded text stream to %s..." % \
@@ -1009,15 +1017,17 @@ class Client():
                 payloadBytes    = str_response,
                 saveToFile      = str_localFile
             )
-            d_ret['remoteServer']['decode']   = d_fio
+            d_ret['localOp']['decode']   = d_fio
         else:
             self.qprint("Writing byte stream to %s..." % str_localFile,
                         comms = 'status')
             with open(str_localFile, 'wb') as fh:
                 fh.write(str_response)
                 fh.close()
-            d_ret['remoteServer']['stream']         = True
-            d_ret['remoteServer']['fileWritten']    = str_localFile
+            d_ret['localOp']['stream']                  = {}
+            d_ret['localOp']['stream']['status']        = True
+            d_ret['localOp']['stream']['fileWritten']   = str_localFile
+            d_ret['localOp']['stream']['timestamp']     = '%s' % datetime.datetime.now()
 
         if d_compress['archive'] == 'zip':
             self.qprint("Unzipping %s to %s"  % (str_localFile, str_localPath),
@@ -1027,7 +1037,8 @@ class Client():
                 payloadFile     = str_localFile,
                 path            = str_localPath
             )
-            d_ret['remoteServer']['unzip']  = d_fio
+            d_ret['localOp']['unzip']       = d_fio
+            d_ret['localOp']['unzip']['timestamp']       = '%s' % datetime.datetime.now()
             d_ret['status']                 = d_fio['status']
             d_ret['msg']                    = d_fio['msg']
 
@@ -1096,7 +1107,9 @@ class Client():
             'isdir':   b_isDir
         }
 
-        return {'check': d_ret, 'status': d_ret['status']}
+        return {'check':        d_ret,
+                'status':       d_ret['status'],
+                'timestamp':    '%s' % datetime.datetime.now()}
 
     def pull(self, d_msg, **kwargs):
         """
@@ -1371,7 +1384,7 @@ class Client():
 
         if not b_jobExec:
             d_ret['status']   = False
-            d_ret['msg']      = 'No push/pull operation was performed! The local check failed!'
+            d_ret['msg']      = 'No push/pull operation was performed! A filepath check failed!'
 
         d_meta['ctl']       = {
             'serverCmd':    'quit'
