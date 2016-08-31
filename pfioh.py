@@ -40,7 +40,7 @@ import  uuid
 import  urllib
 import  ast
 import  shutil
-
+import  datetime
 
 class debug(object):
     """
@@ -113,6 +113,7 @@ class StoreHandler(BaseHTTPRequestHandler):
             if str_comms == 'error':    print(Colors.RED,       end="")
             if str_comms == "tx":       print(Colors.YELLOW + "<----")
             if str_comms == "rx":       print(Colors.GREEN  + "---->")
+            print('%s' % datetime.datetime.now() + " | ",       end="")
             print(msg)
             if str_comms == "tx":       print(Colors.YELLOW + "<----")
             if str_comms == "rx":       print(Colors.GREEN  + "---->")
@@ -158,6 +159,7 @@ class StoreHandler(BaseHTTPRequestHandler):
         d_remote            = d_meta['remote']
         d_transport         = d_meta['transport']
         d_compress          = d_transport['compress']
+        d_ret               = {}
 
         str_serverPath      = d_remote['path']
         str_fileToProcess   = str_serverPath
@@ -180,17 +182,22 @@ class StoreHandler(BaseHTTPRequestHandler):
         # of the local path
         if b_zip:
             self.qprint("Zipping target '%s'..." % str_serverPath, comms = 'status')
-            d_ret   = zip_process(
+            d_fio   = zip_process(
                 action  = 'zip',
                 path    = str_serverPath,
                 arcroot = str_serverPath
             )
+            d_ret['zip']        = d_fio
+            d_ret['status']     = d_fio['status']
+            d_ret['msg']        = d_fio['msg']
+            d_ret['timestamp']  = '%s' % datetime.datetime.now()
             if not d_ret['status']:
                 self.qprint("An error occurred during the zip operation:\n%s" % d_ret['stdout'],
                             comms = 'error')
+                self.ret_client(d_ret)
                 return d_ret
 
-            str_fileToProcess   = d_ret['fileProcessed']
+            str_fileToProcess   = d_fio['fileProcessed']
             str_zipFile         = str_fileToProcess
             self.qprint("Zip file: " + Colors.YELLOW + "%s" % str_zipFile +
                         Colors.PURPLE + '...' , comms = 'status')
@@ -201,12 +208,16 @@ class StoreHandler(BaseHTTPRequestHandler):
         if str_encoding     == 'base64':
             self.qprint("base64 encoding target '%s'..." % str_fileToProcess,
                         comms = 'status')
-            d_ret   = base64_process(
+            d_fio   = base64_process(
                 action      = 'encode',
                 payloadFile = str_fileToProcess,
                 saveToFile  = str_fileToProcess + ".b64"
             )
-            str_fileToProcess   = d_ret['fileProcessed']
+            d_ret['encode']     = d_fio
+            d_ret['status']     = d_fio['status']
+            d_ret['msg']        = d_fio['msg']
+            d_ret['timestamp']  = '%s' % datetime.datetime.now()
+            str_fileToProcess   = d_fio['fileProcessed']
             str_base64File      = str_fileToProcess
 
         with open(str_fileToProcess, 'rb') as fh:
@@ -220,8 +231,14 @@ class StoreHandler(BaseHTTPRequestHandler):
             # try:
             #     self.wfile.write(fh.read().encode())
             # except:
-            self.qprint('<tranmission>', comms = 'tx')
+            self.qprint('<transmission>', comms = 'tx')
+            d_ret['transmit']               = {}
+            d_ret['transmit']['msg']        = 'transmitting'
+            d_ret['transmit']['timestamp']  = '%s' % datetime.datetime.now()
+            d_ret['status']                 = True
+            d_ret['msg']                    = d_ret['transmit']['msg']
             self.wfile.write(fh.read())
+
         if b_cleanup:
             if b_zip:
                 self.qprint("Removing '%s'..." % (str_zipFile), comms = 'status')
@@ -230,11 +247,6 @@ class StoreHandler(BaseHTTPRequestHandler):
                 self.qprint("Removing '%s'..." % (str_base64File), comms = 'status')
                 if os.path.isfile(str_base64File):  os.remove(str_base64File)
 
-        d_ret = {
-            "status":       True,
-            "User-agent":   self.headers['user-agent'],
-            "d_meta":       d_meta
-        }
 
         self.ret_client(d_ret)
         self.qprint(d_ret, comms = 'tx')
@@ -288,6 +300,7 @@ class StoreHandler(BaseHTTPRequestHandler):
         d_ret['destination']    = str_clientPath
         d_ret['copytree']       = b_copyTree
         d_ret['copyfile']       = b_copyFile
+        d_ret['timestamp']      = '%s' % datetime.datetime.now()
 
         self.ret_client(d_ret)
 
@@ -436,6 +449,9 @@ class StoreHandler(BaseHTTPRequestHandler):
         # d_ret['d_meta']         = d_meta
         d_ret['source']         = str_clientPath
         d_ret['destination']    = str_serverPath
+        d_ret['copytree']       = b_copyTree
+        d_ret['copyfile']       = b_copyFile
+        d_ret['timestamp']      = '%s' % datetime.datetime.now()
 
         self.ret_client(d_ret)
 
@@ -645,7 +661,7 @@ def zip_process(**kwargs):
         ziphandler.extractall(str_localPath)
     ziphandler.close()
     return {
-        'msg':              'zip operation successful',
+        'msg':              '%s operation successful' % str_action,
         'fileProcessed':    str_zipFileName,
         'status':           True,
         'path':             str_localPath,
