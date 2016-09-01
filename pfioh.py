@@ -199,6 +199,7 @@ class StoreHandler(BaseHTTPRequestHandler):
 
             str_fileToProcess   = d_fio['fileProcessed']
             str_zipFile         = str_fileToProcess
+            d_ret['zip']['filesize']   = '%s' % os.stat(str_fileToProcess).st_size
             self.qprint("Zip file: " + Colors.YELLOW + "%s" % str_zipFile +
                         Colors.PURPLE + '...' , comms = 'status')
 
@@ -218,12 +219,13 @@ class StoreHandler(BaseHTTPRequestHandler):
             d_ret['msg']        = d_fio['msg']
             d_ret['timestamp']  = '%s' % datetime.datetime.now()
             str_fileToProcess   = d_fio['fileProcessed']
+            d_ret['encoding']['filesize']   = '%s' % os.stat(str_fileToProcess).st_size
             str_base64File      = str_fileToProcess
 
         with open(str_fileToProcess, 'rb') as fh:
             filesize    = os.stat(str_fileToProcess).st_size
-            self.qprint("Transmitting " + Colors.YELLOW + '%d ' % filesize + Colors.PURPLE +
-                        "target bytes from " + Colors.YELLOW +
+            self.qprint("Transmitting " + Colors.YELLOW + "{:,}".format(filesize) + Colors.PURPLE +
+                        " target bytes from " + Colors.YELLOW +
                         "%s" % (str_fileToProcess) + Colors.PURPLE + '...', comms = 'status')
             self.send_response(200)
             # self.send_header('Content-type', 'text/json')
@@ -235,6 +237,7 @@ class StoreHandler(BaseHTTPRequestHandler):
             d_ret['transmit']               = {}
             d_ret['transmit']['msg']        = 'transmitting'
             d_ret['transmit']['timestamp']  = '%s' % datetime.datetime.now()
+            d_ret['transmit']['filesize']   = '%s' % os.stat(str_fileToProcess).st_size
             d_ret['status']                 = True
             d_ret['msg']                    = d_ret['transmit']['msg']
             self.wfile.write(fh.read())
@@ -526,6 +529,7 @@ class StoreHandler(BaseHTTPRequestHandler):
             d_ret['write']['file']      = str_localFile
             d_ret['write']['status']    = True
             d_ret['write']['msg']       = 'File written successfully!'
+            d_ret['write']['filesize']  = "{:,}".format(os.stat(str_localFile).st_size)
             d_ret['status']             = True
             d_ret['msg']                = d_ret['write']['msg']
         fh.close()
@@ -665,7 +669,8 @@ def zip_process(**kwargs):
         'fileProcessed':    str_zipFileName,
         'status':           True,
         'path':             str_localPath,
-        'zipmode':          str_mode
+        'zipmode':          str_mode,
+        'filesize':         "{:,}".format(os.stat(str_zipFileName).st_size)
     }
 
 def base64_process(**kwargs):
