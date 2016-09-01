@@ -958,21 +958,24 @@ class Client():
                     return {'status':       False,
                             'mag':          'PULL unsuccessful',
                             'response':     d_response,
-                            'timestamp':    '%s' % datetime.datetime.now()}
+                            'timestamp':    '%s' % datetime.datetime.now(),
+                            'size':         "{:,}".format(len(str_response))}
                 else:
                     return {'status':       d_response['status'],
                             'msg':          'PULL successful',
                             'response':     d_response,
-                            'timestamp':    '%s' % datetime.datetime.now()}
+                            'timestamp':    '%s' % datetime.datetime.now(),
+                            'size':         "{:,}".format(len(str_response))}
 
-        self.qprint("Received " + Colors.YELLOW + "%d" % len(str_response) +
+        self.qprint("Received " + Colors.YELLOW + "{:,}".format(len(str_response)) +
                     Colors.PURPLE + " bytes..." ,
                     comms = 'status')
 
         return {'status':       True,
                 'msg':          'PULL successful',
                 'response':     str_response,
-                'timestamp':    '%s' % datetime.datetime.now()}
+                'timestamp':    '%s' % datetime.datetime.now(),
+                'size':         "{:,}".format(len(str_response))}
 
     def pull_compress(self, d_msg, **kwargs):
         """
@@ -1028,6 +1031,7 @@ class Client():
             d_ret['localOp']['stream']['status']        = True
             d_ret['localOp']['stream']['fileWritten']   = str_localFile
             d_ret['localOp']['stream']['timestamp']     = '%s' % datetime.datetime.now()
+            d_ret['localOp']['stream']['filesize']      = "{:,}".format(len(str_response))
 
         if d_compress['archive'] == 'zip':
             self.qprint("Unzipping %s to %s"  % (str_localFile, str_localPath),
@@ -1038,7 +1042,8 @@ class Client():
                 path            = str_localPath
             )
             d_ret['localOp']['unzip']       = d_fio
-            d_ret['localOp']['unzip']['timestamp']       = '%s' % datetime.datetime.now()
+            d_ret['localOp']['unzip']['timestamp']  = '%s' % datetime.datetime.now()
+            d_ret['localOp']['unzip']['filesize']   = '%s' % "{:,}".format(os.stat(d_fio['fileProcessed']).st_size)
             d_ret['status']                 = d_fio['status']
             d_ret['msg']                    = d_fio['msg']
 
@@ -1180,9 +1185,8 @@ class Client():
         # c.setopt(c.VERBOSE, 1)
         c.setopt(c.WRITEFUNCTION,   response.write)
         if str_fileToProcess:
-            self.qprint("Transmitting " + Colors.YELLOW + \
-                        "%d " % os.stat(str_fileToProcess).st_size + \
-                        Colors.PURPLE + "bytes...",
+            self.qprint("Transmitting " + Colors.YELLOW + "{:,}".format(os.stat(str_fileToProcess).st_size) + \
+                        Colors.PURPLE + " bytes...",
                         comms = 'status')
         else:
             self.qprint("Sending ctl data to server...",
