@@ -72,6 +72,7 @@ class Client():
         self.b_man          = False
         self.str_man        = ''
         self.b_quiet        = False
+        self.b_pycurl       = False
         self.LC             = 40
         self.RC             = 40
 
@@ -85,6 +86,7 @@ class Client():
             if key == 'loopStart':  self.loopStart      = int(val)
             if key == 'loopEnd':    self.loopEnd        = int(val)
             if key == 'b_quiet':    self.b_quiet        = val
+            if key == 'b_pycurl':   self.b_pycurl       = val
             if key == 'man':        self.str_man        = val
 
         if len(self.str_man):
@@ -484,9 +486,9 @@ class Client():
         if str_description == "full":   b_fullDescription   = True
 
         str_manTxt =   Colors.LIGHT_CYAN        + \
-                       "\t\t%-20s" % "send"       + \
+                       "\t\t%-20s" % "push"       + \
                        Colors.LIGHT_PURPLE      + \
-                       "%-60s" % "sends a file over HTTP." + \
+                       "%-60s" % "push data over HTTP." + \
                        Colors.NO_COLOUR
 
         if b_fullDescription:
@@ -576,9 +578,9 @@ class Client():
         if str_description == "full":   b_fullDescription   = True
 
         str_manTxt =   Colors.LIGHT_CYAN        + \
-                       "\t\t%-20s" % "send"       + \
+                       "\t\t%-20s" % "pull"       + \
                        Colors.LIGHT_PURPLE      + \
-                       "%-60s" % "sends a file over HTTP." + \
+                       "%-60s" % "pull data over HTTP." + \
                        Colors.NO_COLOUR
 
         if b_fullDescription:
@@ -832,10 +834,11 @@ class Client():
                 #
                 # POST <cmd>
                 #
-                # str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"exec\": {\"cmd\": \"%s\"}, \"action\":\"run\",\"meta\":%s}'" \
-                #                         % (self.str_ip, self.str_port, str_cmd, str_meta)
-                str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"run\",\"meta\":%s}'" \
-                                  % (self.str_ip, self.str_port, str_meta)
+                if not self.b_pycurl:
+                    str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"run\",\"meta\":%s}'" \
+                                      % (self.str_ip, self.str_port, str_meta)
+                else:
+                    pass
                 b_tx            = True
             if str_test == "GET":
                 #
@@ -1424,9 +1427,12 @@ class Client():
         # print(d_meta)
         str_meta        = json.dumps(d_meta)
         if str_action != "push" and str_action != "pull":
-            str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
-                              % (self.str_ip, self.str_port, str_action, str_meta)
-            d_ret           = self.shell.run(str_shellCmd)
+            if not self.b_pycurl:
+                str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
+                                  % (self.str_ip, self.str_port, str_action, str_meta)
+                d_ret           = self.shell.run(str_shellCmd)
+            else:
+                d_ret           = self.push(d_msg)
         if str_action == 'push':
             d_ret           = self.push(d_msg)
         if str_action == 'pull':
@@ -1520,6 +1526,13 @@ if __name__ == '__main__':
         action  = 'store',
         default = ''
     )
+    parser.add_argument(
+        '--pycurl',
+        help    = 'use the internal python curl API',
+        dest    = 'b_pycurl',
+        action  = 'store_true',
+        default = False
+    )
 
     args    = parser.parse_args()
     client  = Client(
@@ -1531,6 +1544,7 @@ if __name__ == '__main__':
                         loopStart   = args.loopStart,
                         loopEnd     = args.loopEnd,
                         b_quiet     = args.b_quiet,
+                        b_pycurl    = args.b_pycurl,
                         man         = args.man
                 )
     client.run()
