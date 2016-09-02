@@ -15,7 +15,17 @@ Start 'pman.py', listening on port 5010 of the current host:
 Now, assuming the IP of the host as below, a job can be submitted to 'pman' using a REST type interface
 
 ```
-http POST http://10.17.24.163:5010/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{"exec": {"cmd": "cal 7 1970"}, "action":"run","meta":{"jid": "123-456-1", "auid": "rudolphpienaar"}}'
+http POST http://10.17.24.163:5010/api/v1/cmd/ \
+Content-Type:application/json Accept:application/json \
+payload:='
+  {
+  "exec": {"cmd": "cal 7 1970"}, 
+  "action":"run",
+  "meta": {
+      "jid": "123-456-1", 
+      "auid": "rudolphpienaar"
+    }
+  }'
 ```
 
 'pman.py' will then spawn the process and provide information on the status of the job. Note the <tt>payload</tt> JSON dictionary that provides some additional behaviour options (see later).
@@ -23,7 +33,8 @@ http POST http://10.17.24.163:5010/api/v1/cmd/ Content-Type:application/json Acc
 Jobs launched by 'pman.py' can be queried with
 
 ```
-http GET http://10.17.24.163:5010/api/v1/_01/endInfo Content-Type:application/json Accept:application/json
+http GET http://10.17.24.163:5010/api/v1/_01/endInfo \
+  Content-Type:application/json Accept:application/json
 ```
 
 for the pid and status of job "1", for example
