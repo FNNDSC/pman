@@ -24,6 +24,7 @@ str_desc = """
 """
 
 import  os
+import  sys
 
 from    io              import BytesIO as IO
 from    http.server     import BaseHTTPRequestHandler, HTTPServer
@@ -364,10 +365,19 @@ class StoreHandler(BaseHTTPRequestHandler):
         data                = self.rfile.read(int(length))
         form                = self.form_get('POST', data)
         d_form              = {}
+        d_ret               = {
+            'msg':      'In do_POST',
+            'status':   True,
+            'formsize': sys.getsizeof(form)
+        }
+
         for key in form:
             d_form[key]     = form.getvalue(key)
 
-        d_meta              = json.loads(d_form['d_meta'])
+        d_msg               = json.loads(ast.literal_eval(d_form['d_msg']))
+        d_meta              = d_msg['meta']
+
+        self.qprint(d_msg, comms = 'rx')
 
         if 'ctl' in d_meta:
             self.do_POST_serverctl(d_meta)
@@ -384,6 +394,7 @@ class StoreHandler(BaseHTTPRequestHandler):
             if 'copy' in d_transport:
                 d_ret   = self.do_POST_withCopy(d_meta)
 
+        self.ret_client(d_ret)
         return d_ret
 
     def do_POST_serverctl(self, d_meta):
@@ -456,7 +467,7 @@ class StoreHandler(BaseHTTPRequestHandler):
         d_ret['copyfile']       = b_copyFile
         d_ret['timestamp']      = '%s' % datetime.datetime.now()
 
-        self.ret_client(d_ret)
+        # self.ret_client(d_ret)
 
         return d_ret
 
@@ -547,7 +558,7 @@ class StoreHandler(BaseHTTPRequestHandler):
 
         d_ret['User-agent'] = self.headers['user-agent']
 
-        self.ret_client(d_ret)
+        # self.ret_client(d_ret)
         self.qprint(d_ret, comms = 'tx')
 
         return d_ret
