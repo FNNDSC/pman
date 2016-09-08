@@ -54,26 +54,40 @@ class Purl():
     def __init__(self, **kwargs):
         # threading.Thread.__init__(self)
 
-        # self.str_cmd        = ""
+        self.str_http       = ""
         self.str_ip         = ""
         self.str_port       = ""
+        self.str_URL        = ""
+        self.str_verb       = ""
         self.str_msg        = ""
         self.str_protocol   = "http"
         self.pp             = pprint.PrettyPrinter(indent=4)
         self.b_man          = False
         self.str_man        = ''
         self.b_quiet        = False
-        self.b_pycurl       = False
+        self.auth           = ''
+
         self.LC             = 40
         self.RC             = 40
 
         for key,val in kwargs.items():
-            # if key == 'cmd':        self.str_cmd        = val
-            if key == 'msg':        self.str_msg        = val
-            if key == 'ip':         self.str_ip         = val
-            if key == 'port':       self.str_port       = val
-            if key == 'b_quiet':    self.b_quiet        = val
-            if key == 'man':        self.str_man        = val
+            if key == 'msg':        self.str_msg                = val
+            if key == 'http':       self.httpStr_parse( http    = val)
+            if key == 'auth':       self.str_auth               = val
+            if key == 'verb':       self.str_verb               = val
+            if key == 'ip':         self.str_ip                 = val
+            if key == 'port':       self.str_port               = val
+            if key == 'b_quiet':    self.b_quiet                = val
+            if key == 'man':        self.str_man                = val
+
+        # Split http string into IP:port and URL
+        str_IPport          = self.str_http.split('/')[0]
+        self.str_URL        = '/' + '/'.join(self.str_http.split('/')[1:])
+        try:
+            (self.str_ip, self.str_port) = str_IPport.split(':')
+        except:
+            self.str_ip     = str_IPport.split(':')
+            self.str_port   = args.str_port
 
         if len(self.str_man):
             print(self.man(on = self.str_man))
@@ -83,12 +97,12 @@ class Purl():
 
             print(Colors.LIGHT_GREEN)
             print("""
-            \t\t\t+---------------------------+
-            \t\t\t| Welcome to purl.py        |
-            \t\t\t+---------------------------+
+            \t\t\t+--------------------+
+            \t\t\t| Welcome to purl.py |
+            \t\t\t+--------------------+
             """)
             print(Colors.CYAN + """
-            This program sends CURL type communication to a remote server.
+            This program sends REST conforming communication to a remote service over http.
 
             See 'purl.py --man commands' for more help.
 
@@ -97,6 +111,7 @@ class Purl():
             if len(sys.argv) == 1: sys.exit(1)
 
             self.col2_print("Will transmit to",     '%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
+
 
     def man(self, **kwargs):
         """
@@ -111,23 +126,55 @@ class Purl():
             if k == 'amount':   str_amount  = v
 
         if str_man == 'commands':
-            str_commands = Colors.CYAN + """
-            The following commands are serviced by this script:
+            str_commands = """
+            This script/module provides CURL-based PUT/POST communication over http
+            to a remote REST-like service.
+
+            In the simplest and most generic sense, a 'message' described in JSON
+            syntax is pushed to the remote service, in the following syntax: """ + Colors.GREEN + """
+
+                 ./purl.py [--verb <GET/POST>] --http <IP>[:<port>]</some/path/> \\
+                           [--msg <JSON-formatted-string>]
+
+            """ + Colors.WHITE + """
+            Where the --verb denotes the REST verb to use and --http defines
+            the REST URL.
+
+            Additionally, the --msg flag can pass any JSON formatted string
+            to the remote service.
+
+            In the case of the 'pman' system this --msg flag has very specific
+            contextual syntax, for example:
+            """ + Colors.GREEN + """
+                 ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
+                                '{  "action": "run",
+                                    "meta": {
+                                        "cmd":      "cal 7 1970",
+                                        "auid":     "rudolphpienaar",
+                                        "jid":      "<jid>-1",
+                                        "threaded": true
+                                    }
+                                }'
+
+
+            """ % (self.str_ip, self.str_port) + Colors.CYAN + """
+
+            The following specific action directives are directly handled by script:
             """ + "\n" + \
-            self.man_push(          description =   "short")      + "\n" + \
-            self.man_pull(          description =   "short")      + "\n" + \
+            self.man_pushPath(          description =   "short")      + "\n" + \
+            self.man_pullPath(          description =   "short")      + "\n" + \
             Colors.YELLOW + \
             """
             To get detailed help on any of the above commands, type
             """ + Colors.LIGHT_CYAN + \
             """
-                ./pman_client.py --man <command>
+                ./purl.py --man <command>
             """
 
             return str_commands
 
-        if str_man  == 'push':          return self.man_push(       description  =   str_amount)
-        if str_man  == 'pull':          return self.man_pull(       description  =   str_amount)
+        if str_man  == 'pushPath':  return self.man_pushPath(       description  =   str_amount)
+        if str_man  == 'pullPath':  return self.man_pullPath(       description  =   str_amount)
 
     def man_pushPath(self, **kwargs):
         """
@@ -141,9 +188,9 @@ class Purl():
         if str_description == "full":   b_fullDescription   = True
 
         str_manTxt =   Colors.LIGHT_CYAN        + \
-                       "\t\t%-20s" % "push"       + \
+                       "\t\t%-20s" % "pushPath" + \
                        Colors.LIGHT_PURPLE      + \
-                       "%-60s" % "push data over HTTP." + \
+                       "%-60s" % "push a filesystem path over HTTP." + \
                        Colors.NO_COLOUR
 
         if b_fullDescription:
@@ -169,8 +216,8 @@ class Purl():
 
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port %s  --msg  \\
-                    '{  "action": "push",
+                ./purl.py --ip %s --port %s  --msg  \\
+                    '{  "action": "pushPath",
                         "meta":
                             {
                                 "local":
@@ -196,8 +243,8 @@ class Purl():
                 """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR  + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port %s --msg  \\
-                    '{  "action": "push",
+                ./purl.py --ip %s --port %s --msg  \\
+                    '{  "action": "pushPath",
                         "meta":
                             {
                                 "local":
@@ -233,9 +280,9 @@ class Purl():
         if str_description == "full":   b_fullDescription   = True
 
         str_manTxt =   Colors.LIGHT_CYAN        + \
-                       "\t\t%-20s" % "pull"       + \
+                       "\t\t%-20s" % "pullPath" + \
                        Colors.LIGHT_PURPLE      + \
-                       "%-60s" % "pull data over HTTP." + \
+                       "%-60s" % "pull a filesystem path over HTTP." + \
                        Colors.NO_COLOUR
 
         if b_fullDescription:
@@ -260,8 +307,8 @@ class Purl():
 
                 """ + Colors.YELLOW + """EXAMPLE -- using zip:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port %s  --msg  \\
-                    '{  "action": "pull",
+                ./purl.py --ip %s --port %s  --msg  \\
+                    '{  "action": "pullPath",
                         "meta":
                             {
                                 "local":
@@ -287,8 +334,8 @@ class Purl():
                 """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./pman_client.py --ip %s --port %s --msg  \\
-                    '{  "action": "pull",
+                ./purl.py --ip %s --port %s --msg  \\
+                    '{  "action": "pullPath",
                         "meta":
                             {
                                 "local":
@@ -312,31 +359,41 @@ class Purl():
 
         return str_manTxt
 
-    def pullPath_core(self, d_msg, **kwargs):
+    def pull_core(self, **kwargs):
         """
         Just the core of the pycurl logic.
         """
 
-        d_meta              = d_msg['meta']
-        str_query           = urllib.parse.urlencode(d_msg)
-        response            = io.BytesIO()
-
-        d_remote            = d_meta['remote']
         str_ip              = self.str_ip
         str_port            = self.str_port
-        if 'ip' in d_remote:
-            str_ip          = d_remote['ip']
-        if 'port' in d_remote:
-            str_port        = d_remote['port']
+        str_msg             = ''
+        verbose             = 0
 
-        self.qprint("http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query),
+        for k,v in kwargs.items():
+            if k == 'ip':       str_ip      = v
+            if k == 'port':     str_port    = v
+            if k == 'msg':      str_msg     = v
+            if k == 'verbose':  verbose     = v
+
+        response            = io.BytesIO()
+
+        str_query   = ''
+        if len(str_msg):
+            d_meta              = d_msg['meta']
+            str_query           = '?%s' % urllib.parse.urlencode(d_msg)
+
+        str_URL = "http://%s:%s%s%s" % (str_ip, str_port, self.str_URL, str_query)
+
+        self.qprint(str_URL,
                     comms  = 'tx')
 
         c                   = pycurl.Curl()
-        c.setopt(c.URL, "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
-        # c.setopt(c.VERBOSE, 1)
+        c.setopt(c.URL, str_URL)
+        if verbose: c.setopt(c.VERBOSE, 1)
         c.setopt(c.FOLLOWLOCATION,  1)
         c.setopt(c.WRITEFUNCTION,   response.write)
+        if len(self.str_auth):
+            c.setopt(c.USERPWD, self.str_auth)
         self.qprint("Waiting for PULL response...", comms = 'status')
         c.perform()
         c.close()
@@ -344,6 +401,45 @@ class Purl():
             str_response        = response.getvalue().decode()
         except:
             str_response        = response.getvalue()
+
+        self.qprint(str_response, comms = 'rx')
+        return str_response
+
+    def pullPath_core(self, d_msg, **kwargs):
+        """
+        Just the core of the pycurl logic.
+        """
+
+        str_response = self.pull_core(msg = d_msg)
+
+        # d_meta              = d_msg['meta']
+        # str_query           = urllib.parse.urlencode(d_msg)
+        # response            = io.BytesIO()
+        #
+        # d_remote            = d_meta['remote']
+        # str_ip              = self.str_ip
+        # str_port            = self.str_port
+        # if 'ip' in d_remote:
+        #     str_ip          = d_remote['ip']
+        # if 'port' in d_remote:
+        #     str_port        = d_remote['port']
+        #
+        # self.qprint("http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query),
+        #             comms  = 'tx')
+        #
+        # c                   = pycurl.Curl()
+        # c.setopt(c.URL, "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
+        # # c.setopt(c.VERBOSE, 1)
+        # c.setopt(c.FOLLOWLOCATION,  1)
+        # c.setopt(c.WRITEFUNCTION,   response.write)
+        # self.qprint("Waiting for PULL response...", comms = 'status')
+        # c.perform()
+        # c.close()
+        # try:
+        #     str_response        = response.getvalue().decode()
+        # except:
+        #     str_response        = response.getvalue()
+
         if len(str_response) < 300:
             # It's possible an error occurred for the response to be so short.
             # Try and json load, and examine for 'status' field.
@@ -520,23 +616,6 @@ class Purl():
                 'status':       d_ret['status'],
                 'timestamp':    '%s' % datetime.datetime.now()}
 
-    def pullPath(self, d_msg, **kwargs):
-        """
-        Pulls data from a remote server using pycurl.
-
-        This method assumes that a prior call has "setup" a remote fileio
-        listener and has the ip:port of that instance.
-
-        Essentially, this method is the central dispatching nexus to various
-        specialized pull operations.
-
-        :param d_msg:
-        :param kwargs:
-        :return:
-        """
-
-        return self.remoteOp_do(d_msg, action = 'pull')
-
     def push_core(self, d_msg, **kwargs):
         """
 
@@ -626,50 +705,6 @@ class Purl():
                                                 ip          = str_ip,
                                                 port        = str_port
                                             )
-
-        # d_transport         = d_meta['transport']
-        #
-        # response            = io.BytesIO()
-        #
-        # self.qprint("http://%s:%s/api/v1/cmd/" % (str_ip, str_port) + '\n '+ str(d_msg),
-        #             comms  = 'tx')
-        #
-        # c = pycurl.Curl()
-        # c.setopt(c.POST, 1)
-        # c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (str_ip, str_port))
-        # if str_fileToProcess:
-        #     fread               = open(str_fileToProcess, "rb")
-        #     filesize            = os.path.getsize(str_fileToProcess)
-        #     c.setopt(c.HTTPPOST, [  ("local",    (c.FORM_FILE, str_fileToProcess)),
-        #                             ("encoding",  str_encoding),
-        #                             ("d_meta",    str_meta),
-        #                             ("filename",  str_fileToProcess)]
-        #              )
-        #     c.setopt(c.READFUNCTION,    fread.read)
-        #     c.setopt(c.POSTFIELDSIZE,   filesize)
-        # else:
-        #     c.setopt(c.HTTPPOST, [
-        #                             ("d_meta",    str_meta),
-        #                           ]
-        #              )
-        # # c.setopt(c.VERBOSE, 1)
-        # c.setopt(c.WRITEFUNCTION,   response.write)
-        # if str_fileToProcess:
-        #     self.qprint("Transmitting " + Colors.YELLOW + "{:,}".format(os.stat(str_fileToProcess).st_size) + \
-        #                 Colors.PURPLE + " bytes...",
-        #                 comms = 'status')
-        # else:
-        #     self.qprint("Sending ctl data to server...",
-        #                 comms = 'status')
-        # c.perform()
-        # c.close()
-        #
-        # str_response        = response.getvalue().decode()
-        # d_ret['push_core']  = json.loads(str_response)
-        # d_ret['status']     = d_ret['push_core']['status']
-        # d_ret['msg']        = 'push OK.'
-        # self.qprint(d_ret, comms = 'rx')
-
         return d_ret
 
     def pushPath_compress(self, d_msg, **kwargs):
@@ -789,9 +824,9 @@ class Purl():
 
         return d_curl
 
-    def remoteOp_do(self, d_msg, **kwargs):
+    def pathOp_do(self, d_msg, **kwargs):
         """
-        Entry point for push/pull calls.
+        Entry point for path-based push/pull calls.
 
         Essentially, this method is the central dispatching nexus to various
         specialized push operations.
@@ -875,13 +910,70 @@ class Purl():
 
         """
 
-        return self.remoteOp_do(d_msg, action = 'push')
+        return self.pathOp_do(d_msg, action = 'push')
 
+    def pullPath(self, d_msg, **kwargs):
+        """
+        Pulls data from a remote server using pycurl.
+
+        This method assumes that a prior call has "setup" a remote fileio
+        listener and has the ip:port of that instance.
+
+        Essentially, this method is the central dispatching nexus to various
+        specialized pull operations.
+
+        :param d_msg:
+        :param kwargs:
+        :return:
+        """
+
+        return self.pathOp_do(d_msg, action = 'pull')
+
+    def httpStr_parse(self, **kwargs):
+
+        for k,v in kwargs.items():
+            if k == 'http':     self.str_http   = v
+
+        # Split http string into IP:port and URL
+        str_IPport          = self.str_http.split('/')[0]
+        self.str_URL        = '/' + '/'.join(self.str_http.split('/')[1:])
+        try:
+            (self.str_ip, self.str_port) = str_IPport.split(':')
+        except:
+            self.str_ip     = str_IPport.split(':')
+            self.str_port   = args.str_port
+
+    def __call__(self, *args, **kwargs):
+        """
+        Main entry point for "calling".
+
+        :param self:
+        :param kwargs:
+        :return:
+        """
+
+        for key,val in kwargs.items():
+            if key == 'msg':        self.str_msg                = val
+            if key == 'http':       self.httpStr_parse( http    = val)
+            if key == 'verb':       self.str_verb               = val
+
+        if len(self.str_msg):
+            print(self.str_msg)
+            str_action  = d_msg['action']
+            if 'path' in str_action.lower():
+                self.pathOp_do(self.str_msg, action = str_action)
+            else:
+                if self.str_verb == 'GET':
+                    self.pull_core(self.str_msg)
+                if self.str_verb == 'POST':
+                    self.push_core(self.str_msg)
+        else:
+            print(self.pull_core())
 
 if __name__ == '__main__':
 
-    str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-
+    str_defIP   = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+    str_defPort = '5055'
     parser  = argparse.ArgumentParser(description = 'curl-type comms in the pman system')
 
     parser.add_argument(
@@ -889,53 +981,68 @@ if __name__ == '__main__':
         action  = 'store',
         dest    = 'msg',
         default = '',
-        help    = 'Control signal to send to pman.'
+        help    = 'Message to send to pman or similar listener.'
+    )
+    parser.add_argument(
+        '--verb',
+        action  = 'store',
+        dest    = 'verb',
+        default = 'POST',
+        help    = 'REST verb.'
+    )
+    parser.add_argument(
+        '--http',
+        action  = 'store',
+        dest    = 'http',
+        default = '%s:%s' % (str_defIP, str_defPort),
+        help    = 'HTTP string: <IP>[:<port>]<some/path/>'
     )
     parser.add_argument(
         '--ip',
         action  = 'store',
         dest    = 'ip',
         default = str_defIP,
-        help    = 'IP to connect.'
+        help    = 'IP of REST server.'
     )
     parser.add_argument(
         '--port',
         action  = 'store',
         dest    = 'port',
         default = '5010',
-        help    = 'Port to use.'
+        help    = 'Port on REST server.'
+    )
+    parser.add_argument(
+        '--auth',
+        action  = 'store',
+        dest    = 'auth',
+        default = '',
+        help    = 'user:passwd authorization'
     )
     parser.add_argument(
         '--quiet',
-        help    = 'if specified, only echo JSON output from server response',
+        help    = 'if specified, only echo final JSON output returned from server',
         dest    = 'b_quiet',
         action  = 'store_true',
         default = False
     )
     parser.add_argument(
         '--man',
-        help    = 'request help',
+        help    = 'request help: --man commands',
         dest    = 'man',
         action  = 'store',
         default = ''
-    )
-    parser.add_argument(
-        '--pycurl',
-        help    = 'use the internal python curl API',
-        dest    = 'b_pycurl',
-        action  = 'store_true',
-        default = False
     )
 
     args    = parser.parse_args()
     purl  = Purl(
                         msg         = args.msg,
-                        ip          = args.ip,
-                        port        = args.port,
+                        http        = args.http,
+                        verb        = args.verb,
+                        auth        = args.auth,
                         b_quiet     = args.b_quiet,
                         man         = args.man
                 )
 
-    purl.push_core(args.msg)
+    purl()
 
     sys.exit(0)
