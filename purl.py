@@ -19,11 +19,6 @@ import  socket
 import  pycurl
 import  io
 import  os
-# import  uu
-# import  zipfile
-# import  base64
-# import  uuid
-# import  shutil
 import  pfioh
 import  urllib
 import  datetime
@@ -46,7 +41,7 @@ class Purl():
             if str_comms == "rx":       print(Colors.GREEN  + "<----")
             print('%s' % datetime.datetime.now() + " | ",       end="")
             print(msg)
-            if str_comms == "tx":       print(Colors.YELLOW + "---->")client
+            if str_comms == "tx":       print(Colors.YELLOW + "---->")
             if str_comms == "rx":       print(Colors.GREEN  + "<----")
             print(Colors.NO_COLOUR, end="")
 
@@ -84,8 +79,6 @@ class Purl():
             print(self.man(on = self.str_man))
             sys.exit(0)
 
-        self.shell_reset()
-
         if not self.b_quiet:
 
             print(Colors.LIGHT_GREEN)
@@ -104,7 +97,6 @@ class Purl():
             if len(sys.argv) == 1: sys.exit(1)
 
             self.col2_print("Will transmit to",     '%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
-            self.col2_print("Inter-transmit delay:",'%d second(s)' % (self.txpause))
 
     def man(self, **kwargs):
         """
@@ -137,7 +129,7 @@ class Purl():
         if str_man  == 'push':          return self.man_push(       description  =   str_amount)
         if str_man  == 'pull':          return self.man_pull(       description  =   str_amount)
 
-    def man_push(self, **kwargs):
+    def man_pushPath(self, **kwargs):
         """
         """
 
@@ -229,7 +221,7 @@ class Purl():
 
         return str_manTxt
 
-    def man_pull(self, **kwargs):
+    def man_pullPath(self, **kwargs):
         """
         """
 
@@ -320,7 +312,7 @@ class Purl():
 
         return str_manTxt
 
-    def pull_core(self, d_msg, **kwargs):
+    def pullPath_core(self, d_msg, **kwargs):
         """
         Just the core of the pycurl logic.
         """
@@ -387,9 +379,11 @@ class Purl():
                 'timestamp':    '%s' % datetime.datetime.now(),
                 'size':         "{:,}".format(len(str_response))}
 
-    def pull_compress(self, d_msg, **kwargs):
+    def pullPath_compress(self, d_msg, **kwargs):
         """
-        Handle the "compress" pull operation
+
+        This pulls a compressed path from a remote host/location.
+
         """
 
         # Parse "header" information
@@ -407,7 +401,7 @@ class Purl():
             b_cleanZip      = d_compress['cleanup']
 
         # Pull the actual data into a dictionary holder
-        d_pull                  = self.pull_core(d_msg)
+        d_pull                  = self.pullPath_core(d_msg)
         d_ret['remoteServer']   = d_pull
 
         if not d_pull['status']:
@@ -465,7 +459,7 @@ class Purl():
 
         return d_ret
 
-    def pull_copy(self, d_msg, **kwargs):
+    def pullPath_copy(self, d_msg, **kwargs):
         """
         Handle the "copy" pull operation
         """
@@ -480,7 +474,7 @@ class Purl():
 
         # Pull the actual data into a dictionary holder
         d_curl                      = {}
-        d_curl['remoteServer']      = self.pull_core(d_msg)
+        d_curl['remoteServer']      = self.pullPath_core(d_msg)
         d_curl['copy']              = {}
         d_curl['copy']['status']    = d_curl['remoteServer']['status']
         if not d_curl['copy']['status']:
@@ -490,7 +484,7 @@ class Purl():
 
         return d_curl
 
-    def pull_remoteLocationCheck(self, d_msg, **kwargs):
+    def pullPath_remoteLocationCheck(self, d_msg, **kwargs):
         """
         This method checks if the "remote" path is valid.
         """
@@ -499,7 +493,7 @@ class Purl():
         d_pull = self.pull_core(d_msg)
         return d_pull
 
-    def localPath_check(self, d_msg, **kwargs):
+    def path_localLocationCheck(self, d_msg, **kwargs):
         """
         Check if a path exists on the local filesystem
 
@@ -526,7 +520,7 @@ class Purl():
                 'status':       d_ret['status'],
                 'timestamp':    '%s' % datetime.datetime.now()}
 
-    def pull(self, d_msg, **kwargs):
+    def pullPath(self, d_msg, **kwargs):
         """
         Pulls data from a remote server using pycurl.
 
@@ -551,24 +545,17 @@ class Purl():
         str_fileToProcess   = ""
         str_encoding        = "none"
         d_ret               = {}
+        str_ip              = self.str_ip
+        str_port            = self.str_port
+
         for k,v in kwargs.items():
             if k == 'fileToPush':   str_fileToProcess   = v
             if k == 'encoding':     str_encoding        = v
             if k == 'd_ret':        d_ret               = v
+            if k == 'ip':           str_ip              = v
+            if k == 'port':         str_port            = v
 
-        d_meta              = d_msg['meta']
-        str_meta            = json.dumps(d_meta)
-
-        d_remote            = d_meta['remote']
-        str_ip              = self.str_ip
-        str_port            = self.str_port
-        if 'ip' in d_remote:
-            str_ip          = d_remote['ip']
-        if 'port' in d_remote:
-            str_port        = d_remote['port']
-
-        d_transport         = d_meta['transport']
-
+        str_msg             = json.dumps(d_msg)
         response            = io.BytesIO()
 
         self.qprint("http://%s:%s/api/v1/cmd/" % (str_ip, str_port) + '\n '+ str(d_msg),
@@ -580,17 +567,17 @@ class Purl():
         if str_fileToProcess:
             fread               = open(str_fileToProcess, "rb")
             filesize            = os.path.getsize(str_fileToProcess)
-            c.setopt(c.HTTPPOST, [  ("local",    (c.FORM_FILE, str_fileToProcess)),
-                                    ("encoding",  str_encoding),
-                                    ("d_meta",    str_meta),
-                                    ("filename",  str_fileToProcess)]
+            c.setopt(c.HTTPPOST, [  ("local",       (c.FORM_FILE, str_fileToProcess)),
+                                    ("encoding",    str_encoding),
+                                    ("d_msg",       str_msg),
+                                    ("filename",    str_fileToProcess)]
                      )
             c.setopt(c.READFUNCTION,    fread.read)
             c.setopt(c.POSTFIELDSIZE,   filesize)
         else:
             c.setopt(c.HTTPPOST, [
-                                    ("d_meta",    str_meta),
-                                  ]
+                                    ("d_msg",    str_msg),
+                                 ]
                      )
         # c.setopt(c.VERBOSE, 1)
         c.setopt(c.WRITEFUNCTION,   response.write)
@@ -599,7 +586,7 @@ class Purl():
                         Colors.PURPLE + " bytes...",
                         comms = 'status')
         else:
-            self.qprint("Sending ctl data to server...",
+            self.qprint("Sending data...",
                         comms = 'status')
         c.perform()
         c.close()
@@ -612,7 +599,80 @@ class Purl():
 
         return d_ret
 
-    def push_compress(self, d_msg, **kwargs):
+    def pushPath_core(self, d_msg, **kwargs):
+        """
+
+        """
+
+        str_fileToProcess   = ""
+        str_encoding        = "none"
+        d_ret               = {}
+        for k,v in kwargs.items():
+            if k == 'fileToPush':   str_fileToProcess   = v
+            if k == 'encoding':     str_encoding        = v
+            if k == 'd_ret':        d_ret               = v
+
+        d_meta              = d_msg['meta']
+        str_ip              = self.str_ip
+        str_port            = self.str_port
+        if 'remote' in d_meta:
+            d_remote            = d_meta['remote']
+            if 'ip' in d_remote:    str_ip      = d_remote['ip']
+            if 'port' in d_remote:  str_port    = d_remote['port']
+
+        d_ret               = self.push_core(
+                                                fileToPush  = str_fileToProcess,
+                                                encoding    = str_encoding,
+                                                ip          = str_ip,
+                                                port        = str_port
+                                            )
+
+        # d_transport         = d_meta['transport']
+        #
+        # response            = io.BytesIO()
+        #
+        # self.qprint("http://%s:%s/api/v1/cmd/" % (str_ip, str_port) + '\n '+ str(d_msg),
+        #             comms  = 'tx')
+        #
+        # c = pycurl.Curl()
+        # c.setopt(c.POST, 1)
+        # c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (str_ip, str_port))
+        # if str_fileToProcess:
+        #     fread               = open(str_fileToProcess, "rb")
+        #     filesize            = os.path.getsize(str_fileToProcess)
+        #     c.setopt(c.HTTPPOST, [  ("local",    (c.FORM_FILE, str_fileToProcess)),
+        #                             ("encoding",  str_encoding),
+        #                             ("d_meta",    str_meta),
+        #                             ("filename",  str_fileToProcess)]
+        #              )
+        #     c.setopt(c.READFUNCTION,    fread.read)
+        #     c.setopt(c.POSTFIELDSIZE,   filesize)
+        # else:
+        #     c.setopt(c.HTTPPOST, [
+        #                             ("d_meta",    str_meta),
+        #                           ]
+        #              )
+        # # c.setopt(c.VERBOSE, 1)
+        # c.setopt(c.WRITEFUNCTION,   response.write)
+        # if str_fileToProcess:
+        #     self.qprint("Transmitting " + Colors.YELLOW + "{:,}".format(os.stat(str_fileToProcess).st_size) + \
+        #                 Colors.PURPLE + " bytes...",
+        #                 comms = 'status')
+        # else:
+        #     self.qprint("Sending ctl data to server...",
+        #                 comms = 'status')
+        # c.perform()
+        # c.close()
+        #
+        # str_response        = response.getvalue().decode()
+        # d_ret['push_core']  = json.loads(str_response)
+        # d_ret['status']     = d_ret['push_core']['status']
+        # d_ret['msg']        = 'push OK.'
+        # self.qprint(d_ret, comms = 'rx')
+
+        return d_ret
+
+    def pushPath_compress(self, d_msg, **kwargs):
         """
         """
 
@@ -704,7 +764,7 @@ class Purl():
         # return {'stdout': {'return' : d_ret},
         #         'status': d_ret['fromServer']['status']}
 
-    def push_copy(self, d_msg, **kwargs):
+    def pushPath_copy(self, d_msg, **kwargs):
         """
         Handle the "copy" pull operation
         """
@@ -806,8 +866,7 @@ class Purl():
 
         return {'stdout': json.dumps(d_ret)}
 
-
-    def push(self, d_msg, **kwargs):
+    def pushPath(self, d_msg, **kwargs):
         """
         Push data to a remote server using pycurl.
 
@@ -876,6 +935,7 @@ if __name__ == '__main__':
                         b_quiet     = args.b_quiet,
                         man         = args.man
                 )
-    # client.run()
-    purl.push(args.msg)
+
+    purl.push_core(args.msg)
+
     sys.exit(0)
