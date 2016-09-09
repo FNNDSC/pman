@@ -60,18 +60,25 @@ class Purl():
         self.str_URL        = ""
         self.str_verb       = ""
         self.str_msg        = ""
+        self.d_msg          = {}
         self.str_protocol   = "http"
         self.pp             = pprint.PrettyPrinter(indent=4)
         self.b_man          = False
         self.str_man        = ''
         self.b_quiet        = False
         self.auth           = ''
+        self.str_jsonwrapper= ''
 
         self.LC             = 40
         self.RC             = 40
 
         for key,val in kwargs.items():
-            if key == 'msg':        self.str_msg                = val
+            if key == 'msg':
+                self.str_msg                = val
+                try:
+                    self.d_msg              = json.loads(self.str_msg)
+                except:
+                    pass
             if key == 'http':       self.httpStr_parse( http    = val)
             if key == 'auth':       self.str_auth               = val
             if key == 'verb':       self.str_verb               = val
@@ -79,15 +86,7 @@ class Purl():
             if key == 'port':       self.str_port               = val
             if key == 'b_quiet':    self.b_quiet                = val
             if key == 'man':        self.str_man                = val
-
-        # Split http string into IP:port and URL
-        str_IPport          = self.str_http.split('/')[0]
-        self.str_URL        = '/' + '/'.join(self.str_http.split('/')[1:])
-        try:
-            (self.str_ip, self.str_port) = str_IPport.split(':')
-        except:
-            self.str_ip     = str_IPport.split(':')
-            self.str_port   = args.str_port
+            if key == 'jsonwrapper':self.str_jsonwrapper        = val
 
         if len(self.str_man):
             print(self.man(on = self.str_man))
@@ -127,22 +126,24 @@ class Purl():
 
         if str_man == 'commands':
             str_commands = """
-            This script/module provides CURL-based PUT/POST communication over http
-            to a remote REST-like service.
+            This script/module provides CURL-based GET/PUT/POST communication over http
+            to a remote REST-like service: """ + Colors.GREEN + """
 
-            In the simplest and most generic sense, a 'message' described in JSON
-            syntax is pushed to the remote service, in the following syntax: """ + Colors.GREEN + """
+                 ./purl.py [--auth <username:passwd>] [--verb <GET/POST>]   \\
+                            --http <IP>[:<port>]</some/path/>
 
-                 ./purl.py [--verb <GET/POST>] --http <IP>[:<port>]</some/path/> \\
+            """ + Colors.WHITE + """
+            Where --auth is an optional authorization to pass to the REST API,
+            --verb denotes the REST verb to use and --http specifies the REST URL.
+
+            Additionally, a 'message' described in JSON syntax can be pushed to the
+            remote service, in the following syntax: """ + Colors.GREEN + """
+
+                 ./purl.py [--auth <username:passwd>] [--verb <GET/POST>]   \\
+                            --http <IP>[:<port>]</some/path/>               \\
                            [--msg <JSON-formatted-string>]
 
             """ + Colors.WHITE + """
-            Where the --verb denotes the REST verb to use and --http defines
-            the REST URL.
-
-            Additionally, the --msg flag can pass any JSON formatted string
-            to the remote service.
-
             In the case of the 'pman' system this --msg flag has very specific
             contextual syntax, for example:
             """ + Colors.GREEN + """
@@ -216,7 +217,7 @@ class Purl():
 
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --ip %s --port %s  --msg  \\
+                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pushPath",
                         "meta":
                             {
@@ -243,7 +244,7 @@ class Purl():
                 """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR  + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --ip %s --port %s --msg  \\
+                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pushPath",
                         "meta":
                             {
@@ -307,7 +308,7 @@ class Purl():
 
                 """ + Colors.YELLOW + """EXAMPLE -- using zip:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --ip %s --port %s  --msg  \\
+                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pullPath",
                         "meta":
                             {
@@ -334,7 +335,7 @@ class Purl():
                 """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --ip %s --port %s --msg  \\
+                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pullPath",
                         "meta":
                             {
@@ -366,19 +367,19 @@ class Purl():
 
         str_ip              = self.str_ip
         str_port            = self.str_port
-        str_msg             = ''
         verbose             = 0
+        d_msg               = {}
 
         for k,v in kwargs.items():
             if k == 'ip':       str_ip      = v
             if k == 'port':     str_port    = v
-            if k == 'msg':      str_msg     = v
+            if k == 'msg':      d_msg       = v
             if k == 'verbose':  verbose     = v
 
         response            = io.BytesIO()
 
         str_query   = ''
-        if len(str_msg):
+        if len(d_msg):
             d_meta              = d_msg['meta']
             str_query           = '?%s' % urllib.parse.urlencode(d_msg)
 
@@ -402,7 +403,8 @@ class Purl():
         except:
             str_response        = response.getvalue()
 
-        self.qprint(str_response, comms = 'rx')
+        self.qprint('Incoming transmission received, length = %s' % "{:,}".format(len(str_response)),
+                    comms = 'rx')
         return str_response
 
     def pullPath_core(self, d_msg, **kwargs):
@@ -410,60 +412,34 @@ class Purl():
         Just the core of the pycurl logic.
         """
 
-        str_response = self.pull_core(msg = d_msg)
+        str_response = self.pull_core(msg = self.d_msg)
 
-        # d_meta              = d_msg['meta']
-        # str_query           = urllib.parse.urlencode(d_msg)
-        # response            = io.BytesIO()
-        #
-        # d_remote            = d_meta['remote']
-        # str_ip              = self.str_ip
-        # str_port            = self.str_port
-        # if 'ip' in d_remote:
-        #     str_ip          = d_remote['ip']
-        # if 'port' in d_remote:
-        #     str_port        = d_remote['port']
-        #
-        # self.qprint("http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query),
-        #             comms  = 'tx')
-        #
-        # c                   = pycurl.Curl()
-        # c.setopt(c.URL, "http://%s:%s/api/v1/file?%s" % (str_ip, str_port, str_query))
-        # # c.setopt(c.VERBOSE, 1)
-        # c.setopt(c.FOLLOWLOCATION,  1)
-        # c.setopt(c.WRITEFUNCTION,   response.write)
-        # self.qprint("Waiting for PULL response...", comms = 'status')
-        # c.perform()
-        # c.close()
-        # try:
-        #     str_response        = response.getvalue().decode()
-        # except:
-        #     str_response        = response.getvalue()
-
-        if len(str_response) < 300:
+        if len(str_response) < 800:
             # It's possible an error occurred for the response to be so short.
             # Try and json load, and examine for 'status' field.
             b_response      = False
+            b_status        = False
             try:
                 d_response  = json.loads(str_response)
                 b_response  = True
+                b_status    = d_response['status']
+                str_error   = d_response
             except:
-                pass
-            if b_response:
-                if not d_response['status']:
-                    self.qprint('Some error occurred at remote location:',
-                                comms = 'error')
-                    return {'status':       False,
-                            'mag':          'PULL unsuccessful',
-                            'response':     d_response,
-                            'timestamp':    '%s' % datetime.datetime.now(),
-                            'size':         "{:,}".format(len(str_response))}
-                else:
-                    return {'status':       d_response['status'],
-                            'msg':          'PULL successful',
-                            'response':     d_response,
-                            'timestamp':    '%s' % datetime.datetime.now(),
-                            'size':         "{:,}".format(len(str_response))}
+                str_error   = str_response
+            if not b_status or 'Network Error' in str_response:
+                self.qprint('Some error occurred at remote location:',
+                            comms = 'error')
+                return {'status':       False,
+                        'msg':          'PULL unsuccessful',
+                        'response':     str_error,
+                        'timestamp':    '%s' % datetime.datetime.now(),
+                        'size':         "{:,}".format(len(str_response))}
+            else:
+                return {'status':       d_response['status'],
+                        'msg':          'PULL successful',
+                        'response':     d_response,
+                        'timestamp':    '%s' % datetime.datetime.now(),
+                        'size':         "{:,}".format(len(str_response))}
 
         self.qprint("Received " + Colors.YELLOW + "{:,}".format(len(str_response)) +
                     Colors.PURPLE + " bytes..." ,
@@ -547,7 +523,6 @@ class Purl():
             d_ret['status']                 = d_fio['status']
             d_ret['msg']                    = d_fio['msg']
 
-        print(d_ret)
         if b_cleanZip and d_ret['status']:
             self.qprint("Removing zip file %s..." % str_localFile,
                         comms = 'status')
@@ -580,13 +555,13 @@ class Purl():
 
         return d_curl
 
-    def pullPath_remoteLocationCheck(self, d_msg, **kwargs):
+    def path_remoteLocationCheck(self, d_msg, **kwargs):
         """
         This method checks if the "remote" path is valid.
         """
 
         # Pull the actual data into a dictionary holder
-        d_pull = self.pull_core(d_msg)
+        d_pull = self.pullPath_core(d_msg)
         return d_pull
 
     def path_localLocationCheck(self, d_msg, **kwargs):
@@ -634,7 +609,10 @@ class Purl():
             if k == 'ip':           str_ip              = v
             if k == 'port':         str_port            = v
 
-        str_msg             = json.dumps(d_msg)
+        if len(self.str_jsonwrapper):
+            str_msg         = json.dumps({self.str_jsonwrapper: d_msg})
+        else:
+            str_msg         = json.dumps(d_msg)
         response            = io.BytesIO()
 
         self.qprint("http://%s:%s/api/v1/cmd/" % (str_ip, str_port) + '\n '+ str(d_msg),
@@ -654,10 +632,11 @@ class Purl():
             c.setopt(c.READFUNCTION,    fread.read)
             c.setopt(c.POSTFIELDSIZE,   filesize)
         else:
-            c.setopt(c.HTTPPOST, [
-                                    ("d_msg",    str_msg),
-                                 ]
-                     )
+            # c.setopt(c.HTTPPOST, [
+            #                         ("d_msg",    str_msg),
+            #                      ]
+            #          )
+            c.setopt(c.POSTFIELDS, str_msg)
         # c.setopt(c.VERBOSE, 1)
         c.setopt(c.WRITEFUNCTION,   response.write)
         if str_fileToProcess:
@@ -766,6 +745,7 @@ class Purl():
             if not d_fio['status']: return {'stdout': json.dumps(d_fio)}
             str_fileToProcess   = d_fio['fileProcessed']
             str_zipFile         = str_fileToProcess
+            self.qprint("Zipped to %s..." % str_fileToProcess, comms = 'status')
             d_ret['local']['zip']               = d_fio
 
         # Encode possible binary filedata in base64 suitable for text-only
@@ -778,6 +758,7 @@ class Purl():
                 saveToFile  = str_fileToProcess + ".b64"
             )
             str_fileToProcess       = d_fio['fileProcessed']
+            self.qprint("base64 encoded to %s..." % str_fileToProcess, comms = 'status')
             str_base64File          = str_fileToProcess
             d_ret['local']['encoding']                   = d_fio
 
@@ -844,7 +825,7 @@ class Purl():
 
         # First check on the paths, both local and remote
         self.qprint('Checking local path status...', comms = 'status')
-        d_ret['localCheck'] = self.localPath_check(d_msg)
+        d_ret['localCheck'] = self.path_localLocationCheck(d_msg)
         if not d_ret['localCheck']['status']:
             self.qprint('An error occurred while checking on the local path.',
                         comms = 'error')
@@ -859,7 +840,7 @@ class Purl():
         if b_OK:
             d_transport['checkRemote']  = True
             self.qprint('Checking remote path status...', comms = 'status')
-            d_ret['remoteCheck']   = self.pull_remoteLocationCheck(d_msg)
+            d_ret['remoteCheck']   = self.path_remoteLocationCheck(d_msg)
             self.qprint(str(d_ret), comms = 'rx')
             if not d_ret['remoteCheck']['status']:
                 self.qprint('An error occurred while checking the remote server.',
@@ -896,10 +877,14 @@ class Purl():
             'serverCmd':    'quit'
         }
 
-        self.qprint('Shutting down server...', comms = 'status')
-        d_shutdown  = self.push_core(d_msg, fileToPush = None)
+        self.qprint('Attempting to shut down remote server...', comms = 'status')
+        try:
+            d_shutdown  = self.push_core(d_msg, fileToPush = None)
+        except:
+            pass
 
-        return {'stdout': json.dumps(d_ret)}
+        # return {'stdout': json.dumps(d_ret)}
+        return {'stdout': d_ret}
 
     def pushPath(self, d_msg, **kwargs):
         """
@@ -953,22 +938,28 @@ class Purl():
         """
 
         for key,val in kwargs.items():
-            if key == 'msg':        self.str_msg                = val
+            if key == 'msg':
+                self.str_msg    = val
+                self.d_msg      = json.loads(self.str_msg)
             if key == 'http':       self.httpStr_parse( http    = val)
             if key == 'verb':       self.str_verb               = val
 
         if len(self.str_msg):
-            print(self.str_msg)
-            str_action  = d_msg['action']
+            str_action  = self.d_msg['action']
             if 'path' in str_action.lower():
-                self.pathOp_do(self.str_msg, action = str_action)
+                d_ret = self.pathOp_do(self.d_msg, action = str_action)
             else:
                 if self.str_verb == 'GET':
-                    self.pull_core(self.str_msg)
+                    d_ret = self.pull_core(self.d_msg)
                 if self.str_verb == 'POST':
-                    self.push_core(self.str_msg)
+                    d_ret = self.push_core(self.d_msg)
+            str_stdout  = json.dumps(d_ret)
         else:
-            print(self.pull_core())
+            d_ret = self.pull_core()
+            str_stdout  = '%s' % d_ret
+
+        if not self.b_quiet: print(Colors.CYAN)
+        return(str_stdout)
 
 if __name__ == '__main__':
 
@@ -1019,6 +1010,13 @@ if __name__ == '__main__':
         help    = 'user:passwd authorization'
     )
     parser.add_argument(
+        '--jsonwrapper',
+        action  = 'store',
+        dest    = 'jsonwrapper',
+        default = '',
+        help    = 'wrap msg in optional field'
+    )
+    parser.add_argument(
         '--quiet',
         help    = 'if specified, only echo final JSON output returned from server',
         dest    = 'b_quiet',
@@ -1040,9 +1038,12 @@ if __name__ == '__main__':
                         verb        = args.verb,
                         auth        = args.auth,
                         b_quiet     = args.b_quiet,
+                        jsonwrapper = args.jsonwrapper,
                         man         = args.man
                 )
 
-    purl()
+    print(purl())
 
     sys.exit(0)
+
+    
