@@ -296,14 +296,17 @@ class StoreHandler(BaseHTTPRequestHandler):
             str_serverNode  = str_serverPath.split('/')[-1]
             try:
                 os.symlink(str_serverPath, os.path.join(str_clientPath, str_serverNode))
+                b_symlink         = True
             except BaseException as e:
                 d_ret['status'] = False
                 d_ret['msg']    = str(e)
+                b_symlink       = False
 
         d_ret['source']         = str_serverPath
         d_ret['destination']    = str_clientPath
         d_ret['copytree']       = b_copyTree
         d_ret['copyfile']       = b_copyFile
+        d_ret['symlink']        = b_symlink
         d_ret['timestamp']      = '%s' % datetime.datetime.now()
 
         self.ret_client(d_ret)
@@ -374,7 +377,8 @@ class StoreHandler(BaseHTTPRequestHandler):
         for key in form:
             d_form[key]     = form.getvalue(key)
 
-        d_msg               = json.loads(ast.literal_eval(d_form['d_msg']))
+        # d_msg               = json.loads(ast.literal_eval(d_form['d_msg']))
+        d_msg               = json.loads((d_form['d_msg']))
         d_meta              = d_msg['meta']
 
         self.qprint(d_msg, comms = 'rx')
@@ -490,7 +494,11 @@ class StoreHandler(BaseHTTPRequestHandler):
             if k == 'form':     form    = v
             if k == 'd_form':   d_form  = v
 
-        d_meta              = json.loads(d_form['d_meta'])
+
+        d_msg               = json.loads((d_form['d_msg']))
+        d_meta              = d_msg['meta']
+        #
+        # d_meta              = json.loads(d_form['d_meta'])
         fileContent         = d_form['local']
         str_fileName        = d_meta['local']['path']
         str_encoding        = d_form['encoding']
