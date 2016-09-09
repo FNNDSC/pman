@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.5
 
 # -*- coding: utf-8 -*-
-"""
+str_desc = """
 
 
  _ __  _ __ ___   __ _ _ __
@@ -20,7 +20,7 @@ for systems that need to track jobs/processes via a simple
 socket interface.
 
 """
-from __future__ import print_function
+# from __future__ import print_function
 
 import  abc
 import  json
@@ -38,6 +38,9 @@ from    webob           import  Response
 import  psutil
 import  uuid
 import  shutil
+
+from    http.server     import BaseHTTPRequestHandler, HTTPServer
+from    socketserver    import ThreadingMixIn
 import  socket
 
 import  queue
@@ -103,6 +106,126 @@ class debug(object):
             ), end='')
             for t in range(0, self.level): print("\t", end='')
             print(self.msg)
+
+class StoreHandler(BaseHTTPRequestHandler):
+
+    b_quiet     = False
+
+    def __init__(self, *args, **kwargs):
+        """
+        """
+        BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
+
+    def qprint(self, msg, **kwargs):
+
+        str_comms  = ""
+        for k,v in kwargs.items():
+            if k == 'comms':    str_comms  = v
+
+        if not StoreHandler.b_quiet:
+            if str_comms == 'status':   print(Colors.PURPLE,    end="")
+            if str_comms == 'error':    print(Colors.RED,       end="")
+            if str_comms == "tx":       print(Colors.YELLOW + "<----")
+            if str_comms == "rx":       print(Colors.GREEN  + "---->")
+            print('%s' % datetime.datetime.now() + " | ",       end="")
+            print(msg)
+            if str_comms == "tx":       print(Colors.YELLOW + "<----")
+            if str_comms == "rx":       print(Colors.GREEN  + "---->")
+            print(Colors.NO_COLOUR, end="")
+
+    def do_POST(self):
+
+        # Parse the form data posted
+
+        self.qprint(str(self.headers), comms = 'rx')
+
+        length              = self.headers['content-length']
+        data                = self.rfile.read(int(length))
+        form                = self.form_get('POST', data)
+        d_form              = {}
+        d_ret               = {
+            'msg':      'In do_POST',
+            'status':   True,
+            'formsize': sys.getsizeof(form)
+        }
+
+        for key in form:
+            d_form[key]     = form.getvalue(key)
+
+        # d_msg               = json.loads(ast.literal_eval(d_form['d_msg']))
+        d_msg               = json.loads((d_form['d_msg']))
+        d_meta              = d_msg['meta']
+
+        self.qprint(d_msg, comms = 'rx')
+
+        if 'ctl' in d_meta:
+            self.do_POST_serverctl(d_meta)
+
+        if 'transport' in d_meta:
+            d_transport     = d_meta['transport']
+            if 'compress' in d_transport:
+                d_ret = self.do_POST_withCompression(
+                    data    = data,
+                    length  = length,
+                    form    = form,
+                    d_form  = d_form
+                )
+            if 'copy' in d_transport:
+                d_ret   = self.do_POST_withCopy(d_meta)
+
+        self.ret_client(d_ret)
+        return d_ret
+
+    def do_POST_serverctl(self, d_meta):
+        """
+        """
+        d_ctl               = d_meta['ctl']
+        self.qprint('Processing server ctl...', comms = 'status')
+        self.qprint(d_meta, comms = 'rx')
+        if 'serverCmd' in d_ctl:
+            if d_ctl['serverCmd'] == 'quit':
+                self.qprint('Shutting down server', comms = 'status')
+                d_ret = {
+                    'msg':      'Server shut down',
+                    'status':   True
+                }
+                self.qprint(d_ret, comms = 'tx')
+                self.ret_client(d_ret)
+                os._exit(0)
+
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """
+    Handle requests in a separate thread.
+    """
+
+    def col2_print(self, str_left, str_right):
+        print(Colors.WHITE +
+              ('%*s' % (self.LC, str_left)), end='')
+        print(Colors.LIGHT_BLUE +
+              ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
+
+    def setup(self, **kwargs):
+        self.str_fileBase   = "received-"
+        self.LC             = 40
+        self.RC             = 40
+
+        self.str_unpackDir  = "/tmp/unpack"
+        self.b_removeZip    = False
+        self.args           = None
+
+        self.dp             = debug(verbosity=0, level=-1)
+
+        for k,v in kwargs.items():
+            if k == 'args': self.args   = v
+
+        print(Colors.LIGHT_CYAN + str_desc)
+
+        self.col2_print("Listening on address:",    self.args['ip'])
+        self.col2_print("Listening on port:",       self.args['port'])
+
+        print(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
+
 
 class pman(object):
     """
@@ -1189,7 +1312,6 @@ class Listener(threading.Thread):
                                     dbpath      = str_DBpath,
                                     db          = tree_DB)
 
-
 class Poller(threading.Thread):
     """
     The Poller checks for running processes based on the internal
@@ -1404,6 +1526,9 @@ if __name__ == "__main__":
     )
 
     args    = parser.parse_args()
+
+    # server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
+    # server.setup(args = vars(args))
 
     comm    = pman(
                     IP          = args.ip,
