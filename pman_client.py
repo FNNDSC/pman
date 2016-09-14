@@ -960,22 +960,20 @@ class Client():
                 b_quiet     = args.b_quiet,
                 man         = args.man
             )
-            print(pyurl())
+            print(json.dumps(json.loads(pyurl()), indent=4))
         else:
             if str_action != "pushPath" and str_action != "pullPath":
                 str_shellCmd    = "http POST http://%s:%s/api/v1/cmd/ Content-Type:application/json Accept:application/json payload:='{\"action\":\"%s\",\"meta\":%s}'" \
                                   % (self.str_ip, self.str_port, str_action, str_meta)
                 d_ret           = self.shell.run(str_shellCmd)
-            # if str_action == 'push':
-            #     d_ret           = self.push(d_msg)
-            # if str_action == 'pull':
-            #     d_ret           = self.pull(d_msg)
             if len(d_ret['stdout']):
                 # print(d_ret['stdout'])
-                json_stdout = json.loads(d_ret['stdout'])
+                json_stdout = {'stdout':    json.loads(d_ret['stdout']),
+                               'status':    d_ret['returncode'],
+                               'msg':       d_ret['stderr']}
             else:
                 json_stdout = d_ret
-            if not self.b_quiet: print(Colors.YELLOW)
+            if not self.b_quiet: print(Colors.CYAN)
             print(json.dumps(json_stdout, indent=4))
 
 
@@ -985,11 +983,12 @@ class Client():
         d_msg   = json.loads(self.str_msg)
         if len(self.str_testsuite):
             self.testsuite_handle(d_msg)
-            return
+            return True
 
         if len(self.str_msg):
             if 'action' in d_msg.keys():
                 self.action_process(d_msg)
+                return True
 
     def httpStr_parse(self, **kwargs):
 
