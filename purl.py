@@ -650,8 +650,8 @@ class Purl():
         c.close()
 
         str_response        = response.getvalue().decode()
-        d_ret['push_core']  = json.loads(str_response)
-        d_ret['status']     = d_ret['push_core']['status']
+        d_ret['stdout']     = json.loads(str_response)
+        d_ret['status']     = d_ret['stdout']['status']
         d_ret['msg']        = 'push OK.'
         self.qprint(d_ret, comms = 'rx')
 
@@ -1046,4 +1046,3 @@ if __name__ == '__main__':
 
     sys.exit(0)
 
-    
