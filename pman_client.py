@@ -879,16 +879,22 @@ class Client():
                 json_stdout         = {}
                 json_stderr         = {}
                 json_returncode     = {}
-                if len(d_ret["stdout"]):
-                    json_stdout         = {"stdout":    json.loads(d_ret["stdout"])}
+                if 'stdout' in d_ret:
+                    if len(d_ret["stdout"]):
+                        try:
+                            json_stdout         = {"stdout":    json.loads(d_ret["stdout"])}
+                        except:
+                            json_stdout         = {"stdout":    d_ret["stdout"]}
                 else:
                     json_stdout         = {"stdout": ""}
-                if len(d_ret["stderr"]):
-                    json_stderr         = {"stderr":    d_ret["stderr"]}
+                if 'stderr' in d_ret:
+                    if len(d_ret["stderr"]):
+                        json_stderr         = {"stderr":    d_ret["stderr"]}
                 else:
                     json_stderr         = {"stderr": ""}
-                if len(str(d_ret["returncode"])):
-                    json_returncode     = {"returncode": json.loads(str(d_ret["returncode"]))}
+                if 'returncode' in d_ret:
+                    if len(str(d_ret["returncode"])):
+                        json_returncode     = {"returncode": json.loads(str(d_ret["returncode"]))}
                 else:
                     json_returncode     = {"returncode": ""}
                 d_out   = {
@@ -979,6 +985,7 @@ class Client():
         d_msg   = json.loads(self.str_msg)
         if len(self.str_testsuite):
             self.testsuite_handle(d_msg)
+            return
 
         if len(self.str_msg):
             if 'action' in d_msg.keys():
