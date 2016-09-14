@@ -842,8 +842,26 @@ class Listener(threading.Thread):
             }
         else:
             b_status            = True
-        return {"d_ret":     d_ret,
+        return {"d_ret":    d_ret,
                 "status":   b_status}
+
+    def t_get_process(self, *args, **kwargs):
+        """
+        Process the 'get' POST directive. This might appear counter-inuitive
+        at first glance since the 'get' is the result of a REST POST, but is
+        logically consistent within the semantics of this system.
+        """
+        d_request   = {}
+        d_ret       = {}
+        b_status    = False
+        hits        = 0
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+        d_meta      = d_request['meta']
+        str_path    = d_meta['path']
+        d_ret       = self.DB_get(path  = str_path)
+        return {'d_ret':    d_ret,
+                'status':   True}
 
     def t_fileiosetup_process(self, *args, **kwargs):
         """
@@ -879,7 +897,7 @@ class Listener(threading.Thread):
             self.dp.print("about to handle_request()...")
             server.handle_request()
 
-        return {"d_ret":     d_ret,
+        return {"d_ret":    d_ret,
                 "status":   True}
 
     def t_done_process(self, *args, **kwargs):
@@ -1258,8 +1276,11 @@ class Listener(threading.Thread):
         else:
             self.dp.print("Will process request in current thread.")
             d_done              = eval("self.t_%s_process(request = d_request)" % payload_verb)
-            d_ret['d_ret']      = d_done["d_ret"]
-            d_ret['status']     = d_done["status"]
+            try:
+                d_ret['d_ret']      = d_done["d_ret"]
+                d_ret['status']     = d_done["status"]
+            except:
+                self.dp.print("An error occurred in reading ret stucture. Perhaps this method should have been threaded?")
 
         return d_ret
 
