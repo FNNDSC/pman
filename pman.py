@@ -858,7 +858,7 @@ class Listener(threading.Thread):
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
         d_meta      = d_request['meta']
-        str_path    = d_meta['path']
+        str_path    = '/api/v1' + d_meta['path']
         d_ret       = self.DB_get(path  = str_path)
         return {'d_ret':    d_ret,
                 'status':   True}
