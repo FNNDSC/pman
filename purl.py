@@ -66,6 +66,7 @@ class Purl():
         self.b_man          = False
         self.str_man        = ''
         self.b_quiet        = False
+        self.b_raw          = False
         self.auth           = ''
         self.str_jsonwrapper= ''
 
@@ -85,6 +86,7 @@ class Purl():
             if key == 'ip':         self.str_ip                 = val
             if key == 'port':       self.str_port               = val
             if key == 'b_quiet':    self.b_quiet                = val
+            if key == 'b_raw':      self.b_raw                  = val
             if key == 'man':        self.str_man                = val
             if key == 'jsonwrapper':self.str_jsonwrapper        = val
 
@@ -615,12 +617,13 @@ class Purl():
             str_msg         = json.dumps(d_msg)
         response            = io.BytesIO()
 
-        self.qprint("http://%s:%s/api/v1/cmd/" % (str_ip, str_port) + '\n '+ str(d_msg),
+        self.qprint("http://%s:%s%s" % (str_ip, str_port, self.str_URL) + '\n '+ str(d_msg),
                     comms  = 'tx')
 
         c = pycurl.Curl()
         c.setopt(c.POST, 1)
-        c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (str_ip, str_port))
+        # c.setopt(c.URL, "http://%s:%s/api/v1/cmd/" % (str_ip, str_port))
+        c.setopt(c.URL, "http://%s:%s%s" % (str_ip, str_port, self.str_URL))
         if str_fileToProcess:
             fread               = open(str_fileToProcess, "rb")
             filesize            = os.path.getsize(str_fileToProcess)
@@ -639,6 +642,8 @@ class Purl():
             c.setopt(c.POSTFIELDS, str_msg)
         # c.setopt(c.VERBOSE, 1)
         c.setopt(c.WRITEFUNCTION,   response.write)
+        if len(self.str_auth):
+            c.setopt(c.USERPWD, self.str_auth)
         if str_fileToProcess:
             self.qprint("Transmitting " + Colors.YELLOW + "{:,}".format(os.stat(str_fileToProcess).st_size) + \
                         Colors.PURPLE + " bytes...",
@@ -650,9 +655,13 @@ class Purl():
         c.close()
 
         str_response        = response.getvalue().decode()
-        d_ret['stdout']     = json.loads(str_response)
-        d_ret['status']     = d_ret['stdout']['status']
-        d_ret['msg']        = 'push OK.'
+        if self.b_raw:
+            d_ret           = json.loads(str_response)
+        else:
+            d_ret['stdout']     = json.loads(str_response)
+            if 'status' in d_ret['stdout']:
+                d_ret['status']     = d_ret['stdout']['status']
+            d_ret['msg']        = 'push OK.'
         self.qprint(d_ret, comms = 'rx')
 
         return d_ret
@@ -936,6 +945,7 @@ class Purl():
         :param kwargs:
         :return:
         """
+        str_action  = ''
 
         for key,val in kwargs.items():
             if key == 'msg':
@@ -945,7 +955,7 @@ class Purl():
             if key == 'verb':       self.str_verb               = val
 
         if len(self.str_msg):
-            str_action  = self.d_msg['action']
+            if 'action' in self.d_msg: str_action  = self.d_msg['action']
             if 'path' in str_action.lower():
                 d_ret = self.pathOp_do(self.d_msg, action = str_action)
             else:
@@ -1024,12 +1034,27 @@ if __name__ == '__main__':
         default = False
     )
     parser.add_argument(
+        '--raw',
+        help    = 'if specified, do not wrap return data from remote call in json field',
+        dest    = 'b_raw',
+        action  = 'store_true',
+        default = False
+    )
+    parser.add_argument(
         '--man',
         help    = 'request help: --man commands',
         dest    = 'man',
         action  = 'store',
         default = ''
     )
+    parser.add_argument(
+        '--jsonpprintindent',
+        help    = 'pretty print json-formatted payloads',
+        dest    = 'jsonpprintindent',
+        action  = 'store',
+        default = 0
+    )
+
 
     args    = parser.parse_args()
     purl  = Purl(
@@ -1037,12 +1062,16 @@ if __name__ == '__main__':
                         http        = args.http,
                         verb        = args.verb,
                         auth        = args.auth,
+                        b_raw       = args.b_raw,
                         b_quiet     = args.b_quiet,
                         jsonwrapper = args.jsonwrapper,
                         man         = args.man
                 )
 
-    print(purl())
+    if not args.jsonpprintindent:
+        print(purl())
+    else:
+        print(json.dumps(json.loads(purl()), indent=int(args.jsonpprintindent)))
 
     sys.exit(0)
 
