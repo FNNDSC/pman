@@ -83,6 +83,7 @@ class Purl():
             if key == 'http':       self.httpStr_parse( http    = val)
             if key == 'auth':       self.str_auth               = val
             if key == 'verb':       self.str_verb               = val
+            if key == 'contentType':self.str_contentType        = val
             if key == 'ip':         self.str_ip                 = val
             if key == 'port':       self.str_port               = val
             if key == 'b_quiet':    self.b_quiet                = val
@@ -603,6 +604,7 @@ class Purl():
         d_ret               = {}
         str_ip              = self.str_ip
         str_port            = self.str_port
+        verbose             = 0
 
         for k,v in kwargs.items():
             if k == 'fileToPush':   str_fileToProcess   = v
@@ -610,6 +612,7 @@ class Purl():
             if k == 'd_ret':        d_ret               = v
             if k == 'ip':           str_ip              = v
             if k == 'port':         str_port            = v
+            if k == 'verbose':      verbose     = v
 
         if len(self.str_jsonwrapper):
             str_msg         = json.dumps({self.str_jsonwrapper: d_msg})
@@ -640,7 +643,9 @@ class Purl():
             #                      ]
             #          )
             c.setopt(c.POSTFIELDS, str_msg)
-        # c.setopt(c.VERBOSE, 1)
+        if verbose:                     c.setopt(c.VERBOSE, 1)
+        print(self.str_contentType)
+        if len(self.str_contentType):   c.setopt(c.HTTPHEADER, ['Content-type: %s' % self.str_contentType])
         c.setopt(c.WRITEFUNCTION,   response.write)
         if len(self.str_auth):
             c.setopt(c.USERPWD, self.str_auth)
@@ -1048,6 +1053,13 @@ if __name__ == '__main__':
         default = ''
     )
     parser.add_argument(
+        '--content-type',
+        help    = 'content type',
+        dest    = 'contentType',
+        action  = 'store',
+        default = ''
+    )
+    parser.add_argument(
         '--jsonpprintindent',
         help    = 'pretty print json-formatted payloads',
         dest    = 'jsonpprintindent',
@@ -1061,6 +1073,7 @@ if __name__ == '__main__':
                         msg         = args.msg,
                         http        = args.http,
                         verb        = args.verb,
+                        contentType = args.contentType,
                         auth        = args.auth,
                         b_raw       = args.b_raw,
                         b_quiet     = args.b_quiet,
