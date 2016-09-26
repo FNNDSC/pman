@@ -644,7 +644,7 @@ class Purl():
             #          )
             c.setopt(c.POSTFIELDS, str_msg)
         if verbose:                     c.setopt(c.VERBOSE, 1)
-        print(self.str_contentType)
+        # print(self.str_contentType)
         if len(self.str_contentType):   c.setopt(c.HTTPHEADER, ['Content-type: %s' % self.str_contentType])
         c.setopt(c.WRITEFUNCTION,   response.write)
         if len(self.str_auth):
@@ -1001,7 +1001,7 @@ if __name__ == '__main__':
         action  = 'store',
         dest    = 'http',
         default = '%s:%s' % (str_defIP, str_defPort),
-        help    = 'HTTP string: <IP>[:<port>]<some/path/>'
+        help    = 'HTTP string: <IP>[:<port>]</some/path/>'
     )
     parser.add_argument(
         '--ip',
