@@ -54,24 +54,25 @@ class Purl():
     def __init__(self, **kwargs):
         # threading.Thread.__init__(self)
 
-        self.str_http       = ""
-        self.str_ip         = ""
-        self.str_port       = ""
-        self.str_URL        = ""
-        self.str_verb       = ""
-        self.str_msg        = ""
-        self.d_msg          = {}
-        self.str_protocol   = "http"
-        self.pp             = pprint.PrettyPrinter(indent=4)
-        self.b_man          = False
-        self.str_man        = ''
-        self.b_quiet        = False
-        self.b_raw          = False
-        self.auth           = ''
-        self.str_jsonwrapper= ''
+        self.str_http           = ""
+        self.str_ip             = ""
+        self.str_port           = ""
+        self.str_URL            = ""
+        self.str_verb           = ""
+        self.str_msg            = ""
+        self.d_msg              = {}
+        self.str_protocol       = "http"
+        self.pp                 = pprint.PrettyPrinter(indent=4)
+        self.b_man              = False
+        self.str_man            = ''
+        self.b_quiet            = False
+        self.b_raw              = False
+        self.auth               = ''
+        self.str_jsonwrapper    = ''
+        self.str_contentType    = ''
 
-        self.LC             = 40
-        self.RC             = 40
+        self.LC                 = 40
+        self.RC                 = 40
 
         for key,val in kwargs.items():
             if key == 'msg':
