@@ -150,6 +150,7 @@ class Client():
             self.man_run(           description =   "short")      + "\n" + \
             self.man_testsuite(     description =   "short")      + "\n" + \
             self.man_save(          description =   "short")      + "\n" + \
+            self.man_status(        description =   "short")      + "\n" + \
             self.man_get(           description =   "short")      + "\n" + \
             self.man_fileiosetup(   description =   "short")      + "\n" + \
             self.man_pushPath(      description =   "short")      + "\n" + \
@@ -172,6 +173,7 @@ class Client():
         if str_man  == 'get':           return self.man_get(        description  =   str_amount)
         if str_man  == 'testsuite':     return self.man_testsuite(  description  =   str_amount)
         if str_man  == 'save':          return self.man_save(       description  =   str_amount)
+        if str_man  == 'status':        return self.man_status(     description  =   str_amount)
         if str_man  == 'fileiosetup':   return self.man_fileiosetup(description  =   str_amount)
         if str_man  == 'pushPath':      return self.man_pushPath(   description  =   str_amount)
         if str_man  == 'pullPath':      return self.man_pullPath(   description  =   str_amount)
@@ -478,6 +480,45 @@ class Client():
                                 }
                     }'
                 """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR
+
+        return str_manTxt
+
+    def man_status(self, **kwargs):
+        """
+        """
+
+        b_fullDescription   = False
+        str_description     = "full"
+
+        for k,v in kwargs.items():
+            if k == 'description':  str_description = v
+        if str_description == "full":   b_fullDescription   = True
+
+        str_manTxt =   Colors.LIGHT_CYAN        + \
+                       "\t\t%-20s" % "status"   + \
+                       Colors.LIGHT_PURPLE      + \
+                       "%-60s" % "returns status on the current job info." + \
+                       Colors.NO_COLOUR
+
+        if b_fullDescription:
+            str_manTxt += """
+
+            This returns a textual description of the status of a job, given
+            a job that matches the search criteria passed.
+
+            The hit pattern is specified by searching for a <key> in the
+            job space that has value <value>
+
+            """ + Colors.YELLOW + """EXAMPLE:
+            """ + Colors.LIGHT_GREEN + """
+            ./pman_client.py --http %s:%s/api/v1/cmd/ --msg  \\
+                '{  "action": "status",
+                    "meta": {
+                                "key":      "jid",
+                                "value":    "<jid>-1"
+                            }
+                }'
+            """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR
 
         return str_manTxt
 
