@@ -993,6 +993,121 @@ class Listener(threading.Thread):
         return {"d_ret":     d_ret,
                 "status":   b_status}
 
+    def t_status_process(self, *args, **kwargs):
+        """
+
+        Check if the job corresponding to the search pattern is "done".
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+        self.dp.print("In done process...")
+
+        d_request   = {}
+        d_ret       = {}
+        b_status    = False
+        hits        = 0
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+
+        d_search    = self.t_search_process(request = d_request)['d_ret']
+
+        p   = self._ptree
+        Ts  = C_snode.C_stree()
+        Te  = C_snode.C_stree()
+        for j in d_search.keys():
+            d_j = d_search[j]
+            for job in d_j.keys():
+                str_pathStart       = '/api/v1/' + job + '/start'
+                str_pathEnd         = '/api/v1/' + job + '/end'
+                d_start             = self.DB_get(path = str_pathStart)
+                d_end               = self.DB_get(path = str_pathEnd)
+                Ts.initFromDict(d_start)
+                Te.initFromDict(d_end)
+
+                print("Ts.cwd = %s " % Ts.cwd())
+                print(Ts)
+                print("Te.cwd = %s " % Te.cwd())
+                print(Te)
+
+                l_subJobsStart      = []
+                if Ts.cd('/%s/start' % job)['status']:
+                    l_subJobsStart  = Ts.lstr_lsnode()
+                    l_subJobsStart  = list(map(int, l_subJobsStart))
+                    l_subJobsStart.sort()
+                    print("l_subJobsStart  (pre) = %s" % l_subJobsStart)
+                    if len(l_subJobsStart) > 1: l_subJobsStart  = l_subJobsStart[:-1]
+
+                l_subJobsEnd        = []
+                if Te.cd('/%s/end' % job)['status']:
+                    l_subJobsEnd    = Te.lstr_lsnode()
+                    l_subJobsEnd    = list(map(int, l_subJobsEnd))
+                    l_subJobsEnd.sort()
+                    print("l_subJobsEnd    (pre) = %s " % l_subJobsEnd)
+                    if len(l_subJobsEnd) > 1: l_subJobsEnd    = l_subJobsEnd[:-1]
+
+                print("l_subJobsStart (post) = %s" % l_subJobsStart)
+                print("l_subJobsEnd   (post) = %s" % l_subJobsEnd)
+
+                for j in l_subJobsStart:
+                    l_subJobsStart[j]   = Ts.cat('/%s/start/%d/startInfo/%d/startTrigger' % \
+                                                 (job, j, j))
+
+                # jobsEnd behaviour can be slightly different to the jobStart, particularly if
+                # the job being executed is killed -- sometimes recording the "death" event of
+                # the job does not happen and the job indexing ends up missing several epochs:
+                #
+                #           l_subJobsStart  (pre) = [0, 1, 2, 3, 4]
+                #           l_subJobsEnd    (pre) = [0, 1, 3, 4]
+                #
+                # to assure correct returncode lookup, we always parse the latest job epoch.
+
+                latestJob       = 0
+                if len(l_subJobsEnd):
+                    latestJob   = l_subJobsEnd[-1]
+                    for j in list(range(0, latestJob+1)):
+                        l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % (job, latestJob, j))
+
+                d_ret[str(hits)+'.start']   = {"jobRoot": job, "startTrigger":  l_subJobsStart}
+                d_ret[str(hits)+'.end']     = {"jobRoot": job, "returncode":    l_subJobsEnd}
+                hits               += 1
+        if not hits:
+            d_ret                   = {
+                "-1":   {
+                    "noJobFound":   {
+                        "endInfo":  {"allJobsDone": None}
+                    }
+                }
+            }
+        else:
+            b_status            = True
+
+        l_keys      = d_ret.items()
+        l_status    = []
+        for i in range(0, int(len(l_keys)/2)):
+            b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
+            try:
+                endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
+            except:
+                endcode     = None
+
+            if endcode == None and b_startEvent:
+                l_status.append('started')
+            if not endcode and b_startEvent and type(endcode) is int:
+                l_status.append('finishedSuccessfully')
+            if endcode and b_startEvent:
+                l_status.append('finishedWithError')
+
+            print(b_startEvent)
+            print(endcode)
+
+        d_ret['l_status']   = l_status
+        return {"d_ret":    d_ret,
+                "status":   b_status}
+
+
     def t_run_process(self, *args, **kwargs):
         """
         Main job handler -- this is in turn a thread spawned from the
