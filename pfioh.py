@@ -32,7 +32,6 @@ from    socketserver    import ThreadingMixIn
 import  socket
 import  argparse
 import  cgi
-from    _colors         import Colors
 import  zipfile
 import  json
 import  base64
@@ -42,6 +41,12 @@ import  urllib
 import  ast
 import  shutil
 import  datetime
+
+# This is probably an ugly hack...
+try:
+    from    ._colors        import Colors
+except:
+    from    _colors         import Colors
 
 class debug(object):
     """

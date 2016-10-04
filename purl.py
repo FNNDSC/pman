@@ -9,8 +9,6 @@ pman - curl module
 
 # import  threading
 import  argparse
-from    _colors     import  Colors
-import  crunner
 import  time
 import  sys
 import  json
@@ -19,10 +17,18 @@ import  socket
 import  pycurl
 import  io
 import  os
-import  pfioh
 import  urllib
 import  datetime
 import  codecs
+
+try:
+    from    ._colors        import  Colors
+    from    .crunner	    import  crunner
+    from    .pfioh          import  *
+except:
+    from    _colors         import  Colors
+    from    crunner	    import  crunner
+    from    pfioh           import  *
 
 class Purl():
 
