@@ -66,6 +66,7 @@ class Purl():
         self.str_URL            = ""
         self.str_verb           = ""
         self.str_msg            = ""
+        self.str_auth           = ""
         self.d_msg              = {}
         self.str_protocol       = "http"
         self.pp                 = pprint.PrettyPrinter(indent=4)
@@ -667,6 +668,7 @@ class Purl():
         c.close()
 
         str_response        = response.getvalue().decode()
+        self.qprint(str_response, comms = 'status')
         if self.b_raw:
             d_ret           = json.loads(str_response)
         else:
