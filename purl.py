@@ -974,7 +974,7 @@ class Purl():
                 d_ret = self.pathOp_do(self.d_msg, action = str_action)
             else:
                 if self.str_verb == 'GET':
-                    d_ret = self.pull_core(self.d_msg)
+                    d_ret = self.pull_core(msg = self.d_msg)
                 if self.str_verb == 'POST':
                     d_ret = self.push_core(self.d_msg)
             str_stdout  = json.dumps(d_ret)
