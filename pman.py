@@ -54,6 +54,9 @@ import  message
 from    _colors         import  Colors
 import  pfioh
 
+import  pdb
+
+
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s')
 
@@ -1131,6 +1134,9 @@ class Listener(threading.Thread):
             self.auid   = d_meta['auid']
             str_cmd     = d_meta['cmd']
 
+        if isinstance(self.jid, int):
+            self.jid    = str(self.jid)
+
         self.dp.print("spawing and starting poller thread")
 
         # Start the 'poller' worker
@@ -1148,6 +1154,7 @@ class Listener(threading.Thread):
 
         p.cd('/')
         p.mkcd(str_dir)
+        p.touch('d_meta',       json.dumps(d_meta))
         p.touch('cmd',          str_cmd)
         if len(self.auid):
             p.touch('auid',     self.auid)
