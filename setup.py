@@ -9,7 +9,7 @@ setup(
       author        =   'Rudolph Pienaar',
       author_email  =   'rudolph.pienaar@gmail.com',
       url           =   'https://github.com/FNNDSC/pman',
-      packages      =   ['pman', 'purl', 'crunner'],
+      # packages      =   ['pman', 'purl', 'crunner'],
       license       =   'MIT',
       platform      =   'un*x'
      )
