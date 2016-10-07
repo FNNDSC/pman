@@ -21,14 +21,10 @@ import  urllib
 import  datetime
 import  codecs
 
-try:
-    from    ._colors        import  Colors
-    from    .crunner	    import  crunner
-    from    .pfioh          import  *
-except:
-    from    _colors         import  Colors
-    from    crunner	    import  crunner
-    from    pfioh           import  *
+sys.path.append(os.path.join(os.path.dirname(__file__), './'))
+from    _colors         import  Colors
+from    crunner	        import  crunner
+from    pfioh           import  *
 
 class Purl():
 
