@@ -11,5 +11,6 @@ setup(
       url           =   'https://github.com/FNNDSC/pman',
       packages      =   ['pman'],
       package_dir   =   {'pman': 'pman'},
+      install_requires=[ 'pycurl', ],
       license       =   'MIT'
      )
