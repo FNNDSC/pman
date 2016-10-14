@@ -213,7 +213,7 @@ class Client():
                                     "fileio":       "json"
                                 }
                     }'
-                """ % self.str_ip + Colors.LIGHT_PURPLE + """
+                """ % (self.str_ip, self.str_port) + Colors.LIGHT_PURPLE + """
 
                 It is also possible to save an arbitrary sub-set of the
                 data base tree by passing optional 'key' and 'value' fields
@@ -233,7 +233,7 @@ class Client():
                                 }
                     }'
 
-                """ % self.str_ip + Colors.LIGHT_PURPLE + """
+                """ % (self.str_ip, self.str_port) + Colors.LIGHT_PURPLE + """
                 where for example only the part of the database that has a
                 'jid' of '<jid>-1' is saved (and also to a different part
                 of the filesystem).

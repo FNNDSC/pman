@@ -21,14 +21,10 @@ import  urllib
 import  datetime
 import  codecs
 
-try:
-    from    ._colors        import  Colors
-    from    .crunner	    import  crunner
-    from    .pfioh          import  *
-except:
-    from    _colors         import  Colors
-    from    crunner	    import  crunner
-    from    pfioh           import  *
+sys.path.append(os.path.join(os.path.dirname(__file__), './'))
+from    _colors         import  Colors
+from    crunner	        import  crunner
+from    pfioh           import  *
 
 class Purl():
 
@@ -66,6 +62,7 @@ class Purl():
         self.str_URL            = ""
         self.str_verb           = ""
         self.str_msg            = ""
+        self.str_auth           = ""
         self.d_msg              = {}
         self.str_protocol       = "http"
         self.pp                 = pprint.PrettyPrinter(indent=4)
@@ -667,6 +664,7 @@ class Purl():
         c.close()
 
         str_response        = response.getvalue().decode()
+        self.qprint(str_response, comms = 'status')
         if self.b_raw:
             d_ret           = json.loads(str_response)
         else:
@@ -972,7 +970,7 @@ class Purl():
                 d_ret = self.pathOp_do(self.d_msg, action = str_action)
             else:
                 if self.str_verb == 'GET':
-                    d_ret = self.pull_core(self.d_msg)
+                    d_ret = self.pull_core(msg = self.d_msg)
                 if self.str_verb == 'POST':
                     d_ret = self.push_core(self.d_msg)
             str_stdout  = json.dumps(d_ret)
