@@ -666,9 +666,15 @@ class Purl():
         str_response        = response.getvalue().decode()
         self.qprint(str_response, comms = 'status')
         if self.b_raw:
-            d_ret           = json.loads(str_response)
+            try:
+                d_ret           = json.loads(str_response)
+            except:
+                d_ret           = str_response
         else:
-            d_ret['stdout']     = json.loads(str_response)
+            try:
+                d_ret['stdout']     = json.loads(str_response)
+            except:
+                d_ret['stdout']     = str_response
             if 'status' in d_ret['stdout']:
                 d_ret['status']     = d_ret['stdout']['status']
             d_ret['msg']        = 'push OK.'
