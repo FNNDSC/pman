@@ -437,7 +437,7 @@ class C_stree:
             #
             #       - Core variables
 
-            self.debug                  = message.Message(logTo = './debug.log')
+            self.debug                  = message.Message(logTo = './debug-C_snode.log')
             self.debug._b_syslog        = True
             self._log                   = message.Message()
             self._log._b_syslog         = True
@@ -1220,7 +1220,7 @@ class C_stree:
             str_pathDiskOrig    = T.pwd()
             str_pathDiskFull    = str_pathDiskRoot + str_pathTree
 
-            self.debug('In node_copy... str_pathDiskfull = %s\n' % str_pathDiskFull)
+            # self.debug('In node_copy... str_pathDiskfull = %s\n' % str_pathDiskFull)
 
             if len(str_pathDiskFull):
                 if not T.isdir(str_pathDiskFull):
