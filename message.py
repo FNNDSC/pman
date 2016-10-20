@@ -278,12 +278,14 @@ class Message:
         verbosity       = 0
         lw              = 0
         rw              = 0
-        
+        str_end         = ' '
+
         for key, value in kwargs.items():
             if key == 'debug' or key == 'verbose':      verbosity       = value
             if key == 'lw':                             lw              = -value
             if key == 'rw':                             rw              = value
             if key == 'syslog':                         self._b_syslog  = value
+            if key == 'end':                            str_end         = value
 
         if self._b_tag and len(self._str_tag):
             str_prepend = Colors.LIGHT_CYAN + self._str_tag + ' ' + Colors.NO_COLOUR
@@ -299,6 +301,8 @@ class Message:
             self._str_payload = ''
         if lw: str_msg  = '%*s' % (lw, str_msg)
         if rw: str_msg  = '%*s' % (rw, str_msg)
+        if self._b_flushNewLine and str_end != '':    str_msg += '\n'
+
         if self._logHandle == sys.stdout:
             if verbosity:
                 if self.canPrintVerbose(verbosity):
@@ -350,13 +354,14 @@ class Message:
         # (current) system stdout and stderr file handles
         self._sys_stdout        = sys.stdout
         self._sys_stderr        = sys.stderr
-        
+
         self._verbosity         = 1
         self._b_syslog          = False
         self._str_syslog        = ''
         self._b_tag             = False
         self._str_tag           = ''
         self._b_tee             = False
+        self._b_flushNewLine    = False
 
         self._b_isSocket        = False
         self._socketPort        = 0
