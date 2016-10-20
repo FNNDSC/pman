@@ -54,6 +54,9 @@ import  message
 from    _colors         import  Colors
 import  pfioh
 
+import  platform
+import  multiprocessing
+
 import  pudb
 
 
@@ -67,6 +70,27 @@ class debug(object):
         before printing.
     """
 
+    def log(self, *args):
+        """
+        get/set the log object.
+
+        Caller can further manipulate the log object with object-specific
+        calls.
+        """
+        if len(args):
+            self._log = args[0]
+        else:
+            return self._log
+
+    def name(self, *args):
+        """
+        get/set the descriptive name text of this object.
+        """
+        if len(args):
+            self.__name = args[0]
+        else:
+            return self.__name
+
     def __init__(self, **kwargs):
         """
         Constructor
@@ -74,6 +98,14 @@ class debug(object):
 
         self.verbosity  = 0
         self.level      = 0
+
+        self.debug                  = message.Message(logTo = args.debugFile)
+        self.debug._b_syslog        = False
+        self.debug._b_flushNewLine  = True
+        self._log                   = message.Message()
+        self._log._b_syslog         = True
+        self.__name                 = "pman"
+        self.b_useDebug             = args.debugToFile
 
         for k, v in kwargs.items():
             if k == 'verbosity':    self.verbosity  = v
@@ -100,24 +132,63 @@ class debug(object):
         if len(args):
             self.msg    = args[0]
 
+        if self.b_useDebug:
+            write   = self.debug
+        else:
+            write   = print
+
         if self.level <= self.verbosity:
 
-            print('%26s | %50s | %30s | ' % (
-                datetime.datetime.now(),
-                threading.current_thread(),
-                inspect.stack()[1][3]
-            ), end='')
-            for t in range(0, self.level): print("\t", end='')
-            print(self.msg)
+            if self.b_useDebug:
+                write('| %50s | %30s | ' % (
+                    threading.current_thread(),
+                    inspect.stack()[1][3]
+                ), end='', syslog = True)
+            else:
+                write('%26s | %50s | %30s | ' % (
+                    datetime.datetime.now(),
+                    threading.current_thread(),
+                    inspect.stack()[1][3]
+                ), end='')
+            for t in range(0, self.level): write("\t", end='')
+            write(self.msg)
 
 class StoreHandler(BaseHTTPRequestHandler):
 
     b_quiet     = False
 
+    def log(self, *args):
+        """
+        get/set the log object.
+
+        Caller can further manipulate the log object with object-specific
+        calls.
+        """
+        if len(args):
+            self._log = args[0]
+        else:
+            return self._log
+
+    def name(self, *args):
+        """
+        get/set the descriptive name text of this object.
+        """
+        if len(args):
+            self.__name = args[0]
+        else:
+            return self.__name
+
     def __init__(self, *args, **kwargs):
         """
         """
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
+        self.debug                  = Message(logTo = args.debugFile)
+        self.debug._b_syslog        = True
+        self.debug._b_flushNewLine  = True
+        self._log                   = Message()
+        self._log._b_syslog         = True
+        self.__name                 = "Charm"
+        self.b_useDebug             = args.debugToFile
 
     def qprint(self, msg, **kwargs):
 
@@ -125,16 +196,21 @@ class StoreHandler(BaseHTTPRequestHandler):
         for k,v in kwargs.items():
             if k == 'comms':    str_comms  = v
 
+        if self.b_useDebug:
+            write   = self.debug
+        else:
+            write   = print
+
         if not StoreHandler.b_quiet:
-            if str_comms == 'status':   print(Colors.PURPLE,    end="")
-            if str_comms == 'error':    print(Colors.RED,       end="")
-            if str_comms == "tx":       print(Colors.YELLOW + "<----")
-            if str_comms == "rx":       print(Colors.GREEN  + "---->")
-            print('%s' % datetime.datetime.now() + " | ",       end="")
-            print(msg)
-            if str_comms == "tx":       print(Colors.YELLOW + "<----")
-            if str_comms == "rx":       print(Colors.GREEN  + "---->")
-            print(Colors.NO_COLOUR, end="")
+            if str_comms == 'status':   write(Colors.PURPLE,    end="")
+            if str_comms == 'error':    write(Colors.RED,       end="")
+            if str_comms == "tx":       write(Colors.YELLOW + "<----")
+            if str_comms == "rx":       write(Colors.GREEN  + "---->")
+            write('%s' % datetime.datetime.now() + " | ",       end="")
+            write(msg)
+            if str_comms == "tx":       write(Colors.YELLOW + "<----")
+            if str_comms == "rx":       write(Colors.GREEN  + "---->")
+            write(Colors.NO_COLOUR, end="")
 
     def do_POST(self):
 
@@ -222,13 +298,12 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
         for k,v in kwargs.items():
             if k == 'args': self.args   = v
 
-        print(Colors.LIGHT_CYAN + str_desc)
+        self.dp.qprint(Colors.LIGHT_CYAN + str_desc)
 
         self.col2_print("Listening on address:",    self.args['ip'])
         self.col2_print("Listening on port:",       self.args['port'])
 
-        print(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
-
+        self.dp.qprint(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
 
 class pman(object):
     """
@@ -236,28 +311,6 @@ class pman(object):
 
     """
     __metaclass__   = abc.ABCMeta
-
-
-    def log(self, *args):
-        """
-        get/set the internal pman log message object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
 
     def col2_print(self, str_left, str_right):
         print(Colors.WHITE +
@@ -269,15 +322,6 @@ class pman(object):
         """
         Constructor
         """
-
-
-        self.debug              = message.Message(logTo = './debug.log')
-        self.debug._b_syslog    = True
-        self._log               = message.Message()
-        self._log._b_syslog     = True
-        self.__name             = "pman"
-
-        self._name              = ""
         self.within             = None                      # An encapsulating object
 
         # DB
@@ -311,13 +355,13 @@ class pman(object):
             if key == 'http':       self.b_http         = int(val)
             if key == 'within':     self.within         = val
 
-        print(Colors.YELLOW)
-        print("""
+        self.dp.qprint(Colors.YELLOW)
+        self.dp.qprint("""
         \t+-----------------------------------------------+
         \t| Welcome to the pman process management system |
         \t+-----------------------------------------------+
         """)
-        print(Colors.CYAN + """
+        self.dp.qprint(Colors.CYAN + """
         'pman' is a client/server system that allows users to monitor
         and control processes on (typically) Linux systems. Actual
         processes are spawned using the 'crunner' module and as such
@@ -361,12 +405,12 @@ class pman(object):
         create an empty DB and save to filesystem.
         """
         if os.path.isdir(self.str_DBpath):
-            self.debug("Reading pman DB from disk...\n")
+            self.dp.qprint("Reading pman DB from disk...\n")
             self._ptree = C_snode.C_stree.tree_load(
                 pathDiskRoot    = self.str_DBpath,
                 loadJSON        = True,
                 loadPickle      = False)
-            self.debug("pman DB read from disk...\n")
+            self.dp.qprint("pman DB read from disk...\n")
             self.col2_print('Reading pman DB from disk:', 'OK')
         else:
             P = self._ptree
@@ -381,7 +425,7 @@ class pman(object):
             )
             self.col2_print('Reading pman DB from disk:',
                             'No DB found... creating empty default DB')
-        print(Colors.NO_COLOUR, end='')
+        self.dp.qprint(Colors.NO_COLOUR, end='')
 
     def DB_fileIO(self, **kwargs):
         """
@@ -399,9 +443,9 @@ class pman(object):
             if k == 'dbpath':   str_DBpath          = v
             if k == 'db':       tree_DB             = v
 
-        # self.dp.qprint('cmd      = %s' % str_cmd)
-        # self.dp.qprint('fileio   = %s' % self.str_fileio)
-        # self.dp.qprint('dbpath   = %s' % str_DBpath)
+        self.dp.qprint('cmd      = %s' % str_cmd)
+        self.dp.qprint('fileio   = %s' % self.str_fileio)
+        self.dp.qprint('dbpath   = %s' % str_DBpath)
 
         if str_cmd == 'save':
             if os.path.isdir(str_DBpath):
@@ -424,7 +468,7 @@ class pman(object):
 
         if str_cmd == 'load':
             if os.path.isdir(str_DBpath):
-                self.debug("Reading pman DB from disk...\n")
+                self.dp.qprint("Reading pman DB from disk...\n")
                 if self.str_fileio   == 'json':
                     tree_DB = C_snode.C_stree.tree_load(
                         startPath       = '/',
@@ -439,7 +483,7 @@ class pman(object):
                         failOnDirExist  = False,
                         loadJSON        = False,
                         loadPickle      = True)
-                self.debug("pman DB read from disk...\n")
+                self.dp.qprint("pman DB read from disk...\n")
                 self.col2_print('Reading pman DB from disk:', 'OK')
                 self._ptree         = tree_DB
             else:
@@ -452,7 +496,7 @@ class pman(object):
                 )
                 self.col2_print('Reading pman DB from disk:',
                                 'No DB found... creating empty default DB')
-            print(Colors.NO_COLOUR, end='')
+            self.dp.qprint(Colors.NO_COLOUR, end='')
 
     def start(self):
         """
@@ -541,33 +585,8 @@ class FileIO(threading.Thread):
     """
     A class that periodically saves the database from memory out to disk.
     """
-    def log(self, *args):
-        """
-        get/set the internal pipeline listener object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
 
     def __init__(self, **kwargs):
-        # logging.debug('Starting __init__')
-        self.debug              = message.Message(logTo = './debug.log')
-        self.debug._b_syslog    = True
-        self._log               = message.Message()
-        self._log._b_syslog     = True
         self.__name             = "FileIO"
         self.b_http             = False
         self.dp                 = debug(verbosity=0, level=-1)
@@ -603,33 +622,7 @@ class Listener(threading.Thread):
     """ Listeners accept communication requests from front facing server.
         Parse input text streams and act accordingly. """
 
-    def log(self, *args):
-        """
-        get/set the internal pipeline listener object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
-
     def __init__(self, **kwargs):
-        # logging.debug('Starting __init__')
-        self.debug              = message.Message(logTo = './debug.log')
-        self.debug._b_syslog    = True
-        self._log               = message.Message()
-        self._log._b_syslog     = True
         self.__name             = "Listener"
         self.b_http             = False
         self.dp                 = debug(verbosity=0, level=-1)
@@ -663,26 +656,21 @@ class Listener(threading.Thread):
 
         result = True
         while True:
-            print(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id)
+            self.dp.qprint(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id)
             # First string received is socket ID of client
             client_id   = socket.recv()
             request     = socket.recv()
-            print("\n" + Colors.BROWN + 'Listener ID - %s: run() - Received comms from client.' % (self.worker_id))
+            self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Received comms from client.' % (self.worker_id))
             result = self.process(request)
-            # try:
-            #     result = self.process(request)
-            # except:
-            #     print('Worker ID - %s. some error was detected' % (self.worker_id))
-            #     os._exit(1)
 
             # For successful routing of result to correct client, the socket ID of client should be sent first.
             if result:
-                print(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
+                self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
                       (self.worker_id))
-                print('JSON formatted response:')
+                self.dp.qprint('JSON formatted response:')
                 str_payload = json.dumps(result)
-                print(Colors.LIGHT_CYAN + str_payload)
-                print(Colors.BROWN + 'len = %d chars' % len(str_payload))
+                self.dp.qprint(Colors.LIGHT_CYAN + str_payload)
+                self.dp.qprint(Colors.BROWN + 'len = %d chars' % len(str_payload))
                 socket.send(client_id, zmq.SNDMORE)
                 if self.b_http:
                     str_contentType = "application/json"
@@ -819,6 +807,28 @@ class Listener(threading.Thread):
         return {"d_ret":    d_ret,
                 "status":   b_status}
 
+    def t_quit_process(self, *args, **kwargs):
+        """
+        Process the 'quit' POST directive. This might appear counter-inuitive
+        at first glance since the 'get' is the result of a REST POST, but is
+        logically consistent within the semantics of this system.
+        """
+        d_request   = {}
+        d_ret       = {}
+        b_status    = False
+        hits        = 0
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+        d_meta      = d_request['meta']
+        if 'saveDB' in d_meta.keys():
+            self.dp.qprint("Saving DB...")
+            self.within.DB_fileIO(cmd = 'save')
+
+        os._exit(0)
+
+        return {'d_ret':    d_ret,
+                'status':   True}
+
     def t_get_process(self, *args, **kwargs):
         """
         Process the 'get' POST directive. This might appear counter-inuitive
@@ -922,17 +932,17 @@ class Listener(threading.Thread):
                 # p.tree_copy(startPath = str_jobStart,   destination = Ts)
                 # p.tree_copy(startPath = str_jobEnd,     destination = Te)
 
-                print("Ts.cwd = %s " % Ts.cwd())
-                print(Ts)
-                print("Te.cwd = %s " % Te.cwd())
-                print(Te)
+                self.dp.qprint("Ts.cwd = %s " % Ts.cwd())
+                self.dp.qprint(Ts)
+                self.dp.qprint("Te.cwd = %s " % Te.cwd())
+                self.dp.qprint(Te)
 
                 l_subJobsStart      = []
                 if Ts.cd('/%s/start' % job)['status']:
                     l_subJobsStart  = Ts.lstr_lsnode()
                     l_subJobsStart  = list(map(int, l_subJobsStart))
                     l_subJobsStart.sort()
-                    print("l_subJobsStart  (pre) = %s" % l_subJobsStart)
+                    self.dp.qprint("l_subJobsStart  (pre) = %s" % l_subJobsStart)
                     if len(l_subJobsStart) > 1: l_subJobsStart  = l_subJobsStart[:-1]
 
                 l_subJobsEnd        = []
@@ -940,11 +950,11 @@ class Listener(threading.Thread):
                     l_subJobsEnd    = Te.lstr_lsnode()
                     l_subJobsEnd    = list(map(int, l_subJobsEnd))
                     l_subJobsEnd.sort()
-                    print("l_subJobsEnd    (pre) = %s " % l_subJobsEnd)
+                    self.dp.qprint("l_subJobsEnd    (pre) = %s " % l_subJobsEnd)
                     if len(l_subJobsEnd) > 1: l_subJobsEnd    = l_subJobsEnd[:-1]
 
-                print("l_subJobsStart (post) = %s" % l_subJobsStart)
-                print("l_subJobsEnd   (post) = %s" % l_subJobsEnd)
+                self.dp.qprint("l_subJobsStart (post) = %s" % l_subJobsStart)
+                self.dp.qprint("l_subJobsEnd   (post) = %s" % l_subJobsEnd)
 
                 for j in l_subJobsStart:
                     l_subJobsStart[j]   = Ts.cat('/%s/start/%d/startInfo/%d/startTrigger' % \
@@ -1017,7 +1027,6 @@ class Listener(threading.Thread):
         l_keys      = d_ret.items()
         l_status    = []
         for i in range(0, int(len(l_keys)/2)):
-            print('xxx d-ret = %s' % d_ret)
             b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
             try:
                 endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
@@ -1039,6 +1048,55 @@ class Listener(threading.Thread):
         return {"d_ret":    d_ret,
                 "status":   b_status}
 
+    def t_hello_process(self, *args, **kwargs):
+        """
+
+        The 'hello' action is merely to 'speak' with the server. The server
+        can return current date/time, echo back a string, query the startup
+        command line args, etc.
+
+        This method is a simple means of checking if the server is "up" and
+        running.
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+        self.dp.qprint("In hello process...")
+        b_status            = False
+        d_ret               = {}
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+
+        d_meta  = d_request['meta']
+        if 'askAbout' in d_meta.keys():
+            str_askAbout    = d_meta['askAbout']
+            if str_askAbout == 'timestamp':
+                str_timeStamp   = datetime.datetime.today().strftime('%Y%m%d%H%M%S.%f')
+                d_ret['timestamp']              = {}
+                d_ret['timestamp']['now']       = str_timeStamp
+                b_status                        = True
+            if str_askAbout == 'sysinfo':
+                d_ret['sysinfo']                = {}
+                d_ret['sysinfo']['system']      = platform.system()
+                d_ret['sysinfo']['machine']     = platform.machine()
+                d_ret['sysinfo']['platform']    = platform.platform()
+                d_ret['sysinfo']['uname']       = platform.uname()
+                d_ret['sysinfo']['version']     = platform.version()
+                d_ret['sysinfo']['memory']      = psutil.virtual_memory()
+                d_ret['sysinfo']['cpucount']    = multiprocessing.cpu_count()
+                d_ret['sysinfo']['loadavg']     = os.getloadavg()
+                d_ret['sysinfo']['cpu_percent'] = psutil.cpu_percent()
+                d_ret['sysinfo']['hostname']    = socket.gethostname()
+                b_status                        = True
+            if str_askAbout == 'echoBack':
+                d_ret['echoBack']               = {}
+                d_ret['echoBack']['msg']        = d_meta['echoBack']
+                b_status                        = True
+
+        return { 'd_ret':   d_ret,
+                 'status':  b_status}
 
     def t_run_process(self, *args, **kwargs):
         """
@@ -1207,7 +1265,6 @@ class Listener(threading.Thread):
 
                 r.touch(str_path, contents)
 
-        # print(p)
         p.cd(pcwd)
 
         self.dp.qprint(r)
@@ -1231,24 +1288,24 @@ class Listener(threading.Thread):
             str_path        = ""
             json_payload    = ""
 
-            print("Listener ID - %s: process() - handling request" % (self.worker_id))
+            self.dp.qprint("Listener ID - %s: process() - handling request" % (self.worker_id))
 
             now             = datetime.datetime.today()
             str_timeStamp   = now.strftime('%Y-%m-%d %H:%M:%S.%f')
-            print(Colors.YELLOW)
-            print("\n\n***********************************************")
-            print("***********************************************")
-            print("%s incoming data stream" % (str_timeStamp) )
-            print("***********************************************")
-            print("len = %d" % len(request))
-            print("***********************************************")
-            print(Colors.CYAN + "%s\n" % (request.decode()) + Colors.YELLOW)
-            print("***********************************************" + Colors.NO_COLOUR)
+            self.dp.qprint(Colors.YELLOW)
+            self.dp.qprint("***********************************************")
+            self.dp.qprint("***********************************************")
+            self.dp.qprint("%s incoming data stream" % (str_timeStamp) )
+            self.dp.qprint("***********************************************")
+            self.dp.qprint("len = %d" % len(request))
+            self.dp.qprint("***********************************************")
+            self.dp.qprint(Colors.CYAN + "%s\n" % (request.decode()) + Colors.YELLOW)
+            self.dp.qprint("***********************************************" + Colors.NO_COLOUR)
             l_raw           = request.decode().split('\n')
             FORMtype        = l_raw[0].split('/')[0]
 
-            print('Request = ...')
-            print(l_raw)
+            self.dp.qprint('Request = ...')
+            self.dp.qprint(l_raw)
             REST_header             = l_raw[0]
             REST_verb               = REST_header.split()[0]
             str_path                = REST_header.split()[1]
@@ -1278,7 +1335,7 @@ class Listener(threading.Thread):
                 d_ret['payloadsize']= len(json_payload)
 
                 if payload_verb == 'quit':
-                    print('Shutting down server...')
+                    self.dp.qprint('Shutting down server...')
                     d_ret['status'] = True
 
                 if payload_verb == 'run' and REST_verb == 'PUT':
@@ -1335,7 +1392,7 @@ class Listener(threading.Thread):
                 d_ret['d_ret']      = d_done["d_ret"]
                 d_ret['status']     = d_done["status"]
             except:
-                self.dp.qprint("An error occurred in reading ret stucture. Perhaps this method should have been threaded?")
+                self.dp.qprint("An error occurred in reading ret structure. Should this method have been threaded?")
 
         return d_ret
 
@@ -1380,7 +1437,7 @@ class Listener(threading.Thread):
                     # self.DB_get(path = str_pathJob).copy(startPath = '/', destination = Tdb)
 
 
-            print(Tdb)
+            # print(Tdb)
             tree_DB     = Tdb
 
 
@@ -1401,33 +1458,8 @@ class Poller(threading.Thread):
     DB and system process table. Jobs that are no longer running are
     removed from the internal DB.
     """
-    def log(self, *args):
-        """
-        get/set the poller log object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
 
     def __init__(self, **kwargs):
-        self.debug              = message.Message(logTo = './debug.log')
-        self.debug._b_syslog    = True
-        self._log               = message.Message()
-        self._log._b_syslog     = True
-        self.__name             = "Poller"
 
         self.pollTime           = 10
 
@@ -1439,7 +1471,7 @@ class Poller(threading.Thread):
         self.queueEnd           = queue.Queue()
         self.queueAllDone       = queue.Queue()
 
-        self.dp.qprint('starting...', level=-1)
+        # self.dp.qprint('starting...', level=-1)
 
         for key,val in kwargs.items():
             if key == 'pollTime':       self.pollTime       = val
@@ -1469,11 +1501,8 @@ class Poller(threading.Thread):
                 self.dp.qprint('Waiting on start job info')
                 self.queueStart.put(self.crunner.queueStart.get())
 
-                # print(str_jsonStart)
-
                 self.dp.qprint('Waiting on end job info')
                 self.queueEnd.put(self.crunner.queueEnd.get())
-                # print(str_jsonEnd)
 
         self.queueAllDone.put(b_jobsAllDone)
         self.dp.qprint("done with run")
@@ -1483,32 +1512,7 @@ class Crunner(threading.Thread):
     The wrapper thread about the actual process.
     """
 
-    def log(self, *args):
-        """
-        get/set the internal crunner object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
-
     def __init__(self, **kwargs):
-        self.debug              = message.Message(logTo = './debug.log')
-        self.debug._b_syslog    = True
-        self._log               = message.Message()
-        self._log._b_syslog     = True
         self.__name             = "Crunner"
         self.dp                 = debug(verbosity=0, level=-1)
 
@@ -1606,6 +1610,20 @@ if __name__ == "__main__":
         dest    = 'http',
         default = False,
         help    = 'Send HTTP formatted replies.'
+    )
+    parser.add_argument(
+        '--debugToFile',
+        action  = 'store_true',
+        dest    = 'debugToFile',
+        default = False,
+        help    = 'If true, stream debugging info to file.'
+    )
+    parser.add_argument(
+        '--debugFile',
+        action  = 'store',
+        dest    = 'debugFile',
+        default = '%s/tmp/debug-pman.log' % os.environ['HOME'],
+        help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
     )
 
     args    = parser.parse_args()
