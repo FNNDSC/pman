@@ -132,9 +132,9 @@ class debug(object):
             if k == 'level':        self.level      = v
 
     def __call__(self, *args, **kwargs):
-        self.print(*args, **kwargs)
+        self.qprint(*args, **kwargs)
 
-    def print(self, *args, **kwargs):
+    def qprint(self, *args, **kwargs):
         """
         The "print" command for this object.
 
@@ -301,7 +301,7 @@ class crunner(object):
         :return:
         """
 
-        self.debug.print(msg = 'start ctl', level=2)
+        self.debug.qprint(msg = 'start ctl', level=2)
 
         self.jobTotal   = len(self.l_cmd)
 
@@ -325,16 +325,16 @@ class crunner(object):
             # self.d_job[str_jobCount]   = self.queue.get()
 
             # Now, "block" until the parent thread says we can continue...
-            self.debug.print("waiting for continue event from master...", level=2)
+            self.debug.qprint("waiting for continue event from master...", level=2)
             blockUntil = self.queue_continue.get()
-            self.debug.print("continue event processed", level=2)
+            self.debug.qprint("continue event processed", level=2)
 
             # Increase the job count
             self.jobCount               += 1
-            self.debug.print("increasing job count to %d" % self.jobCount, level = 2)
+            self.debug.qprint("increasing job count to %d" % self.jobCount, level = 2)
 
-        self.debug.print("b_synchronized = %r" % self.b_synchronized, level=2)
-        self.debug.print(msg = 'done ctl', level=2)
+        self.debug.qprint("b_synchronized = %r" % self.b_synchronized, level=2)
+        self.debug.qprint(msg = 'done ctl', level=2)
         self.b_jobsAllDone  = True
 
     def queue_pop(self, **kwargs):
@@ -403,7 +403,7 @@ class crunner(object):
             if key == 'ssh':    b_ssh   = bool(val)
             if key == 'wait':   wait    = val
 
-        self.debug.print(msg    = "start << %s >> " % str_cmd,
+        self.debug.qprint(msg    = "start << %s >> (%d) " % (str_cmd, self.verbosity),
                          level  = 3)
         str_jobCount    = str(self.jobCount)
         self.d_job[str_jobCount]['cmd']                = str_cmd
@@ -452,7 +452,7 @@ class crunner(object):
                 # self.queue_pid.put(proc.pid)
                 self.queueStart_pid.put(proc.pid)
                 self.queueEnd_pid.put(proc.pid)
-                self.debug.print("Putting pid %d in queues..." % proc.pid, level=3)
+                self.debug.qprint("Putting pid %d in queues..." % proc.pid, level=3)
                 o = proc.communicate(timeout=0.1)
                 b_subprocessRunning = False
             except subprocess.TimeoutExpired:
@@ -465,7 +465,7 @@ class crunner(object):
                 self.d_job[str_jobCount]['pid']    = proc.pid
                 pollLoop += 1
                 if pollLoop % 10 == 0:
-                    self.debug.print("job %d (%s) running... started = %r" %
+                    self.debug.qprint("job %d (%s) running... started = %r" %
                                      (self.jobCount,
                                       proc.pid,
                                       self.d_job[str_jobCount]['started']),
@@ -482,11 +482,11 @@ class crunner(object):
         self.d_job[str_jobCount]['stderr']         = o[1]
         self.d_job[str_jobCount]['cmd']            = str_cmd
 
-        self.debug.print("Putting end event in queue...", level=3)
+        self.debug.qprint("Putting end event in queue...", level=3)
         self.queue_endEvent.put({'endTrigger': True})
         self.queue.put(self.d_job[str_jobCount])
 
-        self.debug.print(msg = "done << %s >> " % str_cmd, level=3)
+        self.debug.qprint(msg = "done << %s >> " % str_cmd, level=3)
 
     def exe_stillRunning(self):
         """
@@ -523,7 +523,7 @@ class crunner(object):
             except:
                 pollLoop += 1
                 if pollLoop % 10 == 0:
-                    self.debug.print("tag not available")
+                    self.debug.qprint("tag not available")
                 time.sleep(timeout)
 
     def pid_get(self, **kwargs):
@@ -542,9 +542,9 @@ class crunner(object):
         if str_queue == "queueStart":   queue = self.queueStart_pid
         if str_queue == "queueEnd":     queue = self.queueEnd_pid
 
-        self.debug.print("getting %s pid... (queue size = %d)" % (str_queue, queue.qsize()))
+        self.debug.qprint("getting %s pid... (queue size = %d)" % (str_queue, queue.qsize()))
         pid = queue.get()
-        self.debug.print("%s pid = %d" % (str_queue, pid))
+        self.debug.qprint("%s pid = %d" % (str_queue, pid))
         return pid
 
     def currentJob_waitUntilDone(self, **kwargs):
@@ -567,7 +567,7 @@ class crunner(object):
         while not self.d_job[str_jobCount]['done'] and self.exe_stillRunning():
             pollLoop += 1
             if pollLoop % 10 == 0:
-                self.debug.print(msg    = "job queue = %d / %d, -->b_synchronized = %r<--" %
+                self.debug.qprint(msg    = "job queue = %d / %d, -->b_synchronized = %r<--" %
                                           (self.jobCount,
                                            self.jobTotal,
                                            self.b_synchronized),
@@ -631,11 +631,11 @@ class crunner(object):
         for k, v in kwargs.items():
             if k == 'job':  job = v
 
-        self.debug.print("End Queue contains: %d events" % self.queue_endEvent.qsize())
-        self.debug.print("End Queue current job = %d/%d" % (self.jobCount, self.jobTotal))
+        self.debug.qprint("End Queue contains: %d events" % self.queue_endEvent.qsize())
+        self.debug.qprint("End Queue current job = %d/%d" % (self.jobCount, self.jobTotal))
         if self.jobCount < self.jobTotal:
             b_end = self.queue_endEvent.get()
-            self.debug.print("Got an end event!")
+            self.debug.qprint("Got an end event!")
         return b_end
 
     def job_started(self, **kwargs):
@@ -653,11 +653,11 @@ class crunner(object):
         for k, v in kwargs.items():
             if k == 'job':  job = v
 
-        self.debug.print("Start Queue contains: %d events" % self.queue_startEvent.qsize())
-        self.debug.print("Start Queue current job = %d/%d" % (self.jobCount, self.jobTotal))
+        self.debug.qprint("Start Queue contains: %d events" % self.queue_startEvent.qsize())
+        self.debug.qprint("Start Queue current job = %d/%d" % (self.jobCount, self.jobTotal))
         if self.jobCount < self.jobTotal:
             b_start = self.queue_startEvent.get()
-            self.debug.print("Got a start event!")
+            self.debug.qprint("Got a start event!")
         return b_start
 
     def jobs_loopctl(self, **kwargs):
@@ -713,11 +713,11 @@ class crunner(object):
             # it's safe to continue
             while not self.job_done() and self.jobCount < self.jobTotal: pass
             if b_onJobDone and self.jobCount < self.jobTotal: f_onJobDone()
-            self.debug.print("Setting synchronized flag from %r to True" % self.b_synchronized)
-            self.debug.print("jobCount / jobTotal = %d / %d" % (self.jobCount, self.jobTotal))
+            self.debug.qprint("Setting synchronized flag from %r to True" % self.b_synchronized)
+            self.debug.qprint("jobCount / jobTotal = %d / %d" % (self.jobCount, self.jobTotal))
             self.b_synchronized     = True
-            self.debug.print("continue queue has length %d" % self.queue_continue.qsize())
-            self.debug.print("putting ok in continue queue")
+            self.debug.qprint("continue queue has length %d" % self.queue_continue.qsize())
+            self.debug.qprint("putting ok in continue queue")
             self.queue_continue.put(True)
 
     # This method is somewhat historical and largely depreciated. It is left here
@@ -782,12 +782,12 @@ class crunner(object):
             time.sleep(timeout)
 
             # Wait for the event trigger
-            self.debug.print("EL: CurrentJob = %d/%d" %(self.jobCount, self.jobTotal))
+            self.debug.qprint("EL: CurrentJob = %d/%d" %(self.jobCount, self.jobTotal))
             while not eval(f_waitForEvent) and self.jobCount < self.jobTotal: pass
             if b_onEventTriggeredDo and self.jobCount < self.jobTotal:
                 eval(onEventTriggeredDo)
                 self.d_job[str(currentJob)]['eventFunctionDone']   = True
-                self.debug.print(msg = "currentJob = %d job queue = %d / %d  -->b_synchronized = %r<--" %
+                self.debug.qprint(msg = "currentJob = %d job queue = %d / %d  -->b_synchronized = %r<--" %
                                        (currentJob,
                                         self.jobCount,
                                         self.jobTotal,
@@ -798,10 +798,10 @@ class crunner(object):
             # it's safe to continue
             if self.queueEnd_pid.qsize():
                 while not self.job_done() and self.jobCount < self.jobTotal: pass
-            self.debug.print("Setting synchronized flag from %r to True" % self.b_synchronized)
+            self.debug.qprint("Setting synchronized flag from %r to True" % self.b_synchronized)
             self.b_synchronized     = True
-            self.debug.print("continue queue has length %d" % self.queue_continue.qsize())
-            self.debug.print("putting ok in continue queue")
+            self.debug.qprint("continue queue has length %d" % self.queue_continue.qsize())
+            self.debug.qprint("putting ok in continue queue")
             self.queue_continue.put(True)
 
     def exe_waitUntilDone(self, **kwargs):
