@@ -54,7 +54,7 @@ import  message
 from    _colors         import  Colors
 import  pfioh
 
-import  pdb
+import  pudb
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -326,70 +326,16 @@ class pman(object):
         The 'pman' server can be queried for running processes, lost/dead
         processes, exit status, etc.
 
-        Communication from the 'pman' server is via JSON constructs.
+        Communication from the 'pman' server is via JSON constructs. See the
+        github page for more information.
 
         Typical calling syntax is:
 
-                ./pman.py --raw 1 --http --ip <someIP> --port 5010 --listeners <listeners>
-
-        Note <someIP> should be a full IP/name, and a client can interact with the
-        service with a REST call, i.e.
-
-          Using curl:""" + Colors.GREEN + """
-
-            curl -H "Content-Type: application/json"        \\
-            -X POST                                         \\
-            -d '{"payload": {"exec": {"cmd": "cal 2016"}, "action": "run"}' \\
-            http://192.168.1.189:5010/api/v1/cmd/""" + Colors.CYAN + """
-
-          Using http(ie):""" + Colors.GREEN + """
-
-            # Execute a command
-            http POST http://192.168.1.189:5010/api/v1/cmd/ \\
-            Content-Type:application/json                   \\
-            Accept:application/json                         \\
-            payload:='{ "exec": {                           \\
-                            "cmd": "cal 2 2016"             \\
-                                },                          \\
-                        "action": "run"                     \\
-                        "meta": {                           \\
-                                    "auid": "John Smith,    \\
-                                    "jid":  "someJID"       \\
-                                }                           \\
-                       }'
-
-            # Search for a field
-            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
-            Content-Type:application/json                   \\
-            Accept:application/json                         \\
-            payload:='{ "action": "search",                 \\
-                        "meta": {                           \\
-                                    "key":"jid",            \\
-                                    "value":"<jid>-3"       \\
-                                }                           \\
-                       }'
-
-            # Search for an embedded field:
-            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
-            Content-Type:application/json                   \\
-            Accept:application/json                         \\
-            payload:='{"action":    "search",               \\
-                        "meta": {                           \\
-                               "key":"end/0/endInfo/0/cmd", \\
-                               "value":"cal 2 2016"         \\
-                                }                           \\
-                        }'
-
-            # Check if a hit on a search is 'done':
-            http POST http://10.17.24.163:5010/api/v1/cmd/  \\
-            Content-Type:application/json                   \\
-            Accept:application/json                         \\
-            payload:='{ "action":    "done",                \\
-                        "meta": {                           \\
-                                    "key":"jid",            \\
-                                    "value":"<jid>-2"       \\
-                                 }                          \\
-                        }'
+                ./pman.py   --raw 1                 \\
+                            --http                  \\
+                            --ip <someIP>           \\
+                            --port 5010             \\
+                            --listeners <listeners>
 
         """)
 
@@ -453,9 +399,9 @@ class pman(object):
             if k == 'dbpath':   str_DBpath          = v
             if k == 'db':       tree_DB             = v
 
-        self.dp.qprint('cmd      = %s' % str_cmd)
-        self.dp.qprint('fileio   = %s' % self.str_fileio)
-        self.dp.qprint('dbpath   = %s' % str_DBpath)
+        # self.dp.qprint('cmd      = %s' % str_cmd)
+        # self.dp.qprint('fileio   = %s' % self.str_fileio)
+        # self.dp.qprint('dbpath   = %s' % str_DBpath)
 
         if str_cmd == 'save':
             if os.path.isdir(str_DBpath):
@@ -530,7 +476,7 @@ class pman(object):
         # socket_front.setsockopt(zmq.RCVBUF, 65536)
         # socket_front.setsockopt(zmq.SNDBUF, 65536)
         # socket_front.setsockopt(zmq.SNDHWM, 65536)
-        socket_front.setsockopt(zmq.RCVHWM, 65536)
+        # socket_front.setsockopt(zmq.RCVHWM, 65536)
         socket_front.bind('%s://%s:%s' % (self.str_protocol,
                                           self.str_IP,
                                           self.str_port)
@@ -645,12 +591,12 @@ class FileIO(threading.Thread):
         self.dp.qprint('starting FileIO handler...')
 
         while True:
-            self.dp.qprint('Saving DB as type "%s" to "%s"...' % (
-                self.within.str_fileio,
-                self.within.str_DBpath
-            ))
+            # self.dp.qprint('Saving DB as type "%s" to "%s"...' % (
+            #     self.within.str_fileio,
+            #     self.within.str_DBpath
+            # ))
             self.within.DB_fileIO(cmd = 'save')
-            self.dp.qprint('DB saved...')
+            # self.dp.qprint('DB saved...')
             time.sleep(self.timeout)
 
 class Listener(threading.Thread):
@@ -825,7 +771,7 @@ class Listener(threading.Thread):
                     hits               += 1
         p.cd(str_origDir)
 
-        return {"d_ret":     d_ret,
+        return {"d_ret":    d_ret,
                 "status":   bool(hits)}
 
     def t_info_process(self, *args, **kwargs):
@@ -928,10 +874,10 @@ class Listener(threading.Thread):
         return {"d_ret":    d_ret,
                 "status":   True}
 
-    def t_done_process(self, *args, **kwargs):
+    def job_state(self, *args, **kwargs):
         """
 
-        Check if the job corresponding to the search pattern is "done".
+        Return a structure that can be further processed to determine the job's state.
 
         :param args:
         :param kwargs:
@@ -957,10 +903,24 @@ class Listener(threading.Thread):
             for job in d_j.keys():
                 str_pathStart       = '/api/v1/' + job + '/start'
                 str_pathEnd         = '/api/v1/' + job + '/end'
+                str_jobStart        = '/' + job + '/start'
+                str_jobEnd          = '/' + job + '/end'
+
                 d_start             = self.DB_get(path = str_pathStart)
                 d_end               = self.DB_get(path = str_pathEnd)
                 Ts.initFromDict(d_start)
                 Te.initFromDict(d_end)
+
+                # self.DB_get(path = str_pathStart).copy(startPath = '/', destination = Ts)
+                # self.DB_get(path = str_pathEnd).copy(startPath = '/',   destination = Te)
+
+                # pudb.set_trace()
+
+                # print('Ts startPath = %s' % str_pathStart)
+                # print('Te startPath = %s' % str_pathEnd)
+
+                # p.tree_copy(startPath = str_jobStart,   destination = Ts)
+                # p.tree_copy(startPath = str_jobEnd,     destination = Te)
 
                 print("Ts.cwd = %s " % Ts.cwd())
                 print(Ts)
@@ -1003,7 +963,7 @@ class Listener(threading.Thread):
                 if len(l_subJobsEnd):
                     latestJob   = l_subJobsEnd[-1]
                     for j in list(range(0, latestJob+1)):
-                        l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % (job, latestJob, j))
+                        l_subJobsEnd[j]     = Te.cat('/%s/end/%s/endInfo/%d/returncode' % (job, latestJob, j))
 
                 d_ret[str(hits)+'.start']   = {"jobRoot": job, "startTrigger":  l_subJobsStart}
                 d_ret[str(hits)+'.end']     = {"jobRoot": job, "returncode":    l_subJobsEnd}
@@ -1018,10 +978,11 @@ class Listener(threading.Thread):
             }
         else:
             b_status            = True
-        return {"d_ret":     d_ret,
+        return {"d_ret":    d_ret,
                 "status":   b_status}
 
-    def t_status_process(self, *args, **kwargs):
+
+    def t_done_process(self, *args, **kwargs):
         """
 
         Check if the job corresponding to the search pattern is "done".
@@ -1031,90 +992,32 @@ class Listener(threading.Thread):
         :return:
         """
 
+        self.dp.qprint("In done process...")
+
+        return self.job_state(*args, **kwargs)
+
+
+    def t_status_process(self, *args, **kwargs):
+        """
+
+        Return status on a given job.
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
         self.dp.qprint("In status process...")
 
-        d_request   = {}
-        d_ret       = {}
-        b_status    = False
-        hits        = 0
-        for k, v in kwargs.items():
-            if k == 'request':      d_request   = v
+        d_state     = self.job_state(*args, **kwargs)
 
-        d_search    = self.t_search_process(request = d_request)['d_ret']
-
-        p   = self._ptree
-        Ts  = C_snode.C_stree()
-        Te  = C_snode.C_stree()
-        for j in d_search.keys():
-            d_j = d_search[j]
-            for job in d_j.keys():
-                str_pathStart       = '/api/v1/' + job + '/start'
-                str_pathEnd         = '/api/v1/' + job + '/end'
-                d_start             = self.DB_get(path = str_pathStart)
-                d_end               = self.DB_get(path = str_pathEnd)
-                Ts.initFromDict(d_start)
-                Te.initFromDict(d_end)
-
-                print("Ts.cwd = %s " % Ts.cwd())
-                print(Ts)
-                print("Te.cwd = %s " % Te.cwd())
-                print(Te)
-
-                l_subJobsStart      = []
-                if Ts.cd('/%s/start' % job)['status']:
-                    l_subJobsStart  = Ts.lstr_lsnode()
-                    l_subJobsStart  = list(map(int, l_subJobsStart))
-                    l_subJobsStart.sort()
-                    print("l_subJobsStart  (pre) = %s" % l_subJobsStart)
-                    if len(l_subJobsStart) > 1: l_subJobsStart  = l_subJobsStart[:-1]
-
-                l_subJobsEnd        = []
-                if Te.cd('/%s/end' % job)['status']:
-                    l_subJobsEnd    = Te.lstr_lsnode()
-                    l_subJobsEnd    = list(map(int, l_subJobsEnd))
-                    l_subJobsEnd.sort()
-                    print("l_subJobsEnd    (pre) = %s " % l_subJobsEnd)
-                    if len(l_subJobsEnd) > 1: l_subJobsEnd    = l_subJobsEnd[:-1]
-
-                print("l_subJobsStart (post) = %s" % l_subJobsStart)
-                print("l_subJobsEnd   (post) = %s" % l_subJobsEnd)
-
-                for j in l_subJobsStart:
-                    l_subJobsStart[j]   = Ts.cat('/%s/start/%d/startInfo/%d/startTrigger' % \
-                                                 (job, j, j))
-
-                # jobsEnd behaviour can be slightly different to the jobStart, particularly if
-                # the job being executed is killed -- sometimes recording the "death" event of
-                # the job does not happen and the job indexing ends up missing several epochs:
-                #
-                #           l_subJobsStart  (pre) = [0, 1, 2, 3, 4]
-                #           l_subJobsEnd    (pre) = [0, 1, 3, 4]
-                #
-                # to assure correct returncode lookup, we always parse the latest job epoch.
-
-                latestJob       = 0
-                if len(l_subJobsEnd):
-                    latestJob   = l_subJobsEnd[-1]
-                    for j in list(range(0, latestJob+1)):
-                        l_subJobsEnd[j]     = Te.cat('/%s/end/%d/endInfo/%d/returncode' % (job, latestJob, j))
-
-                d_ret[str(hits)+'.start']   = {"jobRoot": job, "startTrigger":  l_subJobsStart}
-                d_ret[str(hits)+'.end']     = {"jobRoot": job, "returncode":    l_subJobsEnd}
-                hits               += 1
-        if not hits:
-            d_ret                   = {
-                "-1":   {
-                    "noJobFound":   {
-                        "endInfo":  {"allJobsDone": None}
-                    }
-                }
-            }
-        else:
-            b_status            = True
+        d_ret       = d_state['d_ret']
+        b_status    = d_state['status']
 
         l_keys      = d_ret.items()
         l_status    = []
         for i in range(0, int(len(l_keys)/2)):
+            print('xxx d-ret = %s' % d_ret)
             b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
             try:
                 endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
@@ -1128,8 +1031,9 @@ class Listener(threading.Thread):
             if endcode and b_startEvent:
                 l_status.append('finishedWithError')
 
-            print(b_startEvent)
-            print(endcode)
+            self.dp.qprint('b_startEvent = %d' % b_startEvent)
+            self.dp.qprint(endcode)
+            self.dp.qprint('l_status = %s' % l_status)
 
         d_ret['l_status']   = l_status
         return {"d_ret":    d_ret,
@@ -1198,22 +1102,22 @@ class Listener(threading.Thread):
             except queue.Empty:
                 self.dp.qprint('Waiting on start job info')
                 d_startInfo     = self.poller.queueStart.get()
-                p.cd('start')
-                p.mkcd('%s' % jobCount)
+                str_startDir    = '/%s/start/%d' % (self.str_jobRootDir, jobCount)
+                p.mkdir(str_startDir)
+                p.cd(str_startDir)
                 p.touch('startInfo', d_startInfo.copy())
-                p.cd('../../../')
                 p.touch('/%s/startInfo' % str_dir, d_startInfo.copy())
 
                 self.dp.qprint('Waiting on end job info')
                 d_endInfo       = self.poller.queueEnd.get()
-                p.cd('end')
-                p.mkcd('%s' % jobCount)
+                str_endDir      = '/%s/end/%d' % (self.str_jobRootDir, jobCount)
+                p.mkdir(str_endDir)
+                p.cd(str_endDir)
                 p.touch('endInfo', d_endInfo.copy())
-                p.cd('../../../')
                 p.touch('/%s/endInfo' % str_dir,    d_endInfo.copy())
+
                 p.touch('/%s/jobCount' % str_dir,   jobCount)
                 jobCount        += 1
-        # print(p)
         self.dp.qprint('All jobs processed.')
 
     def json_filePart_get(self, **kwargs):
@@ -1269,7 +1173,9 @@ class Listener(threading.Thread):
             r.mkdir(str_path)
             r.cd(str_path)
             r.cd('../')
-            if not r.graft(p, str_path):
+            # if not r.graft(p, str_path):
+            # pudb.set_trace()
+            if not p.copy(startPath = str_path, destination = r)['status']:
                 # We are probably trying to access a file...
                 # First, remove the erroneous path in the return DB
                 r.rm(str_path)
@@ -1303,10 +1209,12 @@ class Listener(threading.Thread):
 
         # print(p)
         p.cd(pcwd)
+
         self.dp.qprint(r)
         self.dp.qprint(dict(r.snode_root))
-
         return dict(r.snode_root)
+
+        # return r
 
     def process(self, request, **kwargs):
         """ Process the message from remote client
@@ -1462,9 +1370,16 @@ class Listener(threading.Thread):
                 d_j = d_search[j]
                 for job in d_j.keys():
                     str_pathJob         = '/api/v1/' + job
+
                     d_job               = self.DB_get(path = str_pathJob)
                     Tj.initFromDict(d_job)
-                    Tdb.graft(Tj, '/')
+                    Tj.copy(startPath = '/', destination = Tdb)
+
+                    # Tdb.graft(Tj, '/')
+
+                    # self.DB_get(path = str_pathJob).copy(startPath = '/', destination = Tdb)
+
+
             print(Tdb)
             tree_DB     = Tdb
 

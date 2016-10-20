@@ -28,18 +28,14 @@
 import  os
 import  sys
 import  re
-import  copy
 from    string                  import  *
-import  shutil
 import  pickle
 import  json
 import  collections
 
 from    C_stringCore            import  *
-
-import  itertools
-
-# from    IPython.core.debugger   import Tracer; 
+import  message
+import  pudb
 
 class C_meta:
         """
@@ -410,6 +406,27 @@ class C_stree:
                 # return self.b_printMetaData
                 return True
 
+        def log(self, *args):
+            """
+            get/set the log object.
+
+            Caller can further manipulate the log object with object-specific
+            calls.
+            """
+            if len(args):
+                self._log = args[0]
+            else:
+                return self._log
+
+        def name(self, *args):
+            """
+            get/set the descriptive name text of this object.
+            """
+            if len(args):
+                self.__name = args[0]
+            else:
+                return self.__name
+
         def __init__(self, **kwargs):
             """
             Creates a tree structure and populates the "root"
@@ -419,6 +436,13 @@ class C_stree:
             # Member variables
             #
             #       - Core variables
+
+            self.debug                  = message.Message(logTo = './debug.log')
+            self.debug._b_syslog        = True
+            self._log                   = message.Message()
+            self._log._b_syslog         = True
+            self.__name                 = "C_stree"
+
             self.str_obj                = 'C_stree'     # name of object class
             self.str_name               = 'void'        # name of object variable
             self._id                    = -1            # id of agent
@@ -635,16 +659,17 @@ class C_stree:
             :param astr_dirSpec:
             :return:
             """
-            str_currentPath = self.cwd()
-            l_pathSpec = astr_dirSpec.split('/')
-            if not len(l_pathSpec[0]):
-                self.cd('/')
-                l_nodesDepth = l_pathSpec[1:]
-            else:
-                l_nodesDepth = l_pathSpec
-            for d in l_nodesDepth:
-                self.mkcd(d)
-            self.cd(str_currentPath)
+            if astr_dirSpec != '/' and astr_dirSpec != "//":
+                str_currentPath = self.cwd()
+                l_pathSpec = astr_dirSpec.split('/')
+                if not len(l_pathSpec[0]):
+                    self.cd('/')
+                    l_nodesDepth = l_pathSpec[1:]
+                else:
+                    l_nodesDepth = l_pathSpec
+                for d in l_nodesDepth:
+                    self.mkcd(d)
+                self.cd(str_currentPath)
 
         def mknode(self, al_branchNodes):
             """
@@ -688,7 +713,7 @@ class C_stree:
             a "dir" in the tree space
             """
 
-            return self.b_pathInTree(str_path)['valid']
+            return self.b_pathInTree(str_path)[0]
 
         def isfile(self, str_path):
             """
@@ -1152,6 +1177,109 @@ class C_stree:
                     'continue': False,
                     'message':  'pathDisk not specified'}
 
+        def node_copy(self, astr_pathInTree, **kwargs):
+            """
+            Typically called by the explore()/recurse() methods and of form:
+
+                f(pathInTree, **kwargs)
+
+            and returns dictionary of which one element is
+
+                'status':   True|False
+
+            recursion continuation flag is returned:
+
+                'continue': True|False
+
+            to signal calling parent whether or not to continue with tree
+            transversal.
+
+            Save the node specified by a path in the data tree of self
+            (the astr_pathInTree) to the passed data tree, relative to a
+            passed 'pathDiskRoot', i.e.
+
+                S.node_copy('/', destination = T, pathDiskRoot = '/some/path/in/T')
+
+            Will copy the items and "folders" in (source) S:/ to
+            (target) T:/some/path/in/T
+
+            :param kwargs:
+            :return:
+            """
+
+            # Here, 'T' is the target 'disk'.
+            T                   = None
+            str_pathDiskRoot    = ''
+            str_pathDiskFull    = ''
+            str_pathTree        = ''
+            str_pathTreeOrig    = self.pwd()
+            for key, val in kwargs.items():
+                if key == 'startPath':      str_pathTree        = val
+                if key == 'pathDiskRoot':   str_pathDiskRoot    = val
+                if key == 'destination':    T                   = val
+            str_pathDiskOrig    = T.pwd()
+            str_pathDiskFull    = str_pathDiskRoot + str_pathTree
+
+            self.debug('In node_copy... str_pathDiskfull = %s\n' % str_pathDiskFull)
+
+            if len(str_pathDiskFull):
+                if not T.isdir(str_pathDiskFull):
+                    try:
+                        T.mkdir(str_pathDiskFull)
+                    except:
+                        return {'status' :      False,
+                                'continue':     False,
+                                'message':      'unable to create pathDiskFull: %s' % str_pathDiskFull,
+                                'exception':    exception}
+                if T.cd(str_pathDiskFull)['status']:
+                    if self.cd(str_pathTree)['status']:
+                        T.cd(str_pathDiskFull)
+                        for str_filename, contents in self.snode_current.d_data.items():
+                            # print("str_filename = %s; contents = %s" % (str_filename, contents))
+                            T.touch(str_filename, contents)
+                    else:
+                        return{'status':    False,
+                               'continue':  False,
+                               'message':   'source pathTree invalid'}
+                    self.cd(str_pathTreeOrig)
+                    T.cd(str_pathDiskOrig)
+                    return {'status':   True,
+                            'continue': True}
+                else:
+                    return{'status':    False,
+                           'continue':  False,
+                           'message':   'target pathDiskFull invalid'}
+            return {'status':   False,
+                    'continue': False,
+                    'message':  'pathDiskFull not specified'}
+
+        def copy(self, **kwargs):
+            """
+
+            Convenience function/alias for tree_copy()
+
+            :param kwargs:
+            :return:
+            """
+            return self.tree_copy(**kwargs)
+
+
+        def tree_copy(self, **kwargs):
+            """
+            Deep copy "self" to a target <destination = T>.
+
+            Essentially, this creates/copies this self tree to
+            a target tree.
+
+            For kwargs, see node_save()
+
+            :param kwargs:
+            :return:
+            """
+            # pudb.set_trace()
+            kwargs['f']         = self.node_copy
+            return self.treeExplore(**kwargs)
+
         def tree_save(self, **kwargs):
             """
             Save a tree to disk.
@@ -1275,6 +1403,7 @@ class C_stree:
                             self.l_allPaths.append(l_recursePath)
                         kwargs['startPath'] = str_recursePath
                         self.treeExplore(**kwargs)
+            else: ret['status']  = False
             return ret
 
         def treeWalk(self, **kwargs):
@@ -1562,3 +1691,8 @@ if __name__ == "__main__":
     print('cTree = %s' % cTree)
     cTree.rm('/4/9/B/E/K')
     print('cTree = %s' % cTree)
+
+    dTree   = C_stree()
+    cTree.tree_copy(startPath   = '/a/b/file5',
+                    destination = dTree)
+    print('dTree = %s' % dTree)
