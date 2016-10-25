@@ -99,7 +99,12 @@ class debug(object):
         self.verbosity  = 0
         self.level      = 0
 
-        self.debug                  = message.Message(logTo = args.debugFile)
+        str_debugDir                = os.path.dirname(args.debugFile)
+        str_debugName               = os.path.basename(args.debugFile)
+        if not os.path.exists(str_debugDir):
+            os.makedirs(str_debugDir)
+        self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
+        self.debug                  = message.Message(logTo = self.str_debugFile)
         self.debug._b_syslog        = False
         self.debug._b_flushNewLine  = True
         self._log                   = message.Message()
