@@ -21,6 +21,8 @@ import  urllib
 import  datetime
 import  codecs
 
+import  pudb
+
 sys.path.append(os.path.join(os.path.dirname(__file__), './'))
 from    _colors         import  Colors
 from    crunner	        import  crunner
@@ -32,20 +34,29 @@ class Purl():
 
     def qprint(self, msg, **kwargs):
 
-        str_comms  = ""
+        str_comms  = "status"
         for k,v in kwargs.items():
             if k == 'comms':    str_comms  = v
 
+        if self.b_useDebug:
+            write   = self.debug
+        else:
+            write   = print
+
+        # pudb.set_trace()
+
         if not self.b_quiet:
-            if str_comms == 'status':   print(Colors.PURPLE,    end="")
-            if str_comms == 'error':    print(Colors.RED,       end="")
-            if str_comms == "tx":       print(Colors.YELLOW + "---->")
-            if str_comms == "rx":       print(Colors.GREEN  + "<----")
-            print('%s' % datetime.datetime.now() + " | ",       end="")
-            print(msg)
-            if str_comms == "tx":       print(Colors.YELLOW + "---->")
-            if str_comms == "rx":       print(Colors.GREEN  + "<----")
-            print(Colors.NO_COLOUR, end="")
+            if not self.b_useDebug:
+                if str_comms == 'status':   write(Colors.PURPLE,    end="")
+                if str_comms == 'error':    write(Colors.RED,       end="")
+                if str_comms == "tx":       write(Colors.YELLOW + "---->")
+                if str_comms == "rx":       write(Colors.GREEN  + "<----")
+                write('%s' % datetime.datetime.now() + " ",       end="")
+            write(' | ' + msg)
+            if not self.b_useDebug:
+                if str_comms == "tx":       write(Colors.YELLOW + "---->")
+                if str_comms == "rx":       write(Colors.GREEN  + "<----")
+                write(Colors.NO_COLOUR, end="")
 
     def col2_print(self, str_left, str_right):
         print(Colors.WHITE +
@@ -55,6 +66,16 @@ class Purl():
 
     def __init__(self, **kwargs):
         # threading.Thread.__init__(self)
+
+        # self._log                   = Message()
+        # self._log._b_syslog         = True
+        # self.__name                 = "Purl"
+        # self.b_useDebug             = False
+        #
+        # str_debugDir                = '%s/tmp' % os.environ['HOME']
+        # if not os.path.exists(str_debugDir):
+        #     os.makedirs(str_debugDir)
+        # self.str_debugFile          = '%s/debug-charm.log' % str_debugDir
 
         self.str_http           = ""
         self.str_ip             = ""
@@ -73,6 +94,8 @@ class Purl():
         self.auth               = ''
         self.str_jsonwrapper    = ''
         self.str_contentType    = ''
+        self.b_useDebug         = False
+        self.str_debugFile      = ''
 
         self.LC                 = 40
         self.RC                 = 40
@@ -84,16 +107,23 @@ class Purl():
                     self.d_msg              = json.loads(self.str_msg)
                 except:
                     pass
-            if key == 'http':       self.httpStr_parse( http    = val)
-            if key == 'auth':       self.str_auth               = val
-            if key == 'verb':       self.str_verb               = val
-            if key == 'contentType':self.str_contentType        = val
-            if key == 'ip':         self.str_ip                 = val
-            if key == 'port':       self.str_port               = val
-            if key == 'b_quiet':    self.b_quiet                = val
-            if key == 'b_raw':      self.b_raw                  = val
-            if key == 'man':        self.str_man                = val
-            if key == 'jsonwrapper':self.str_jsonwrapper        = val
+            if key == 'http':           self.httpStr_parse( http    = val)
+            if key == 'auth':           self.str_auth               = val
+            if key == 'verb':           self.str_verb               = val
+            if key == 'contentType':    self.str_contentType        = val
+            if key == 'ip':             self.str_ip                 = val
+            if key == 'port':           self.str_port               = val
+            if key == 'b_quiet':        self.b_quiet                = val
+            if key == 'b_raw':          self.b_raw                  = val
+            if key == 'man':            self.str_man                = val
+            if key == 'jsonwrapper':    self.str_jsonwrapper        = val
+            if key == 'useDebug':       self.b_useDebug             = val
+            if key == 'debugFile':      self.str_debugFile          = val
+
+        # if self.b_useDebug:
+        #     self.debug                  = Message(logTo = self.str_debugFile)
+        #     self.debug._b_syslog        = True
+        #     self.debug._b_flushNewLine  = True
 
         if len(self.str_man):
             print(self.man(on = self.str_man))
@@ -660,11 +690,16 @@ class Purl():
         else:
             self.qprint("Sending data...",
                         comms = 'status')
-        c.perform()
+        try:
+            c.perform()
+            str_response        = response.getvalue().decode()
+        except Exception as e:
+            str_exception   = str(e)
+            self.qprint('Execption trapped: %s' % str_exception)
+            str_response    = str_exception
         c.close()
 
-        str_response        = response.getvalue().decode()
-        self.qprint(str_response, comms = 'status')
+        self.qprint('response from call = %s' % str_response, comms = 'status')
         if self.b_raw:
             try:
                 d_ret           = json.loads(str_response)
@@ -678,7 +713,11 @@ class Purl():
             if 'status' in d_ret['stdout']:
                 d_ret['status']     = d_ret['stdout']['status']
             d_ret['msg']        = 'push OK.'
-        self.qprint(d_ret, comms = 'rx')
+
+        if isinstance(d_ret, object):
+            self.qprint(json.dumps(d_ret), comms = 'rx')
+        if isinstance(d_ret, str):
+            self.qprint(d_ret, comms = 'rx')
 
         return d_ret
 
