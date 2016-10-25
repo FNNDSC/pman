@@ -18,6 +18,9 @@ import  pprint
 import  platform
 from    functools       import  partial
 
+sys.path.append(os.path.join(os.path.dirname(__file__), './'))
+from    message         import  Message
+
 def synopsis(ab_shortOnly = False):
     str_scriptName  = os.path.basename(sys.argv[0])
     str_shortSynopsis = """
@@ -119,17 +122,56 @@ class debug(object):
         before printing.
     """
 
+    def log(self, *args):
+        """
+        get/set the log object.
+
+        Caller can further manipulate the log object with object-specific
+        calls.
+        """
+        if len(args):
+            self._log = args[0]
+        else:
+            return self._log
+
+    def name(self, *args):
+        """
+        get/set the descriptive name text of this object.
+        """
+        if len(args):
+            self.__name = args[0]
+        else:
+            return self.__name
+
     def __init__(self, **kwargs):
         """
         Constructor
         """
 
-        self.verbosity  = 0
-        self.level      = 0
+        self.verbosity              = 0
+        self.level                  = 0
+        self.b_useDebug             = False
+        self.str_debugTo            = ''
 
+        str_debug                   = '%s/tmp/debug-crunner.py' % os.environ['HOME']
         for k, v in kwargs.items():
-            if k == 'verbosity':    self.verbosity  = v
-            if k == 'level':        self.level      = v
+            if k == 'verbosity':    self.verbosity      = v
+            if k == 'level':        self.level          = v
+            if k == 'debugTo':      self.str_debugTo    = v
+            if k == 'debug':        self.b_useDebug     = v
+
+        if self.b_useDebug:
+            str_debugDir                = os.path.dirname(self.str_debugTo)
+            str_debugName               = os.path.basename(self.str_debugTo)
+            if not os.path.exists(str_debugDir) and len(self.str_debugTo):
+                os.makedirs(str_debugDir)
+            self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
+            self.debug                  = Message(logTo = self.str_debugFile)
+            self.debug._b_syslog        = False
+            self.debug._b_flushNewLine  = True
+            self._log                   = Message()
+            self._log._b_syslog         = True
+            self.__name                 = "crunner"
 
     def __call__(self, *args, **kwargs):
         self.qprint(*args, **kwargs)
@@ -149,16 +191,26 @@ class debug(object):
             if k == 'level':    self.level  = v
             if k == 'msg':      self.msg    = v
 
+        if self.b_useDebug:
+            write   = self.debug
+        else:
+            write   = print
+
         if len(args):
             self.msg    = args[0]
 
         if self.level <= self.verbosity:
-
-            print('%26s | %50s | %30s | ' % (
-                datetime.datetime.now(),
-                threading.current_thread(),
-                inspect.stack()[1][3]
-            ), end='')
+            if not self.b_useDebug:
+                write('%26s | %50s | %30s | ' % (
+                    datetime.datetime.now(),
+                    threading.current_thread(),
+                    inspect.stack()[1][3]
+                ), end='')
+            else:
+                write('| %50s | %30s | ' % (
+                    threading.current_thread(),
+                    inspect.stack()[1][3]
+                ), end='', syslog = True)
             for t in range(0, self.level): print("\t", end='')
             print(self.msg)
 
@@ -209,7 +261,6 @@ class crunner(object):
         :param kwargs:
         """
 
-
         self.b_shell            = True
         self.b_showStdOut       = True
         self.b_showStdErr       = True
@@ -259,9 +310,15 @@ class crunner(object):
 
         self.pp                 = pprint.PrettyPrinter(indent=4)
 
+        str_debugTo             = ''
+        b_debug                 = False
         for key, val in kwargs.items():
             if key == 'verbosity':  self.verbosity  = val
-        self.debug              = debug(verbosity = self.verbosity)
+            if key == 'debugTo':    str_debugTo     = val
+            if key == 'debug':      b_debug         = val
+        self.debug              = debug(verbosity   = self.verbosity,
+                                        debugTo     = str_debugTo,
+                                        debug       = b_debug)
 
     def __call__(self, str_cmd, **kwargs):
         """
@@ -1068,12 +1125,26 @@ if __name__ == '__main__':
         action  = 'store_true',
         default = False
     )
+    parser.add_argument(
+        '--debugToFile',
+        action  = 'store_true',
+        dest    = 'debugToFile',
+        default = False,
+        help    = 'If true, stream debugging info to file.'
+    )
+    parser.add_argument(
+        '--debugFile',
+        action  = 'store',
+        dest    = 'debugFile',
+        default = '%s/tmp/debug-crunner.log' % os.environ['HOME'],
+        help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
+    )
 
     args = parser.parse_args()
 
     verbosity   = int(args.verbosity)
 
-    d   = debug(verbosity = verbosity)
+    d           = debug(verbosity = verbosity)
     d.print('start module')
 
     # Create a crunner shell
