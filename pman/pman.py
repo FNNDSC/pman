@@ -46,19 +46,20 @@ import  socket
 import  queue
 from    functools       import  partial
 import  inspect
-import  crunner
 import  logging
-
-import  C_snode
-import  message
-from    _colors         import  Colors
-import  pfioh
 
 import  platform
 import  multiprocessing
 
 import  pudb
 
+# pman local dependencies
+from   ._colors           import Colors
+from   .crunner           import crunner
+from   .C_snode           import *
+from   .message           import Message
+from   .pfioh             import ThreadedHTTPServer as pfiohThreadedHTTPServer
+from   .pfioh             import StoreHandler as pfiohStoreHandler
 
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s')
@@ -98,19 +99,21 @@ class debug(object):
 
         self.verbosity  = 0
         self.level      = 0
+        debugFile = '/tmp/debug-pman.log'
+        debugToFile = False
 
-        str_debugDir                = os.path.dirname(args.debugFile)
-        str_debugName               = os.path.basename(args.debugFile)
+        str_debugDir                = os.path.dirname(debugFile)
+        str_debugName               = os.path.basename(debugFile)
         if not os.path.exists(str_debugDir):
             os.makedirs(str_debugDir)
         self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
-        self.debug                  = message.Message(logTo = self.str_debugFile)
+        self.debug                  = Message(logTo = self.str_debugFile)
         self.debug._b_syslog        = False
         self.debug._b_flushNewLine  = True
-        self._log                   = message.Message()
+        self._log                   = Message()
         self._log._b_syslog         = True
         self.__name                 = "pman"
-        self.b_useDebug             = args.debugToFile
+        self.b_useDebug             = debugToFile
 
         for k, v in kwargs.items():
             if k == 'verbosity':    self.verbosity  = v
@@ -323,7 +326,7 @@ class pman(object):
         print(Colors.LIGHT_BLUE +
               ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
 
-    def __init__(self, **kwargs):
+    def __init__(self, args):
         """
         Constructor
         """
@@ -331,7 +334,7 @@ class pman(object):
 
         # DB
         self.str_DBpath         = '/tmp/pman'
-        self._ptree             = C_snode.C_stree()
+        self._ptree             = C_stree()
         self.str_fileio         = 'json'
 
         # Comms
@@ -351,7 +354,7 @@ class pman(object):
         self.RC                 = 50
         self.dp                 = debug(verbosity=0, level=-1)
 
-        for key,val in kwargs.items():
+        for key,val in args.items():
             if key == 'protocol':   self.str_protocol   = val
             if key == 'IP':         self.str_IP         = val
             if key == 'port':       self.str_port       = val
@@ -397,7 +400,7 @@ class pman(object):
 
 
         # Read the DB from HDD
-        self._ptree             = C_snode.C_stree()
+        self._ptree             = C_stree()
         # self.DB_read()
         self.DB_fileIO(cmd = 'load')
 
@@ -411,7 +414,7 @@ class pman(object):
         """
         if os.path.isdir(self.str_DBpath):
             self.dp.qprint("Reading pman DB from disk...\n")
-            self._ptree = C_snode.C_stree.tree_load(
+            self._ptree = C_stree.tree_load(
                 pathDiskRoot    = self.str_DBpath,
                 loadJSON        = True,
                 loadPickle      = False)
@@ -475,14 +478,14 @@ class pman(object):
             if os.path.isdir(str_DBpath):
                 self.dp.qprint("Reading pman DB from disk...\n")
                 if self.str_fileio   == 'json':
-                    tree_DB = C_snode.C_stree.tree_load(
+                    tree_DB = C_stree.tree_load(
                         startPath       = '/',
                         pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
                         loadJSON        = True,
                         loadPickle      = False)
                 if self.str_fileio   == 'pickle':
-                    tree_DB = C_snode.C_stree.tree_load(
+                    tree_DB = C_stree.tree_load(
                         startPath       = '/',
                         pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
@@ -872,7 +875,7 @@ class Listener(threading.Thread):
         d_args['ip']        = d_ret['fileioIP']
         d_args['port']      = d_ret['fileioport']
 
-        server              = pfioh.ThreadedHTTPServer((d_args['ip'], int(d_args['port'])), pfioh.StoreHandler)
+        server              = pfiohThreadedHTTPServer((d_args['ip'], int(d_args['port'])), pfiohStoreHandler)
         server.setup(args   = d_args)
         self.dp.qprint("serveforever = %d" % d_meta['serveforever'])
         b_serveforever      = False
@@ -911,8 +914,8 @@ class Listener(threading.Thread):
         d_search    = self.t_search_process(request = d_request)['d_ret']
 
         p   = self._ptree
-        Ts  = C_snode.C_stree()
-        Te  = C_snode.C_stree()
+        Ts  = C_stree()
+        Te  = C_stree()
         for j in d_search.keys():
             d_j = d_search[j]
             for job in d_j.keys():
@@ -1195,7 +1198,7 @@ class Listener(threading.Thread):
         Returns part of the DB tree based on path spec in the URL
         """
 
-        r           = C_snode.C_stree()
+        r           = C_stree()
         p           = self._ptree
 
         pcwd        = p.cwd()
@@ -1426,8 +1429,8 @@ class Listener(threading.Thread):
             d_search    = self.t_search_process(request = d_request)['d_ret']
 
             p           = self._ptree
-            Tj          = C_snode.C_stree()
-            Tdb         = C_snode.C_stree()
+            Tj          = C_stree()
+            Tdb         = C_stree()
             for j in d_search.keys():
                 d_j = d_search[j]
                 for job in d_j.keys():
@@ -1528,7 +1531,7 @@ class Crunner(threading.Thread):
         self.queueAllDone       = queue.Queue()
 
         self.str_cmd            = ""
-        self.shell              = crunner.crunner(verbosity=0)
+        self.shell              = crunner(verbosity=0)
 
         for k,v in kwargs.items():
             if k == 'cmd':  self.str_cmd    = v

@@ -7,9 +7,9 @@ import  inspect
 import  types
 from    io          import  IOBase
 
-sys.path.append(os.path.join(os.path.dirname(__file__), './'))
-import  dgmsocket   as      dgm
-from    _colors     import  Colors
+# pman local dependencies
+from    .dgmsocket   import  C_dgmsocket
+from    ._colors     import  Colors
 
 class Message:
     '''
@@ -182,7 +182,7 @@ class Message:
             elif self._logFile == 'stdout':
                 self._logHandle = sys.stdout
             elif self.socket_parse(self._logFile):
-                self._logHandle = dgm.C_dgmsocket(
+                self._logHandle = C_dgmsocket(
                                             self._socketRemote,
                                             int(self._socketPort))
             else:

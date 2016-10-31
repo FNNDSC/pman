@@ -18,8 +18,8 @@ import  pprint
 import  platform
 from    functools       import  partial
 
-sys.path.append(os.path.join(os.path.dirname(__file__), './'))
-from    message         import  Message
+# pman local dependencies
+from    .message         import  Message
 
 def synopsis(ab_shortOnly = False):
     str_scriptName  = os.path.basename(sys.argv[0])

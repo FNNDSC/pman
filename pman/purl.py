@@ -19,13 +19,11 @@ import  os
 import  urllib
 import  datetime
 import  codecs
-
 import  pudb
 
-sys.path.append(os.path.join(os.path.dirname(__file__), './'))
-from    _colors         import  Colors
-from    crunner	        import  crunner
-from    pfioh           import  *
+# pman local dependencies
+from    ._colors         import  Colors
+from    .pfioh           import  *
 
 class Purl():
 
@@ -63,7 +61,7 @@ class Purl():
         print(Colors.LIGHT_BLUE +
               ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
 
-    def __init__(self, **kwargs):
+    def __init__(self, args):
         # threading.Thread.__init__(self)
 
         # self._log                   = Message()
@@ -99,7 +97,7 @@ class Purl():
         self.LC                 = 40
         self.RC                 = 40
 
-        for key,val in kwargs.items():
+        for key,val in args.items():
             if key == 'msg':
                 self.str_msg                = val
                 try:
