@@ -42,62 +42,9 @@ import  ast
 import  shutil
 import  datetime
 
-# This is probably an ugly hack...
-try:
-    from    ._colors        import Colors
-except:
-    from    _colors         import Colors
-
-class debug(object):
-    """
-        A simple class that provides some helper debug functions. Mostly
-        printing function/thread names and checking verbosity level
-        before printing.
-    """
-
-    def __init__(self, **kwargs):
-        """
-        Constructor
-        """
-
-        self.verbosity  = 0
-        self.level      = 0
-
-        for k, v in kwargs.items():
-            if k == 'verbosity':    self.verbosity  = v
-            if k == 'level':        self.level      = v
-
-    def __call__(self, *args, **kwargs):
-        self.pprint(*args, **kwargs)
-
-    def pprint(self, *args, **kwargs):
-            """
-            The "print" command for this object.
-
-            :param kwargs:
-            :return:
-            """
-
-            self.level  = 0
-            self.msg    = ""
-
-            for k, v in kwargs.items():
-                if k == 'level':    self.level  = v
-                if k == 'msg':      self.msg    = v
-
-            if len(args):
-                self.msg    = args[0]
-
-            if self.level <= self.verbosity:
-
-                print('%26s | %50s | %30s | ' % (
-                    datetime.datetime.now(),
-                    threading.current_thread(),
-                    inspect.stack()[1][3]
-                ), end='')
-                for t in range(0, self.level): print("\t", end='')
-                print(self.msg)
-
+# pman local dependencies
+from    ._colors        import Colors
+from   .debug             import debug
 
 class StoreHandler(BaseHTTPRequestHandler):
 

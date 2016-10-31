@@ -32,7 +32,6 @@ import  os
 import  threading
 import  zmq
 import  json
-import  argparse
 import  datetime
 from    webob           import  Response
 import  psutil
@@ -45,270 +44,19 @@ import  socket
 
 import  queue
 from    functools       import  partial
-import  inspect
-import  crunner
-import  logging
-
-import  C_snode
-import  message
-from    _colors         import  Colors
-import  pfioh
 
 import  platform
 import  multiprocessing
 
 import  pudb
 
-
-logging.basicConfig(level=logging.DEBUG,
-                    format='(%(threadName)-10s) %(message)s')
-
-class debug(object):
-    """
-        A simple class that provides some helper debug functions. Mostly
-        printing function/thread names and checking verbosity level
-        before printing.
-    """
-
-    def log(self, *args):
-        """
-        get/set the log object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
-
-    def __init__(self, **kwargs):
-        """
-        Constructor
-        """
-
-        self.verbosity  = 0
-        self.level      = 0
-
-        str_debugDir                = os.path.dirname(args.debugFile)
-        str_debugName               = os.path.basename(args.debugFile)
-        if not os.path.exists(str_debugDir):
-            os.makedirs(str_debugDir)
-        self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
-        self.debug                  = message.Message(logTo = self.str_debugFile)
-        self.debug._b_syslog        = False
-        self.debug._b_flushNewLine  = True
-        self._log                   = message.Message()
-        self._log._b_syslog         = True
-        self.__name                 = "pman"
-        self.b_useDebug             = args.debugToFile
-
-        for k, v in kwargs.items():
-            if k == 'verbosity':    self.verbosity  = v
-            if k == 'level':        self.level      = v
-
-    def __call__(self, *args, **kwargs):
-        self.qprint(*args, **kwargs)
-
-    def qprint(self, *args, **kwargs):
-        """
-        The "print" command for this object.
-
-        :param kwargs:
-        :return:
-        """
-
-        self.level  = 0
-        self.msg    = ""
-
-        for k, v in kwargs.items():
-            if k == 'level':    self.level  = v
-            if k == 'msg':      self.msg    = v
-
-        if len(args):
-            self.msg    = args[0]
-
-        if self.b_useDebug:
-            write   = self.debug
-        else:
-            write   = print
-
-        if self.level <= self.verbosity:
-
-            if self.b_useDebug:
-                write('| %50s | %30s | ' % (
-                    threading.current_thread(),
-                    inspect.stack()[1][3]
-                ), end='', syslog = True)
-            else:
-                write('%26s | %50s | %30s | ' % (
-                    datetime.datetime.now(),
-                    threading.current_thread(),
-                    inspect.stack()[1][3]
-                ), end='')
-            for t in range(0, self.level): write("\t", end='')
-            write(self.msg)
-
-class StoreHandler(BaseHTTPRequestHandler):
-
-    b_quiet     = False
-
-    def log(self, *args):
-        """
-        get/set the log object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
-
-    def __init__(self, *args, **kwargs):
-        """
-        """
-        BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
-        self.debug                  = Message(logTo = args.debugFile)
-        self.debug._b_syslog        = True
-        self.debug._b_flushNewLine  = True
-        self._log                   = Message()
-        self._log._b_syslog         = True
-        self.__name                 = "Charm"
-        self.b_useDebug             = args.debugToFile
-
-    def qprint(self, msg, **kwargs):
-
-        str_comms  = ""
-        for k,v in kwargs.items():
-            if k == 'comms':    str_comms  = v
-
-        if self.b_useDebug:
-            write   = self.debug
-        else:
-            write   = print
-
-        if not StoreHandler.b_quiet:
-            if str_comms == 'status':   write(Colors.PURPLE,    end="")
-            if str_comms == 'error':    write(Colors.RED,       end="")
-            if str_comms == "tx":       write(Colors.YELLOW + "<----")
-            if str_comms == "rx":       write(Colors.GREEN  + "---->")
-            write('%s' % datetime.datetime.now() + " | ",       end="")
-            write(msg)
-            if str_comms == "tx":       write(Colors.YELLOW + "<----")
-            if str_comms == "rx":       write(Colors.GREEN  + "---->")
-            write(Colors.NO_COLOUR, end="")
-
-    def do_POST(self):
-
-        # Parse the form data posted
-
-        self.qprint(str(self.headers), comms = 'rx')
-
-        length              = self.headers['content-length']
-        data                = self.rfile.read(int(length))
-        form                = self.form_get('POST', data)
-        d_form              = {}
-        d_ret               = {
-            'msg':      'In do_POST',
-            'status':   True,
-            'formsize': sys.getsizeof(form)
-        }
-
-        for key in form:
-            d_form[key]     = form.getvalue(key)
-
-        # d_msg               = json.loads(ast.literal_eval(d_form['d_msg']))
-        d_msg               = json.loads((d_form['d_msg']))
-        d_meta              = d_msg['meta']
-
-        self.qprint(d_msg, comms = 'rx')
-
-        if 'ctl' in d_meta:
-            self.do_POST_serverctl(d_meta)
-
-        if 'transport' in d_meta:
-            d_transport     = d_meta['transport']
-            if 'compress' in d_transport:
-                d_ret = self.do_POST_withCompression(
-                    data    = data,
-                    length  = length,
-                    form    = form,
-                    d_form  = d_form
-                )
-            if 'copy' in d_transport:
-                d_ret   = self.do_POST_withCopy(d_meta)
-
-        self.ret_client(d_ret)
-        return d_ret
-
-    def do_POST_serverctl(self, d_meta):
-        """
-        """
-        d_ctl               = d_meta['ctl']
-        self.qprint('Processing server ctl...', comms = 'status')
-        self.qprint(d_meta, comms = 'rx')
-        if 'serverCmd' in d_ctl:
-            if d_ctl['serverCmd'] == 'quit':
-                self.qprint('Shutting down server', comms = 'status')
-                d_ret = {
-                    'msg':      'Server shut down',
-                    'status':   True
-                }
-                self.qprint(d_ret, comms = 'tx')
-                self.ret_client(d_ret)
-                os._exit(0)
-
-
-class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    """
-    Handle requests in a separate thread.
-    """
-
-    def col2_print(self, str_left, str_right):
-        print(Colors.WHITE +
-              ('%*s' % (self.LC, str_left)), end='')
-        print(Colors.LIGHT_BLUE +
-              ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
-
-    def setup(self, **kwargs):
-        self.str_fileBase   = "received-"
-        self.LC             = 40
-        self.RC             = 40
-
-        self.str_unpackDir  = "/tmp/unpack"
-        self.b_removeZip    = False
-        self.args           = None
-
-        self.dp             = debug(verbosity=0, level=-1)
-
-        for k,v in kwargs.items():
-            if k == 'args': self.args   = v
-
-        self.dp.qprint(Colors.LIGHT_CYAN + str_desc)
-
-        self.col2_print("Listening on address:",    self.args['ip'])
-        self.col2_print("Listening on port:",       self.args['port'])
-
-        self.dp.qprint(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
+# pman local dependencies
+from   ._colors           import Colors
+from   .crunner           import crunner
+from   .C_snode           import *
+from   .debug             import debug
+from   .message           import Message
+from   .pfioh             import *
 
 class pman(object):
     """
@@ -331,7 +79,7 @@ class pman(object):
 
         # DB
         self.str_DBpath         = '/tmp/pman'
-        self._ptree             = C_snode.C_stree()
+        self._ptree             = C_stree()
         self.str_fileio         = 'json'
 
         # Comms
@@ -397,7 +145,7 @@ class pman(object):
 
 
         # Read the DB from HDD
-        self._ptree             = C_snode.C_stree()
+        self._ptree             = C_stree()
         # self.DB_read()
         self.DB_fileIO(cmd = 'load')
 
@@ -411,7 +159,7 @@ class pman(object):
         """
         if os.path.isdir(self.str_DBpath):
             self.dp.qprint("Reading pman DB from disk...\n")
-            self._ptree = C_snode.C_stree.tree_load(
+            self._ptree = C_stree.tree_load(
                 pathDiskRoot    = self.str_DBpath,
                 loadJSON        = True,
                 loadPickle      = False)
@@ -475,14 +223,14 @@ class pman(object):
             if os.path.isdir(str_DBpath):
                 self.dp.qprint("Reading pman DB from disk...\n")
                 if self.str_fileio   == 'json':
-                    tree_DB = C_snode.C_stree.tree_load(
+                    tree_DB = C_stree.tree_load(
                         startPath       = '/',
                         pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
                         loadJSON        = True,
                         loadPickle      = False)
                 if self.str_fileio   == 'pickle':
-                    tree_DB = C_snode.C_stree.tree_load(
+                    tree_DB = C_stree.tree_load(
                         startPath       = '/',
                         pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
@@ -911,8 +659,8 @@ class Listener(threading.Thread):
         d_search    = self.t_search_process(request = d_request)['d_ret']
 
         p   = self._ptree
-        Ts  = C_snode.C_stree()
-        Te  = C_snode.C_stree()
+        Ts  = C_stree()
+        Te  = C_stree()
         for j in d_search.keys():
             d_j = d_search[j]
             for job in d_j.keys():
@@ -1195,7 +943,7 @@ class Listener(threading.Thread):
         Returns part of the DB tree based on path spec in the URL
         """
 
-        r           = C_snode.C_stree()
+        r           = C_stree()
         p           = self._ptree
 
         pcwd        = p.cwd()
@@ -1426,8 +1174,8 @@ class Listener(threading.Thread):
             d_search    = self.t_search_process(request = d_request)['d_ret']
 
             p           = self._ptree
-            Tj          = C_snode.C_stree()
-            Tdb         = C_snode.C_stree()
+            Tj          = C_stree()
+            Tdb         = C_stree()
             for j in d_search.keys():
                 d_j = d_search[j]
                 for job in d_j.keys():
@@ -1567,81 +1315,3 @@ class Crunner(threading.Thread):
         self.queueStart.put({'allJobsStarted': True})
         self.queueEnd.put({'allJobsDone': True})
         # self.shell.exitOnDone()
-
-
-if __name__ == "__main__":
-
-    parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
-    str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-
-    parser.add_argument(
-        '--ip',
-        action  = 'store',
-        dest    = 'ip',
-        default = str_defIP,
-        help    = 'IP to connect.'
-    )
-    parser.add_argument(
-        '--port',
-        action  = 'store',
-        dest    = 'port',
-        default = '5010',
-        help    = 'Port to use.'
-    )
-    parser.add_argument(
-        '--protocol',
-        action  = 'store',
-        dest    = 'protocol',
-        default = 'tcp',
-        help    = 'Protocol to use.'
-    )
-    parser.add_argument(
-        '--raw',
-        action  = 'store',
-        dest    = 'raw',
-        default = '0',
-        help    = 'Router raw mode.'
-    )
-    parser.add_argument(
-        '--listeners',
-        action  = 'store',
-        dest    = 'listeners',
-        default = '1',
-        help    = 'Number of listeners.'
-    )
-    parser.add_argument(
-        '--http',
-        action  = 'store_true',
-        dest    = 'http',
-        default = False,
-        help    = 'Send HTTP formatted replies.'
-    )
-    parser.add_argument(
-        '--debugToFile',
-        action  = 'store_true',
-        dest    = 'debugToFile',
-        default = False,
-        help    = 'If true, stream debugging info to file.'
-    )
-    parser.add_argument(
-        '--debugFile',
-        action  = 'store',
-        dest    = 'debugFile',
-        default = '%s/tmp/debug-pman.log' % os.environ['HOME'],
-        help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
-    )
-
-    args    = parser.parse_args()
-
-    # server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
-    # server.setup(args = vars(args))
-
-    comm    = pman(
-                    IP          = args.ip,
-                    port        = args.port,
-                    protocol    = args.protocol,
-                    raw         = args.raw,
-                    listeners   = args.listeners,
-                    http        = args.http
-                    )
-    comm.start()

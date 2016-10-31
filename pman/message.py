@@ -7,9 +7,9 @@ import  inspect
 import  types
 from    io          import  IOBase
 
-sys.path.append(os.path.join(os.path.dirname(__file__), './'))
-import  dgmsocket   as      dgm
-from    _colors     import  Colors
+# pman local dependencies
+from    .dgmsocket   import  C_dgmsocket
+from    ._colors     import  Colors
 
 class Message:
     '''
@@ -182,7 +182,7 @@ class Message:
             elif self._logFile == 'stdout':
                 self._logHandle = sys.stdout
             elif self.socket_parse(self._logFile):
-                self._logHandle = dgm.C_dgmsocket(
+                self._logHandle = C_dgmsocket(
                                             self._socketRemote,
                                             int(self._socketPort))
             else:
@@ -382,75 +382,10 @@ class Message:
             if key == "syslogPrepend":  self._b_syslog          = int(value)
             if key == "logTo":          self.to(value)
             if key == 'tee':            self._b_tee             = value
-            
-        
-if __name__ == "__main__":
-    '''
-    __main__
-    '''
 
-    
-    log1 = Message()
-    log2 = Message()
-    
-    log1.syslog(True)
-    log1(Colors.RED + Colors.WHITE_BCKGRND + 'hello world!\n' + Colors.NO_COLOUR)
-
-    # Send message via datagram to 'pretoria' on port '1701'.
-    log1.to('pangea:1701')
-    log1('hello, pangea!\n');
-    log1('this has been sent over a datagram socket...\n')
-
-    # Now for some column width specs and 'debug' type messages
-    # These will all display on the console since debug=5 and the
-    # log1.verbosity(10) means that all debug tagged messages with
-    # level less-than-or-equal-to 10 will be passed.
-    log1.to('stdout')
-    log1.verbosity(10)
-    log1('starting process 1...', lw=90, debug=5)
-    log1('[ ok ]\n', rw=20, syslog=False, debug=5)
-    log1('parsing process 1 outputs...', lw=90, debug=5)
-    log1('[ ok ]\n', rw=20, syslog=False, debug=5)
-    log1('preparing final report...', lw=90, debug=5)
-    log1('[ ok ]\n', rw=20, syslog=False, debug=5)
-
-    log2.to('/tmp/log2.log')
-    log2.tee(True)
-    # A verbosity level of log2.verbosity(1) and a
-    # log2.to(sys.stdout) will not output any of the 
-    # following since the debug level for each message 
-    # is set to '5'. The verbosity should be at least
-    # log2.verbosity(5) for output to appear on the
-    # console.
-    # 
-    # If log2.tee(True) and log2.to('/tmp/log2.log')
-    # then all messages will be displayed regardless
-    # of the internal verbosity level.
-    log2.verbosity(1)   
-    log2('starting process 1...', lw=90, debug=5)
-    log2('[ ok ]\n', rw=20, syslog=False, debug=5)
-    log2('parsing process 1 outputs...', lw=90, debug=5)
-    log2('[ ok ]\n', rw=20, syslog=False, debug=5)
-    log2('preparing final report...', lw=90, debug=5)
-    log2('[ ok ]\n', rw=20, syslog=False, debug=5)
-
-    
-    log1.to('/tmp/test.log')
-    log1('and now to /tmp/test.log\n')
-
-    log2.to(open('/tmp/test2.log', 'a'))
-    log2('another message to /tmp/test2.log\n')
-    log2.tagstring('MARK-->')
-    log2('this text is tagged\n')
-    log2('and so is this text\n')
-    
-    log1.clear()
-    log1.append('this is message ')
-    log1.append('that is constructed over several ')
-    log1.append('function calls...\n')
-    log1.to('stdout')
-    log1()
-
-    log2.tag(False)
-    log2('goodbye!\n')
-    
+    def __del__(self):
+        if not ( isinstance(self._logFile, IOBase)
+            or (self._logFile == 'stdout')
+            or self.socket_parse(self._logFile) ):
+            # make sure we close the file we opened 
+            self._logHandle.close()
