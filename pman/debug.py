@@ -62,23 +62,15 @@ class debug(object):
     def __call__(self, *args, **kwargs):
         self.qprint(*args, **kwargs)
 
-    def qprint(self, *args, **kwargs):
+    def qprint(self, msg):
         """
         The "print" command for this object.
 
-        :param kwargs:
+        :param msg:
         :return:
         """
 
-        self.level  = 0
-        self.msg    = ""
-
-        for k, v in kwargs.items():
-            if k == 'level':    self.level  = v
-            if k == 'msg':      self.msg    = v
-
-        if len(args):
-            self.msg    = args[0]
+        self.msg = msg
 
         if self.b_useDebug:
             write   = self.debug

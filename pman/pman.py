@@ -55,160 +55,7 @@ from   .crunner           import crunner
 from   .C_snode           import *
 from   .debug             import debug
 from   .message           import Message
-from   .pfioh             import ThreadedHTTPServer as pfiohThreadedHTTPServer
-from   .pfioh             import StoreHandler       as pfiohStoreHandler
-
-class StoreHandler(BaseHTTPRequestHandler):
-
-    b_quiet     = False
-
-    def log(self, *args):
-        """
-        get/set the log object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
-
-    def __init__(self, *args, **kwargs):
-        """
-        """
-        BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
-        self.debug                  = Message(logTo = args.debugFile)
-        self.debug._b_syslog        = True
-        self.debug._b_flushNewLine  = True
-        self._log                   = Message()
-        self._log._b_syslog         = True
-        self.__name                 = "Charm"
-        self.b_useDebug             = args.debugToFile
-
-    def qprint(self, msg, **kwargs):
-
-        str_comms  = ""
-        for k,v in kwargs.items():
-            if k == 'comms':    str_comms  = v
-
-        if self.b_useDebug:
-            write   = self.debug
-        else:
-            write   = print
-
-        if not StoreHandler.b_quiet:
-            if str_comms == 'status':   write(Colors.PURPLE,    end="")
-            if str_comms == 'error':    write(Colors.RED,       end="")
-            if str_comms == "tx":       write(Colors.YELLOW + "<----")
-            if str_comms == "rx":       write(Colors.GREEN  + "---->")
-            write('%s' % datetime.datetime.now() + " | ",       end="")
-            write(msg)
-            if str_comms == "tx":       write(Colors.YELLOW + "<----")
-            if str_comms == "rx":       write(Colors.GREEN  + "---->")
-            write(Colors.NO_COLOUR, end="")
-
-    def do_POST(self):
-
-        # Parse the form data posted
-
-        self.qprint(str(self.headers), comms = 'rx')
-
-        length              = self.headers['content-length']
-        data                = self.rfile.read(int(length))
-        form                = self.form_get('POST', data)
-        d_form              = {}
-        d_ret               = {
-            'msg':      'In do_POST',
-            'status':   True,
-            'formsize': sys.getsizeof(form)
-        }
-
-        for key in form:
-            d_form[key]     = form.getvalue(key)
-
-        # d_msg               = json.loads(ast.literal_eval(d_form['d_msg']))
-        d_msg               = json.loads((d_form['d_msg']))
-        d_meta              = d_msg['meta']
-
-        self.qprint(d_msg, comms = 'rx')
-
-        if 'ctl' in d_meta:
-            self.do_POST_serverctl(d_meta)
-
-        if 'transport' in d_meta:
-            d_transport     = d_meta['transport']
-            if 'compress' in d_transport:
-                d_ret = self.do_POST_withCompression(
-                    data    = data,
-                    length  = length,
-                    form    = form,
-                    d_form  = d_form
-                )
-            if 'copy' in d_transport:
-                d_ret   = self.do_POST_withCopy(d_meta)
-
-        self.ret_client(d_ret)
-        return d_ret
-
-    def do_POST_serverctl(self, d_meta):
-        """
-        """
-        d_ctl               = d_meta['ctl']
-        self.qprint('Processing server ctl...', comms = 'status')
-        self.qprint(d_meta, comms = 'rx')
-        if 'serverCmd' in d_ctl:
-            if d_ctl['serverCmd'] == 'quit':
-                self.qprint('Shutting down server', comms = 'status')
-                d_ret = {
-                    'msg':      'Server shut down',
-                    'status':   True
-                }
-                self.qprint(d_ret, comms = 'tx')
-                self.ret_client(d_ret)
-                os._exit(0)
-
-
-class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    """
-    Handle requests in a separate thread.
-    """
-
-    def col2_print(self, str_left, str_right):
-        print(Colors.WHITE +
-              ('%*s' % (self.LC, str_left)), end='')
-        print(Colors.LIGHT_BLUE +
-              ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
-
-    def setup(self, **kwargs):
-        self.str_fileBase   = "received-"
-        self.LC             = 40
-        self.RC             = 40
-
-        self.str_unpackDir  = "/tmp/unpack"
-        self.b_removeZip    = False
-        self.args           = None
-
-        self.dp             = debug(verbosity=0, level=-1)
-
-        for k,v in kwargs.items():
-            if k == 'args': self.args   = v
-
-        self.dp.qprint(Colors.LIGHT_CYAN + str_desc)
-
-        self.col2_print("Listening on address:",    self.args['ip'])
-        self.col2_print("Listening on port:",       self.args['port'])
-
-        self.dp.qprint(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
+from   .pfioh             import *
 
 class pman(object):
     """
@@ -249,8 +96,7 @@ class pman(object):
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        print( args )
-        self.dp                 = debug(0,-1, args['debugToFile'], args['debugFile'])
+        self.dp                 = debug(verbosity=0, level=-1, debugToFile=args['debugToFile'], debugFile=args['debugFile'])
 
         for key,val in args.items():
             if key == 'protocol':   self.str_protocol   = val
@@ -261,6 +107,7 @@ class pman(object):
             if key == 'http':       self.b_http         = int(val)
             if key == 'within':     self.within         = val
 
+        print( self.dp )
         self.dp.qprint(Colors.YELLOW)
         self.dp.qprint("""
         \t+-----------------------------------------------+
@@ -402,7 +249,7 @@ class pman(object):
                 )
                 self.col2_print('Reading pman DB from disk:',
                                 'No DB found... creating empty default DB')
-            self.dp.qprint(Colors.NO_COLOUR, end='')
+            self.dp.qprint(Colors.NO_COLOUR)
 
     def start(self):
         """
@@ -495,7 +342,7 @@ class FileIO(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "FileIO"
         self.b_http             = False
-        self.dp                 = debug(0, -1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.str_DBpath         = "/tmp/pman"
 
@@ -531,7 +378,7 @@ class Listener(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "Listener"
         self.b_http             = False
-        self.dp                 = debug(0, -1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.poller             = None
         self.str_DBpath         = "/tmp/pman"
@@ -773,7 +620,7 @@ class Listener(threading.Thread):
         d_args['ip']        = d_ret['fileioIP']
         d_args['port']      = d_ret['fileioport']
 
-        server              = pfiohThreadedHTTPServer((d_args['ip'], int(d_args['port'])), pfiohStoreHandler)
+        server              = ThreadedHTTPServer((d_args['ip'], int(d_args['port'])), StoreHandler)
         server.setup(args   = d_args)
         self.dp.qprint("serveforever = %d" % d_meta['serveforever'])
         b_serveforever      = False
@@ -1369,7 +1216,7 @@ class Poller(threading.Thread):
 
         self.pollTime           = 10
 
-        self.dp                 = debug(0, -1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.str_cmd            = ""
         self.crunner            = None
@@ -1420,7 +1267,7 @@ class Crunner(threading.Thread):
 
     def __init__(self, **kwargs):
         self.__name             = "Crunner"
-        self.dp                 = debug(0, -1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.dp.qprint('starting crunner...', level=-1)
 
