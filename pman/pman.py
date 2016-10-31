@@ -96,7 +96,10 @@ class pman(object):
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        self.dp                 = debug(verbosity=0, level=-1, debugToFile=args['debugToFile'], debugFile=args['debugFile'])
+        self.debugToFile        = args.get('debugToFile', False)
+        self.debugFile          = args.get('debugFile', '/tmp/pman.debug')
+
+        self.dp                 = debug(verbosity=0, level=-1, debugToFile=self.debugToFile, debugFile=self.debugFile)
 
         for key,val in args.items():
             if key == 'protocol':   self.str_protocol   = val

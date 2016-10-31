@@ -1162,10 +1162,8 @@ class C_stree:
                         # print("str_filename = %s; contents = %s" % (str_filename, contents))
                         if b_saveJSON:
                             with open(str_filename, 'w')    as f: json.dump(contents,     f)
-                            f.close()
                         if b_savePickle:
                             with open(str_filename, 'wb')   as f: json.dump(contents,     f)
-                            f.close()
                 else:
                     return{'status':    False,
                            'continue':  False,
@@ -1339,11 +1337,9 @@ class C_stree:
                 if b_loadJSON:
                     with open(str_pathDiskRoot + '/' + f, 'r') as fp:
                         contents = json.load(fp)
-                        fp.close()
                 if b_loadPickle:
                     with open(str_pathDiskRoot + '/' + f, 'rb') as fp:
                         contents = pickle.load(fp)
-                        fp.close()
 
                 if rtree.cd(dirname)['status']:
                     rtree.touch(filename, contents)

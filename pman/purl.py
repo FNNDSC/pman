@@ -536,7 +536,6 @@ class Purl():
                         comms = 'status')
             with open(str_localFile, 'wb') as fh:
                 fh.write(str_response)
-                fh.close()
             d_ret['localOp']['stream']                  = {}
             d_ret['localOp']['stream']['status']        = True
             d_ret['localOp']['stream']['fileWritten']   = str_localFile

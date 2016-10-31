@@ -19,7 +19,7 @@ setup(
       url              =   'https://github.com/FNNDSC/pman',
       packages         =   ['pman'],
       package_dir      =   {'pman': 'pman'},
-      install_require  =   ['pycurl', 'pyzmq', 'webob', 'pudb'],
+      install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb'],
       test_suite       =   'nose.collector',
       tests_require    =   ['nose'],
       scripts=['bin/pman', 'bin/purl'],

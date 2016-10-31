@@ -503,7 +503,6 @@ class StoreHandler(BaseHTTPRequestHandler):
             d_ret['write']['filesize']  = "{:,}".format(os.stat(str_localFile).st_size)
             d_ret['status']             = True
             d_ret['msg']                = d_ret['write']['msg']
-        fh.close()
         if b_unpack and d_compress['archive'] == 'zip':
             d_fio   =   zip_process(action          = 'unzip',
                                     path            = str_unpackPath,
@@ -665,11 +664,9 @@ def base64_process(**kwargs):
         if len(str_fileToRead):
             with open(str_fileToRead, 'rb') as f:
                 data            = f.read()
-                f.close()
         data_b64            = base64.b64encode(data)
         with open(str_fileToSave, 'wb') as f:
             f.write(data_b64)
-            f.close()
         return {
             'msg':              'Encode successful',
             'fileProcessed':    str_fileToSave,
@@ -681,7 +678,6 @@ def base64_process(**kwargs):
         bytes_decoded     = base64.b64decode(data)
         with open(str_fileToSave, 'wb') as f:
             f.write(bytes_decoded)
-            f.close()
         return {
             'msg':              'Decode successful',
             'fileProcessed':    str_fileToSave,
