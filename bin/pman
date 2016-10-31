@@ -78,5 +78,14 @@ args = parser.parse_args()
 # server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
 # server.setup(args = vars(args))
 
-comm = pman.pman( vars(args) )
+comm = pman.pman(
+    IP          = args.ip,
+    port        = args.port,
+    protocol    = args.protocol,
+    raw         = args.raw,
+    listeners   = args.listeners,
+    http        = args.http,
+    debugToFile = args.debugToFile,
+    debugFile   = args.debugFile
+    )
 comm.start()

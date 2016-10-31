@@ -4,9 +4,8 @@ import pman
 
 class TestPman(TestCase):
     def test_pman_constructor(self):
-        options = {
-            'debugFile': '/tmp/debug.file'
-        }
-        myMan = pman.pman(options)
+        myMan = pman.pman(
+            debugFile = '/tmp/debug.file'
+            )
         # didn't crash
         self.assertTrue(True)

@@ -38,16 +38,25 @@ class debug(object):
         else:
             return self.__name
 
-    def __init__(self, verbosity=0, level=0, debugToFile=False, debugFile='/tmp/debug.log'):
+    def __init__(self, **kwargs):
         """
         Constructor
         """
 
-        self.verbosity  = verbosity
-        self.level      = level
+        self.verbosity  = 0
+        self.level      = 0
+        self.debugFile = '/tmp/debug.log'
+        self.debugToFile = False
 
-        str_debugDir                = os.path.dirname(debugFile)
-        str_debugName               = os.path.basename(debugFile)
+
+        for k, v in kwargs.items():
+            if k == 'verbosity':    self.verbosity  = v
+            if k == 'level':        self.level      = v
+            if k == 'debugFile':    self.debugToFile  = v
+            if k == 'debugToFile':  self.debugToFile      = v
+
+        str_debugDir                = os.path.dirname(self.debugFile)
+        str_debugName               = os.path.basename(self.debugFile)
         if not os.path.exists(str_debugDir):
             os.makedirs(str_debugDir)
         self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
@@ -57,20 +66,29 @@ class debug(object):
         self._log                   = Message()
         self._log._b_syslog         = True
         self.__name                 = "pman"
-        self.b_useDebug             = debugToFile
+        self.b_useDebug             = self.debugToFile
+
+
 
     def __call__(self, *args, **kwargs):
         self.qprint(*args, **kwargs)
 
-    def qprint(self, msg):
+    def qprint(self, *args, **kwargs):
         """
         The "print" command for this object.
-
-        :param msg:
+        :param kwargs:
         :return:
         """
 
-        self.msg = msg
+        self.level  = 0
+        self.msg    = ""
+
+        for k, v in kwargs.items():
+            if k == 'level':    self.level  = v
+            if k == 'msg':      self.msg    = v
+
+        if len(args):
+            self.msg    = args[0]
 
         if self.b_useDebug:
             write   = self.debug

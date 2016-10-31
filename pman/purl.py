@@ -61,7 +61,7 @@ class Purl():
         print(Colors.LIGHT_BLUE +
               ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
 
-    def __init__(self, args):
+    def __init__(self, **kwargs):
         # threading.Thread.__init__(self)
 
         # self._log                   = Message()

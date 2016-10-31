@@ -70,7 +70,7 @@ class pman(object):
         print(Colors.LIGHT_BLUE +
               ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
 
-    def __init__(self, args):
+    def __init__(self, **kwargs):
         """
         Constructor
         """
@@ -96,21 +96,21 @@ class pman(object):
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        self.debugToFile        = args.get('debugToFile', False)
-        self.debugFile          = args.get('debugFile', '/tmp/pman.debug')
+        self.debugToFile        = False
+        self.debugFile          = '/tmp/pman.debug'
 
-        self.dp                 = debug(verbosity=0, level=-1, debugToFile=self.debugToFile, debugFile=self.debugFile)
+        for key,val in kwargs.items():
+            if key == 'protocol':    self.str_protocol   = val
+            if key == 'IP':          self.str_IP         = val
+            if key == 'port':        self.str_port       = val
+            if key == 'raw':         self.router_raw     = int(val)
+            if key == 'listeners':   self.listeners      = int(val)
+            if key == 'http':        self.b_http         = int(val)
+            if key == 'within':      self.within         = val
+            if key == 'debugToFile': self.debugToFile    = val
+            if key == 'debugFile':   self.debugFile      = val
 
-        for key,val in args.items():
-            if key == 'protocol':   self.str_protocol   = val
-            if key == 'IP':         self.str_IP         = val
-            if key == 'port':       self.str_port       = val
-            if key == 'raw':        self.router_raw     = int(val)
-            if key == 'listeners':  self.listeners      = int(val)
-            if key == 'http':       self.b_http         = int(val)
-            if key == 'within':     self.within         = val
-
-        print( self.dp )
+        self.dp = debug(verbosity=0, level=-1, debugToFile=self.debugToFile, debugFile=self.debugFile)
         self.dp.qprint(Colors.YELLOW)
         self.dp.qprint("""
         \t+-----------------------------------------------+
