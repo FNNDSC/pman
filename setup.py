@@ -22,6 +22,6 @@ setup(
       install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil'],
       test_suite       =   'nose.collector',
       tests_require    =   ['nose'],
-      scripts          =   ['bin/pman', 'bin/purl'],
+      scripts          =   ['bin/crunner', 'bin/pfioh', 'bin/pman', 'bin/purl'],
       license          =   'MIT'
      )

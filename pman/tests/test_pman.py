@@ -1,10 +1,10 @@
 from unittest import TestCase
 
-import pman
+from pman import pman
 
 class TestPman(TestCase):
     def test_pman_constructor(self):
-        myMan = pman.pman(
+        myMan = pman(
             debugFile = '/tmp/debug.file'
             )
         # didn't crash

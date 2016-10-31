@@ -44,7 +44,7 @@ import  datetime
 
 # pman local dependencies
 from    ._colors        import Colors
-from   .debug             import debug
+from    .debug          import debug
 
 class StoreHandler(BaseHTTPRequestHandler):
 
@@ -688,61 +688,4 @@ def base64_process(**kwargs):
             'status':           True
             # 'decodedBytes':     bytes_decoded
         }
-
-
-def main():
-    str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-
-    parser  = argparse.ArgumentParser(description = str_desc)
-
-    parser.add_argument(
-        '--ip',
-        action  = 'store',
-        dest    = 'ip',
-        default = str_defIP,
-        help    = 'IP to connect.'
-    )
-    parser.add_argument(
-        '--port',
-        action  = 'store',
-        dest    = 'port',
-        default = '5055',
-        help    = 'Port to use.'
-    )
-    parser.add_argument(
-        '--quiet',
-        help    = 'if specified, only echo JSON output from server response',
-        dest    = 'b_quiet',
-        action  = 'store_true',
-        default = False
-    )
-    parser.add_argument(
-        '--man',
-        help    = 'request help',
-        dest    = 'man',
-        action  = 'store',
-        default = ''
-    )
-    parser.add_argument(
-        '--forever',
-        help    = 'if specified, serve forever, otherwise terminate after single service.',
-        dest    = 'b_forever',
-        action  = 'store_true',
-        default = False
-    )
-
-    args            = parser.parse_args()
-    args.port       = int(args.port)
-
-    # print(vars(args))
-    server          = ThreadedHTTPServer((args.ip, args.port), StoreHandler)
-    server.setup(args = vars(args))
-
-    if args.b_forever:
-        server.serve_forever()
-    else:
-        server.handle_request()
-    
-if __name__ == "__main__":
-    main()
         

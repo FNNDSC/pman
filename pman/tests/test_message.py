@@ -1,14 +1,15 @@
 from unittest import TestCase
 
-import pman
+from pman import Message
+from pman import Colors
 
 class TestMessage(TestCase):
     def test_message_constructor(self):
-        message1 = pman.Message()
-        message2 = pman.Message()
+        message1 = Message()
+        message2 = Message()
 
         message1.syslog(True)
-        message1(pman.Colors.RED + pman.Colors.WHITE_BCKGRND + 'hello world!\n' + pman.Colors.NO_COLOUR)
+        message1(Colors.RED + Colors.WHITE_BCKGRND + 'hello world!\n' + Colors.NO_COLOUR)
 
         # Send message via datagram to 'pangea' on port '1701'.
         # message1.to('pangea:1701')
