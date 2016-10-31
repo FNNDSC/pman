@@ -32,8 +32,6 @@ import  os
 import  threading
 import  zmq
 import  json
-import  argparse
-import  datetime
 from    webob           import  Response
 import  psutil
 import  uuid
@@ -45,8 +43,6 @@ import  socket
 
 import  queue
 from    functools       import  partial
-import  inspect
-import  logging
 
 import  platform
 import  multiprocessing
@@ -57,109 +53,10 @@ import  pudb
 from   ._colors           import Colors
 from   .crunner           import crunner
 from   .C_snode           import *
+from   .debug             import debug
 from   .message           import Message
 from   .pfioh             import ThreadedHTTPServer as pfiohThreadedHTTPServer
-from   .pfioh             import StoreHandler as pfiohStoreHandler
-
-logging.basicConfig(level=logging.DEBUG,
-                    format='(%(threadName)-10s) %(message)s')
-
-class debug(object):
-    """
-        A simple class that provides some helper debug functions. Mostly
-        printing function/thread names and checking verbosity level
-        before printing.
-    """
-
-    def log(self, *args):
-        """
-        get/set the log object.
-
-        Caller can further manipulate the log object with object-specific
-        calls.
-        """
-        if len(args):
-            self._log = args[0]
-        else:
-            return self._log
-
-    def name(self, *args):
-        """
-        get/set the descriptive name text of this object.
-        """
-        if len(args):
-            self.__name = args[0]
-        else:
-            return self.__name
-
-    def __init__(self, **kwargs):
-        """
-        Constructor
-        """
-
-        self.verbosity  = 0
-        self.level      = 0
-        debugFile = '/tmp/debug-pman.log'
-        debugToFile = False
-
-        str_debugDir                = os.path.dirname(debugFile)
-        str_debugName               = os.path.basename(debugFile)
-        if not os.path.exists(str_debugDir):
-            os.makedirs(str_debugDir)
-        self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
-        self.debug                  = Message(logTo = self.str_debugFile)
-        self.debug._b_syslog        = False
-        self.debug._b_flushNewLine  = True
-        self._log                   = Message()
-        self._log._b_syslog         = True
-        self.__name                 = "pman"
-        self.b_useDebug             = debugToFile
-
-        for k, v in kwargs.items():
-            if k == 'verbosity':    self.verbosity  = v
-            if k == 'level':        self.level      = v
-
-    def __call__(self, *args, **kwargs):
-        self.qprint(*args, **kwargs)
-
-    def qprint(self, *args, **kwargs):
-        """
-        The "print" command for this object.
-
-        :param kwargs:
-        :return:
-        """
-
-        self.level  = 0
-        self.msg    = ""
-
-        for k, v in kwargs.items():
-            if k == 'level':    self.level  = v
-            if k == 'msg':      self.msg    = v
-
-        if len(args):
-            self.msg    = args[0]
-
-        if self.b_useDebug:
-            write   = self.debug
-        else:
-            write   = print
-
-        if self.level <= self.verbosity:
-
-            if self.b_useDebug:
-                write('| %50s | %30s | ' % (
-                    threading.current_thread(),
-                    inspect.stack()[1][3]
-                ), end='', syslog = True)
-            else:
-                write('%26s | %50s | %30s | ' % (
-                    datetime.datetime.now(),
-                    threading.current_thread(),
-                    inspect.stack()[1][3]
-                ), end='')
-            for t in range(0, self.level): write("\t", end='')
-            write(self.msg)
+from   .pfioh             import StoreHandler       as pfiohStoreHandler
 
 class StoreHandler(BaseHTTPRequestHandler):
 
@@ -352,7 +249,8 @@ class pman(object):
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        self.dp                 = debug(verbosity=0, level=-1)
+        print( args )
+        self.dp                 = debug(0,-1, args['debugToFile'], args['debugFile'])
 
         for key,val in args.items():
             if key == 'protocol':   self.str_protocol   = val
@@ -597,7 +495,7 @@ class FileIO(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "FileIO"
         self.b_http             = False
-        self.dp                 = debug(verbosity=0, level=-1)
+        self.dp                 = debug(0, -1)
 
         self.str_DBpath         = "/tmp/pman"
 
@@ -633,7 +531,7 @@ class Listener(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "Listener"
         self.b_http             = False
-        self.dp                 = debug(verbosity=0, level=-1)
+        self.dp                 = debug(0, -1)
 
         self.poller             = None
         self.str_DBpath         = "/tmp/pman"
@@ -1471,7 +1369,7 @@ class Poller(threading.Thread):
 
         self.pollTime           = 10
 
-        self.dp                 = debug(verbosity=0, level=-1)
+        self.dp                 = debug(0, -1)
 
         self.str_cmd            = ""
         self.crunner            = None
@@ -1522,7 +1420,7 @@ class Crunner(threading.Thread):
 
     def __init__(self, **kwargs):
         self.__name             = "Crunner"
-        self.dp                 = debug(verbosity=0, level=-1)
+        self.dp                 = debug(0, -1)
 
         self.dp.qprint('starting crunner...', level=-1)
 
