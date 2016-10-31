@@ -191,7 +191,7 @@ class Message:
         else:
             return self._logFile
             
-            
+       
     def vprintf(self, alevel, format, *args):
         '''
         A verbosity-aware printf.
@@ -383,7 +383,15 @@ class Message:
             if key == "logTo":          self.to(value)
             if key == 'tee':            self._b_tee             = value
             
-        
+
+    def __del__(self):
+        if not ( isinstance(self._logFile, IOBase)
+            or (self._logFile == 'stdout')
+            or self.socket_parse(self._logFile) ):
+            # make sure we close the file we opened 
+            self._logHandle.close()
+
+
 if __name__ == "__main__":
     '''
     __main__
