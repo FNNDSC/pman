@@ -48,6 +48,12 @@ Modules
    # in yourscript.py
    import pman
 
+   options = {
+     'debugFile': '/tmp/debug.file'
+   }
+
+   pman.pman(options)
+
 
 ***************
 4. More
