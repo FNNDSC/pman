@@ -105,15 +105,16 @@ parser.add_argument(
 
 args    = parser.parse_args()
 purl  = pman.Purl(
-    msg         = args.msg,
-    http        = args.http,
-    verb        = args.verb,
-    contentType = args.contentType,
-    auth        = args.auth,
-    b_raw       = args.b_raw,
-    b_quiet     = args.b_quiet,
-    jsonwrapper = args.jsonwrapper,
-    man         = args.man
+    msg          = args.msg,
+    http         = args.http,
+    verb         = args.verb,
+    contentType  = args.contentType,
+    auth         = args.auth,
+    b_raw        = args.b_raw,
+    b_quiet      = args.b_quiet,
+    jsonwrapper  = args.jsonwrapper,
+    man          = args.man,
+    startFromCLI = True
     )
 
 if not args.jsonpprintindent:
