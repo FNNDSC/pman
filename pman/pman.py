@@ -1276,7 +1276,7 @@ class Crunner(threading.Thread):
         self.queueAllDone       = queue.Queue()
 
         self.str_cmd            = ""
-        self.shell              = crunner.crunner(verbosity=0)
+        self.shell              = crunner(verbosity=0)
 
         for k,v in kwargs.items():
             if k == 'cmd':  self.str_cmd    = v
