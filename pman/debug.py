@@ -46,28 +46,28 @@ class debug(object):
 
         self.verbosity   = 0
         self.level       = 0
+        self.b_useDebug  = False
         self.debugToFile = False
         self.debugFile   = '/tmp/pman.debug'
 
         for k, v in kwargs.items():
-            if k == 'verbosity':    self.verbosity  = v
-            if k == 'level':        self.level      = v
-            if k == 'debugToFile':  self.debugToFile      = v
-            if k == 'debugFile':    self.debugFile      = v
+            if k == 'verbosity':    self.verbosity    = v
+            if k == 'level':        self.level        = v
+            if k == 'debugToFile':  self.debugToFile  = v
+            if k == 'debugFile':    self.debugFile    = v
 
-        self.str_debugDir = os.path.dirname(self.debugFile)
-        self.str_debugName = os.path.basename(self.debugFile)
-
-        if not os.path.exists(self.str_debugDir):
-            os.makedirs(self.str_debugDir)
-        self.str_debugFile          = '%s/%s' % (self.str_debugDir, self.str_debugName)
-        self.debug                  = Message(logTo = self.str_debugFile)
-        self.debug._b_syslog        = False
-        self.debug._b_flushNewLine  = True
+        if self.b_useDebug:
+            self.str_debugDir = os.path.dirname(self.debugFile)
+            self.str_debugName = os.path.basename(self.debugFile)
+            if not os.path.exists(self.str_debugDir):
+                os.makedirs(self.str_debugDir)
+            self.str_debugFile          = '%s/%s' % (self.str_debugDir, self.str_debugName)
+            self.debug                  = Message(logTo = self.str_debugFile)
+            self.debug._b_syslog        = False
+            self.debug._b_flushNewLine  = True
         self._log                   = Message()
         self._log._b_syslog         = True
         self.__name                 = "pman"
-        self.b_useDebug             = self.debugToFile
 
     def __call__(self, *args, **kwargs):
         self.qprint(*args, **kwargs)

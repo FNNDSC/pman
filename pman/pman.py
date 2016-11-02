@@ -94,19 +94,32 @@ class pman(object):
         self.auid               = ''
         self.jid                = ''
 
+        # Debug parameters
+        self.str_debugFile      = ''
+        self.b_debugToFile      = False
+
+        # Debug parameters
+        self.str_debugFile      = ''
+        self.b_debugToFile      = False
+
+        for key,val in kwargs.items():
+            if key == 'protocol':       self.str_protocol   = val
+            if key == 'IP':             self.str_IP         = val
+            if key == 'port':           self.str_port       = val
+            if key == 'raw':            self.router_raw     = int(val)
+            if key == 'listeners':      self.listeners      = int(val)
+            if key == 'http':           self.b_http         = int(val)
+            if key == 'within':         self.within         = val
+            if key == 'debugFile':      self.str_debugFile  = val
+            if key == 'debugToFile':    self.b_debugToFile  = val
+
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        self.dp                 = debug(verbosity=0, level=-1)
-
-        for key,val in kwargs.items():
-            if key == 'protocol':   self.str_protocol   = val
-            if key == 'IP':         self.str_IP         = val
-            if key == 'port':       self.str_port       = val
-            if key == 'raw':        self.router_raw     = int(val)
-            if key == 'listeners':  self.listeners      = int(val)
-            if key == 'http':       self.b_http         = int(val)
-            if key == 'within':     self.within         = val
+        self.dp                 = debug(    verbosity   = 0,
+                                            level       = -1,
+                                            debugFile   = self.str_debugFile,
+                                            debugToFile = self.b_debugToFile)
 
         self.dp.qprint(Colors.YELLOW)
         self.dp.qprint("""

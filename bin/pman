@@ -11,7 +11,7 @@
 # import sys, os
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-import argparse, socket, os, pman
+import argparse, socket, os, threading, pman
 
 parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
 str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
@@ -72,7 +72,13 @@ parser.add_argument(
     default = '%s/tmp/debug-pman.log' % os.environ['HOME'],
     help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
 )
-
+parser.add_argument(
+    '--threaded',
+    action  = 'store_true',
+    dest    = 'threaded',
+    default = False,
+    help    = 'Start server in its own thread.'
+)
 args = parser.parse_args()
 
 # server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
@@ -86,6 +92,11 @@ comm = pman.pman(
     listeners   = args.listeners,
     http        = args.http,
     debugToFile = args.debugToFile,
-    debugFile   = args.debugFile
+    debugFile   = args.debugFile,
     )
-comm.start()
+
+if args.threaded == True:
+    threaded_pman  = threading.Thread(target=comm.start)
+    threaded_pman.start()
+else:
+    comm.start()
