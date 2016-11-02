@@ -376,7 +376,7 @@ class Message:
         self._processName       = os.path.basename(
                                     inspect.stack()[-1][0].f_code.co_filename)
         self._pid               = os.getpid()
-
+        self.IOBase = IOBase # if we do not do that __del__ raises an error
         self.to(self._logFile)
         for key, value in kwargs.items():
             if key == "syslogPrepend":  self._b_syslog          = int(value)
@@ -384,7 +384,7 @@ class Message:
             if key == 'tee':            self._b_tee             = value
 
     def __del__(self):
-        if not ( isinstance(self._logFile, IOBase)
+        if not ( isinstance(self._logFile, self.IOBase)
             or (self._logFile == 'stdout')
             or self.socket_parse(self._logFile) ):
             # make sure we close the file we opened 
