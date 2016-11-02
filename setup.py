@@ -11,7 +11,7 @@ def readme():
 
 setup(
       name             =   'pman',
-      version          =   '0.5.1',
+      version          =   '0.7',
       description      =   '(Python) Process Manager',
       long_description =   readme(),
       author           =   'Rudolph Pienaar',
@@ -22,5 +22,6 @@ setup(
       test_suite       =   'nose.collector',
       tests_require    =   ['nose'],
       scripts          =   ['bin/crunner', 'bin/pfioh', 'bin/pman', 'bin/purl'],
-      license          =   'MIT'
+      license          =   'MIT',
+      zip_safe=False
      )

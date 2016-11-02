@@ -37,7 +37,7 @@ class Purl():
         for k,v in kwargs.items():
             if k == 'comms':    str_comms  = v
 
-        if self.b_useDebug:
+        if ( self.b_useDebug and (self.debug != None) ):
             write   = self.debug
         else:
             write   = print
