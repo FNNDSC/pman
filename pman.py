@@ -46,9 +46,10 @@ import  socket
 import  queue
 from    functools       import  partial
 import  inspect
-import  crunner
 import  logging
 
+sys.path.append(os.path.join(os.path.dirname(__file__), './'))
+import  crunner
 import  C_snode
 import  message
 from    _colors         import  Colors
@@ -99,22 +100,27 @@ class debug(object):
         self.verbosity  = 0
         self.level      = 0
 
-        str_debugDir                = os.path.dirname(args.debugFile)
-        str_debugName               = os.path.basename(args.debugFile)
-        if not os.path.exists(str_debugDir):
-            os.makedirs(str_debugDir)
-        self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
-        self.debug                  = message.Message(logTo = self.str_debugFile)
-        self.debug._b_syslog        = False
-        self.debug._b_flushNewLine  = True
+        self.b_useDebug             = False
+        self.str_debugDirFile       = '/tmp'
+        for k, v in kwargs.items():
+            if k == 'verbosity':    self.verbosity          = v
+            if k == 'level':        self.level              = v
+            if k == 'debugToFile':  self.b_useDebug         = v
+            if k == 'debugFile':    self.str_debugDirFile   = v
+
+        if self.b_useDebug:
+            str_debugDir                = os.path.dirname(self.str_debugDirFile)
+            str_debugName               = os.path.basename(self.str_debugDirFile)
+            if not os.path.exists(str_debugDir):
+                os.makedirs(str_debugDir)
+            self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
+            self.debug                  = message.Message(logTo = self.str_debugFile)
+            self.debug._b_syslog        = False
+            self.debug._b_flushNewLine  = True
         self._log                   = message.Message()
         self._log._b_syslog         = True
         self.__name                 = "pman"
-        self.b_useDebug             = args.debugToFile
 
-        for k, v in kwargs.items():
-            if k == 'verbosity':    self.verbosity  = v
-            if k == 'level':        self.level      = v
 
     def __call__(self, *args, **kwargs):
         self.qprint(*args, **kwargs)
@@ -192,7 +198,7 @@ class StoreHandler(BaseHTTPRequestHandler):
         self.debug._b_flushNewLine  = True
         self._log                   = Message()
         self._log._b_syslog         = True
-        self.__name                 = "Charm"
+        self.__name                 = "pman"
         self.b_useDebug             = args.debugToFile
 
     def qprint(self, msg, **kwargs):
@@ -346,19 +352,28 @@ class pman(object):
         self.auid               = ''
         self.jid                = ''
 
+        # Debug parameters
+        self.str_debugFile      = ''
+        self.b_debugToFile      = False
+
+        for key,val in kwargs.items():
+            if key == 'protocol':       self.str_protocol   = val
+            if key == 'IP':             self.str_IP         = val
+            if key == 'port':           self.str_port       = val
+            if key == 'raw':            self.router_raw     = int(val)
+            if key == 'listeners':      self.listeners      = int(val)
+            if key == 'http':           self.b_http         = int(val)
+            if key == 'within':         self.within         = val
+            if key == 'debugFile':      self.str_debugFile  = val
+            if key == 'debugToFile':    self.b_debugToFile  = val
+
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        self.dp                 = debug(verbosity=0, level=-1)
-
-        for key,val in kwargs.items():
-            if key == 'protocol':   self.str_protocol   = val
-            if key == 'IP':         self.str_IP         = val
-            if key == 'port':       self.str_port       = val
-            if key == 'raw':        self.router_raw     = int(val)
-            if key == 'listeners':  self.listeners      = int(val)
-            if key == 'http':       self.b_http         = int(val)
-            if key == 'within':     self.within         = val
+        self.dp                 = debug(    verbosity   = 0,
+                                            level       = -1,
+                                            debugFile   = self.str_debugFile,
+                                            debugToFile = self.b_debugToFile)
 
         self.dp.qprint(Colors.YELLOW)
         self.dp.qprint("""
@@ -1642,6 +1657,11 @@ if __name__ == "__main__":
                     protocol    = args.protocol,
                     raw         = args.raw,
                     listeners   = args.listeners,
-                    http        = args.http
-                    )
-    comm.start()
+                    http        = args.http,
+                    debugToFile = args.debugToFile,
+                    debugFile   = args.debugFile
+            )
+
+    # Start the server in its own thread
+    threaded_pman  = threading.Thread(target=comm.start)
+    threaded_pman.start()
