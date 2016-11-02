@@ -41,10 +41,10 @@ for the pid and status of job "1", for example
 
 ## Dependencies
 
-On Ubuntu, 'pman' relies on <tt>webob</tt> and <tt>zmq</tt>
+On Ubuntu, 'pman' requires several ssl packages in order to have its required dependencies (<tt>pycurl<tt>) installed properly.
 
 ```
-sudo apt install python-zmq python-webob
+sudo apt install libssl-dev libcurl4-openssl-dev
 ```
 
 Also, a useful CLI REST tool is the python <tt>http</tt>
