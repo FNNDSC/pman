@@ -316,6 +316,20 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
         self.dp.qprint(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
 
+class StoppableThread(threading.Thread):
+    """Thread class with a stop() method. The thread itself has to check
+    regularly for the stopped() condition."""
+
+    def __init__(self, *args, **kwargs):
+        super(StoppableThread, self).__init__(*args, **kwargs)
+        self._stop = threading.Event()
+
+    def stop(self):
+        self._stop.set()
+
+    def stopped(self):
+        return self._stop.isSet()
+
 class pman(object):
     """
     The server class for the pman (process manager) server
@@ -334,6 +348,9 @@ class pman(object):
         Constructor
         """
         self.within             = None                      # An encapsulating object
+
+        # The main server function
+        self.threaded_server    = None
 
         # DB
         self.str_DBpath         = '/tmp/pman'
@@ -518,6 +535,25 @@ class pman(object):
                                 'No DB found... creating empty default DB')
             self.dp.qprint(Colors.NO_COLOUR, end='')
 
+    def thread_serve(self):
+        """
+        Serve the 'start' method in a thread.
+        :return:
+        """
+        self.threaded_server  = StoppableThread(target=comm.start)
+        self.threaded_server.start()
+
+        while not self.threaded_server.stopped():
+            time.sleep(5)
+
+        self.dp.qprint("setting b_stopThread on all listeners...")
+        for i in range(0, self.listeners):
+            self.dp.qprint("b_stopThread on listener %d..." % i)
+            self.l_listener[i].b_stopThread = True
+
+        self.dp.qprint("stop set... calling exit() on all this thread...")
+        self.threaded_server.join()
+
     def start(self):
         """
             Main execution.
@@ -555,19 +591,24 @@ class pman(object):
         socket_back.bind('inproc://backend')
 
         # Start the 'fileIO' thread
-        fileIO      = FileIO(       timout      = 60,
+        fileIO      = FileIO(       timeout     = 60,
                                     within      = self)
         fileIO.start()
 
-        # Start the 'listener' workers.
-        for i in range(1,self.listeners+1):
-            listener = Listener(    id          = i,
+        # Start the 'listener' workers... keep track of each
+        # listener instance so that we can selectively stop
+        # them later.
+
+        self.l_listener     = []
+        for i in range(0, self.listeners):
+            self.l_listener.append(Listener(
+                                    id          = i,
                                     context     = self.zmq_context,
                                     DB          = self._ptree,
                                     DBpath      = self.str_DBpath,
                                     http        = self.b_http,
-                                    within      = self)
-            listener.start()
+                                    within      = self))
+            self.l_listener[i].start()
 
         # Use built in queue device to distribute requests among workers.
         # What queue device does internally is,
@@ -655,6 +696,7 @@ class Listener(threading.Thread):
         self.auid               = ''
 
         self.within             = None
+        self.b_stopThread       = False
 
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
@@ -675,7 +717,7 @@ class Listener(threading.Thread):
         socket.connect('inproc://backend')
 
         result = True
-        while True:
+        while not self.b_stopThread:
             self.dp.qprint(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id)
             # First string received is socket ID of client
             client_id   = socket.recv()
@@ -704,7 +746,9 @@ class Listener(threading.Thread):
                     socket.send(str_res.encode())
                 else:
                     socket.send(str_payload)
-                if result['action'] == 'quit': os._exit(1)
+                # if result['action'] == 'quit': os._exit(1)
+        self.dp.qprint('Listnener ID - %s: Returning from run()...' % self.worker_id)
+        return True
 
     def t_search_process(self, *args, **kwargs):
         """
@@ -844,7 +888,9 @@ class Listener(threading.Thread):
             self.dp.qprint("Saving DB...")
             self.within.DB_fileIO(cmd = 'save')
 
-        os._exit(0)
+        self.dp.qprint('calling threaded_server.stop()')
+        self.within.threaded_server.stop()
+        self.dp.qprint('called threaded_server.stop()')
 
         return {'d_ret':    d_ret,
                 'status':   True}
@@ -1663,5 +1709,4 @@ if __name__ == "__main__":
             )
 
     # Start the server in its own thread
-    threaded_pman  = threading.Thread(target=comm.start)
-    threaded_pman.start()
+    comm.thread_serve()
