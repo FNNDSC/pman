@@ -8,8 +8,8 @@
 #
 
 # FOR DEV PURPOSE
-# import sys, os
-# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import argparse, socket, os, threading, pman
 
@@ -84,6 +84,7 @@ args = parser.parse_args()
 # server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
 # server.setup(args = vars(args))
 
+print(args)
 comm = pman.pman(
     IP          = args.ip,
     port        = args.port,
@@ -92,11 +93,12 @@ comm = pman.pman(
     listeners   = args.listeners,
     http        = args.http,
     debugToFile = args.debugToFile,
-    debugFile   = args.debugFile,
+    debugFile   = args.debugFile
     )
 
-if args.threaded == True:
-    threaded_pman  = threading.Thread(target=comm.start)
-    threaded_pman.start()
-else:
-    comm.start()
+print('OK let\'s go')
+# if args.threaded == True:
+threaded_pman  = threading.Thread(target=comm.start)
+threaded_pman.start()
+# else:
+#     comm.start()
