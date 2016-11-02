@@ -27,6 +27,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), './'))
 from    _colors         import  Colors
 from    crunner	        import  crunner
 from    pfioh           import  *
+from    message         import  Message
+
+# A global variable that tracks if script was started from CLI or programmatically
+b_startFromCLI  = False
 
 class Purl():
 
@@ -67,15 +71,15 @@ class Purl():
     def __init__(self, **kwargs):
         # threading.Thread.__init__(self)
 
-        # self._log                   = Message()
-        # self._log._b_syslog         = True
-        # self.__name                 = "Purl"
-        # self.b_useDebug             = False
-        #
-        # str_debugDir                = '%s/tmp' % os.environ['HOME']
-        # if not os.path.exists(str_debugDir):
-        #     os.makedirs(str_debugDir)
-        # self.str_debugFile          = '%s/debug-charm.log' % str_debugDir
+        self._log                   = Message()
+        self._log._b_syslog         = True
+        self.__name                 = "Purl"
+        self.b_useDebug             = False
+
+        str_debugDir                = '%s/tmp' % os.environ['HOME']
+        if not os.path.exists(str_debugDir):
+            os.makedirs(str_debugDir)
+        self.str_debugFile          = '%s/debug-charm.log' % str_debugDir
 
         self.str_http           = ""
         self.str_ip             = ""
@@ -120,10 +124,10 @@ class Purl():
             if key == 'useDebug':       self.b_useDebug             = val
             if key == 'debugFile':      self.str_debugFile          = val
 
-        # if self.b_useDebug:
-        #     self.debug                  = Message(logTo = self.str_debugFile)
-        #     self.debug._b_syslog        = True
-        #     self.debug._b_flushNewLine  = True
+        if self.b_useDebug:
+            self.debug                  = Message(logTo = self.str_debugFile)
+            self.debug._b_syslog        = True
+            self.debug._b_flushNewLine  = True
 
         if len(self.str_man):
             print(self.man(on = self.str_man))
@@ -134,17 +138,26 @@ class Purl():
             print(Colors.LIGHT_GREEN)
             print("""
             \t\t\t+--------------------+
-            \t\t\t| Welcome to purl.py |
+            \t\t\t|  Welcome to purl!  |
             \t\t\t+--------------------+
             """)
             print(Colors.CYAN + """
-            This program sends REST conforming communication to a remote service over http.
+            'purl' is a wrapper about pycurl, specifically designed for the ChRIS/pman interface. When called
+            from the command line is also acts as a client for REST GET / POST calls.
 
-            See 'purl.py --man commands' for more help.
+            Type 'purl.py --man commands' for more help.""")
+            if self.b_useDebug:
+                print("""
+            Debugging output is directed to the file '%s'.
+                """ % (self.str_debugFile))
+            else:
+                print("""
+            Debugging output will appear in *this* console.
+                """)
 
-            """)
-
-            if len(sys.argv) == 1: sys.exit(1)
+            self.qprint('purl: Start from CLI = %d' % b_startFromCLI)
+            self.qprint('purl: Command line args = %s' % sys.argv)
+            if b_startFromCLI and (sys.argv) == 1: sys.exit(1)
 
             self.col2_print("Will transmit to",     '%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
 
@@ -1117,6 +1130,7 @@ if __name__ == '__main__':
         default = 0
     )
 
+    b_startFromCLI  = True
 
     args    = parser.parse_args()
     purl  = Purl(
