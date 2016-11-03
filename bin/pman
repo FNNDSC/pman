@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+#
+# (c) 2016 Fetal-Neonatal Neuroimaging & Developmental Science Center
+#                   Boston Children's Hospital
+#
+#              http://childrenshospital.org/FNNDSC/
+#                        dev@babyMRI.org
+#
+
+# FOR DEV PURPOSE
+# import sys, os
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+import argparse, socket, os, pman
+
+parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
+str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+
+parser.add_argument(
+    '--ip',
+    action  = 'store',
+    dest    = 'ip',
+    default = str_defIP,
+    help    = 'IP to connect.'
+)
+parser.add_argument(
+    '--port',
+    action  = 'store',
+    dest    = 'port',
+    default = '5010',
+    help    = 'Port to use.'
+)
+parser.add_argument(
+    '--protocol',
+    action  = 'store',
+    dest    = 'protocol',
+    default = 'tcp',
+    help    = 'Protocol to use.'
+)
+parser.add_argument(
+    '--raw',
+    action  = 'store',
+    dest    = 'raw',
+    default = '0',
+    help    = 'Router raw mode.'
+)
+parser.add_argument(
+    '--listeners',
+    action  = 'store',
+    dest    = 'listeners',
+    default = '1',
+    help    = 'Number of listeners.'
+)
+parser.add_argument(
+    '--http',
+    action  = 'store_true',
+    dest    = 'http',
+    default = False,
+    help    = 'Send HTTP formatted replies.'
+)
+parser.add_argument(
+    '--debugToFile',
+    action  = 'store_true',
+    dest    = 'debugToFile',
+    default = False,
+    help    = 'If true, stream debugging info to file.'
+)
+parser.add_argument(
+    '--debugFile',
+    action  = 'store',
+    dest    = 'debugFile',
+    default = '%s/tmp/debug-pman.log' % os.environ['HOME'],
+    help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
+)
+args = parser.parse_args()
+
+# server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
+# server.setup(args = vars(args))
+
+comm = pman.pman(
+    IP          = args.ip,
+    port        = args.port,
+    protocol    = args.protocol,
+    raw         = args.raw,
+    listeners   = args.listeners,
+    http        = args.http,
+    debugToFile = args.debugToFile,
+    debugFile   = args.debugFile
+    )
+comm.start()

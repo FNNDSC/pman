@@ -32,6 +32,7 @@ import  os
 import  sys
 from    string          import  *
 
+# doesn't seem right?
 try:
 	from    cStringIO       import  StringIO
 except ImportError:

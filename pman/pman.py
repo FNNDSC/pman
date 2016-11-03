@@ -53,13 +53,11 @@ import  multiprocessing
 import  pudb
 
 # pman local dependencies
-sys.path.append(os.path.join(os.path.dirname(__file__), './'))
-import  crunner
-import  C_snode
-import  message
-from    _colors         import  Colors
-import  pfioh
-import  debug
+from   ._colors           import Colors
+from   .crunner           import crunner
+from   .C_snode           import *
+from   .debug             import debug
+from   .pfioh             import *
 
 
 class StoppableThread(threading.Thread):
@@ -100,7 +98,7 @@ class pman(object):
 
         # DB
         self.str_DBpath         = '/tmp/pman'
-        self._ptree             = C_snode.C_stree()
+        self._ptree             = C_stree()
         self.str_fileio         = 'json'
 
         # Comms
@@ -133,7 +131,7 @@ class pman(object):
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        self.dp                 = debug.debug(    verbosity   = 0,
+        self.dp                 = debug(    verbosity   = 0,
                                             level       = -1,
                                             debugFile   = self.str_debugFile,
                                             debugToFile = self.b_debugToFile)
@@ -175,7 +173,7 @@ class pman(object):
 
 
         # Read the DB from HDD
-        self._ptree             = C_snode.C_stree()
+        self._ptree             = C_stree()
         # self.DB_read()
         self.DB_fileIO(cmd = 'load')
 
@@ -189,7 +187,7 @@ class pman(object):
         """
         if os.path.isdir(self.str_DBpath):
             self.dp.qprint("Reading pman DB from disk...\n")
-            self._ptree = C_snode.C_stree.tree_load(
+            self._ptree = C_stree.tree_load(
                 pathDiskRoot    = self.str_DBpath,
                 loadJSON        = True,
                 loadPickle      = False)
@@ -253,14 +251,14 @@ class pman(object):
             if os.path.isdir(str_DBpath):
                 self.dp.qprint("Reading pman DB from disk...\n")
                 if self.str_fileio   == 'json':
-                    tree_DB = C_snode.C_stree.tree_load(
+                    tree_DB = C_stree.tree_load(
                         startPath       = '/',
                         pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
                         loadJSON        = True,
                         loadPickle      = False)
                 if self.str_fileio   == 'pickle':
-                    tree_DB = C_snode.C_stree.tree_load(
+                    tree_DB = C_stree.tree_load(
                         startPath       = '/',
                         pathDiskRoot    = str_DBpath,
                         failOnDirExist  = False,
@@ -396,7 +394,7 @@ class FileIO(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "FileIO"
         self.b_http             = False
-        self.dp                 = debug.debug(verbosity=0, level=-1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.str_DBpath         = "/tmp/pman"
 
@@ -432,7 +430,7 @@ class Listener(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "Listener"
         self.b_http             = False
-        self.dp                 = debug.debug(verbosity=0, level=-1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.poller             = None
         self.str_DBpath         = "/tmp/pman"
@@ -679,7 +677,7 @@ class Listener(threading.Thread):
         d_args['ip']        = d_ret['fileioIP']
         d_args['port']      = d_ret['fileioport']
 
-        server              = pfioh.ThreadedHTTPServer((d_args['ip'], int(d_args['port'])), pfioh.StoreHandler)
+        server              = ThreadedHTTPServer((d_args['ip'], int(d_args['port'])), StoreHandler)
         server.setup(args   = d_args)
         self.dp.qprint("serveforever = %d" % d_meta['serveforever'])
         b_serveforever      = False
@@ -718,8 +716,8 @@ class Listener(threading.Thread):
         d_search    = self.t_search_process(request = d_request)['d_ret']
 
         p   = self._ptree
-        Ts  = C_snode.C_stree()
-        Te  = C_snode.C_stree()
+        Ts  = C_stree()
+        Te  = C_stree()
         for j in d_search.keys():
             d_j = d_search[j]
             for job in d_j.keys():
@@ -1002,7 +1000,7 @@ class Listener(threading.Thread):
         Returns part of the DB tree based on path spec in the URL
         """
 
-        r           = C_snode.C_stree()
+        r           = C_stree()
         p           = self._ptree
 
         pcwd        = p.cwd()
@@ -1233,8 +1231,8 @@ class Listener(threading.Thread):
             d_search    = self.t_search_process(request = d_request)['d_ret']
 
             p           = self._ptree
-            Tj          = C_snode.C_stree()
-            Tdb         = C_snode.C_stree()
+            Tj          = C_stree()
+            Tdb         = C_stree()
             for j in d_search.keys():
                 d_j = d_search[j]
                 for job in d_j.keys():
@@ -1275,7 +1273,7 @@ class Poller(threading.Thread):
 
         self.pollTime           = 10
 
-        self.dp                 = debug.debug(verbosity=0, level=-1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.str_cmd            = ""
         self.crunner            = None
@@ -1326,7 +1324,7 @@ class Crunner(threading.Thread):
 
     def __init__(self, **kwargs):
         self.__name             = "Crunner"
-        self.dp                 = debug.debug(verbosity=0, level=-1)
+        self.dp                 = debug(verbosity=0, level=-1)
 
         self.dp.qprint('starting crunner...', level=-1)
 
@@ -1335,7 +1333,7 @@ class Crunner(threading.Thread):
         self.queueAllDone       = queue.Queue()
 
         self.str_cmd            = ""
-        self.shell              = crunner.crunner(verbosity=0)
+        self.shell              = crunner(verbosity=0)
 
         for k,v in kwargs.items():
             if k == 'cmd':  self.str_cmd    = v
@@ -1374,85 +1372,3 @@ class Crunner(threading.Thread):
         self.queueStart.put({'allJobsStarted': True})
         self.queueEnd.put({'allJobsDone': True})
         # self.shell.exitOnDone()
-
-
-if __name__ == "__main__":
-
-    parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
-    str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-
-    parser.add_argument(
-        '--ip',
-        action  = 'store',
-        dest    = 'ip',
-        default = str_defIP,
-        help    = 'IP to connect.'
-    )
-    parser.add_argument(
-        '--port',
-        action  = 'store',
-        dest    = 'port',
-        default = '5010',
-        help    = 'Port to use.'
-    )
-    parser.add_argument(
-        '--protocol',
-        action  = 'store',
-        dest    = 'protocol',
-        default = 'tcp',
-        help    = 'Protocol to use.'
-    )
-    parser.add_argument(
-        '--raw',
-        action  = 'store',
-        dest    = 'raw',
-        default = '0',
-        help    = 'Router raw mode.'
-    )
-    parser.add_argument(
-        '--listeners',
-        action  = 'store',
-        dest    = 'listeners',
-        default = '1',
-        help    = 'Number of listeners.'
-    )
-    parser.add_argument(
-        '--http',
-        action  = 'store_true',
-        dest    = 'http',
-        default = False,
-        help    = 'Send HTTP formatted replies.'
-    )
-    parser.add_argument(
-        '--debugToFile',
-        action  = 'store_true',
-        dest    = 'debugToFile',
-        default = False,
-        help    = 'If true, stream debugging info to file.'
-    )
-    parser.add_argument(
-        '--debugFile',
-        action  = 'store',
-        dest    = 'debugFile',
-        default = '%s/tmp/debug-pman.log' % os.environ['HOME'],
-        help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
-    )
-
-    args    = parser.parse_args()
-
-    # server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
-    # server.setup(args = vars(args))
-
-    comm    = pman(
-                    IP          = args.ip,
-                    port        = args.port,
-                    protocol    = args.protocol,
-                    raw         = args.raw,
-                    listeners   = args.listeners,
-                    http        = args.http,
-                    debugToFile = args.debugToFile,
-                    debugFile   = args.debugFile
-            )
-
-    # Start the server in its own thread
-    comm.thread_serve()

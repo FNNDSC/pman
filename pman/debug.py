@@ -5,7 +5,7 @@ import  inspect
 import  logging
 
 # pman local dependencies
-import  message
+from   .message           import Message
 
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s')
@@ -60,10 +60,10 @@ class debug(object):
             if not os.path.exists(str_debugDir):
                 os.makedirs(str_debugDir)
             self.str_debugFile          = '%s/%s' % (str_debugDir, str_debugName)
-            self.debug                  = message.Message(logTo = self.str_debugFile)
+            self.debug                  = Message(logTo = self.str_debugFile)
             self.debug._b_syslog        = False
             self.debug._b_flushNewLine  = True
-        self._log                   = message.Message()
+        self._log                   = Message()
         self._log._b_syslog         = True
         self.__name                 = "pman"
 

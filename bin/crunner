@@ -1,0 +1,263 @@
+#!/usr/bin/env python
+#
+# (c) 2016 Fetal-Neonatal Neuroimaging & Developmental Science Center
+#                   Boston Children's Hospital
+#
+#              http://childrenshospital.org/FNNDSC/
+#                        dev@babyMRI.org
+#
+
+# FOR DEV PURPOSE
+# import sys, os
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+import argparse, socket, os, sys, pman
+
+
+def synopsis(ab_shortOnly = False):
+    str_scriptName  = os.path.basename(sys.argv[0])
+    str_shortSynopsis = """
+
+    NAME
+
+        %s
+
+    SYNOPSIS
+
+
+        %s \\
+                    -c|--command <CMD>              \\
+                    --pipeline                      \\
+                    --ssh <user@machine[:<port>]>   \\
+                    --auid <apparentUserID>         \\
+                    --jid <jobID>                   \\
+                    --prettyprint                   \\
+                    --jsonprint                     \\
+                    --showStdOut                    \\
+                    --showStdErr                    \\
+                    --echoCmd                       \\
+                    --eventLoop                     \\
+                    --verbosity <verbosity>         \\
+
+        Run <CMD> in a variety of ways.
+
+
+    """ % (str_scriptName, str_scriptName)
+    str_description = """
+
+    DESCRIPTION
+
+        '%s' is a wrapper about an underlying system shell that
+        executes commands in that shell.
+
+        Standard returns (stdout, stderr) and exit codes are captured
+        and available to other processes.
+
+    ARGS
+
+        -c|--command <CMD>
+        Command to execute
+
+        --verbosity <verbosity>
+        The verbosity. Set to "-1" for silent.
+
+        --pipeline
+        If specified, treat compound commands (i.e. command strings
+        concatenated together with ';') as a pipeline. Track each
+        individual command separately.
+
+        --auid <apparentUserID>
+        Set the apparent User ID. This is a field stored at the root level
+        of a job data structure and is useful is a job is run as one user
+        but is apparently run as another. In particular, for certain cluster
+        jobs, all jobs might be run as a single "master" user, but need to
+        retain some concept of the apparent user that actually scheduled or
+        started the job.
+
+        --jid <jobID>
+        Set the jobID, which is a field stored at the root level of a job
+        data structure.
+
+        --ssh <user@machine[:port]>
+        If specified, ssh as <user> to <machine>[:port]> and execute the <CMD>
+        on remote host.
+
+        --prettyprint
+        If specified, pretty print internal job dictionary object at finish.
+
+        --jsonprint
+        If specified, json.dumps() internal job dictionary object at finish.
+
+        --showStdOut
+        If specified, print the stdout of each job executed.
+
+        --showStdErr
+        If specified, print the stderr of each job executed.
+
+        --echoCmd
+        If specified, echo the actual command string that crunner will execute
+        on the underlying shell.
+
+        --eventLoop
+        If specified, turn on job start/end event processing.
+
+    """ % str_scriptName
+    if ab_shortOnly:
+        return str_shortSynopsis
+    else:
+        return str_shortSynopsis + str_description
+
+parser = argparse.ArgumentParser(description=synopsis(True))
+
+parser.add_argument(
+    '-c', '--command',
+    help    = 'command to run on system.',
+    dest    = 'command',
+    action  = 'store',
+    default = ''
+)
+parser.add_argument(
+    '-v', '--verbosity',
+    help    = 'verbosity level.',
+    dest    = 'verbosity',
+    action  = 'store',
+    default = '0'
+)
+parser.add_argument(
+    '--ssh',
+    help    = 'ssh to remote host.',
+    dest    = 'ssh',
+    action  = 'store',
+    default = ''
+)
+parser.add_argument(
+    '--jid',
+    help    = 'job ID.',
+    dest    = 'jid',
+    action  = 'store',
+    default = ''
+)
+parser.add_argument(
+    '--auid',
+    help    = 'apparent user id',
+    dest    = 'auid',
+    action  = 'store',
+    default = ''
+)
+parser.add_argument(
+    '--pipeline',
+    help    = 'interpret compound cmd as series of jobs',
+    dest    = 'b_pipeline',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--showStdOut',
+    help    = 'show stdout of all jobs',
+    dest    = 'b_stdout',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--showStdErr',
+    help    = 'show stderr of all jobs',
+    dest    = 'b_stderr',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--echoCmd',
+    help    = 'show cmd',
+    dest    = 'b_echoCmd',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--prettyprint',
+    help    = 'pretty print job object',
+    dest    = 'b_prettyprint',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--jsonprint',
+    help    = 'json print job object',
+    dest    = 'b_jsonprint',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--eventloop',
+    help    = 'turn on event loop start/end processing',
+    dest    = 'b_eventloop',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--debugToFile',
+    action  = 'store_true',
+    dest    = 'debugToFile',
+    default = False,
+    help    = 'If true, stream debugging info to file.'
+)
+parser.add_argument(
+    '--debugFile',
+    action  = 'store',
+    dest    = 'debugFile',
+    default = '%s/tmp/debug-crunner.log' % os.environ['HOME'],
+    help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
+)
+
+args = parser.parse_args()
+
+verbosity   = int(args.verbosity)
+
+d           = pman.debug(verbosity = verbosity)
+d.qprint('start module')
+
+# Create a crunner shell
+if len(args.ssh):
+    shell   = pman.crunner_ssh(verbosity = verbosity, ssh = args.ssh)
+else:
+    shell   = pman.crunner(verbosity = verbosity)
+
+shell.b_splitCompound   = args.b_pipeline
+shell.b_showStdOut      = args.b_stdout
+shell.b_showStdErr      = args.b_stderr
+shell.b_echoCmd         = args.b_echoCmd
+
+shell.jid               = args.jid
+shell.auid              = args.auid
+
+# Call the shell on a command line argument
+shell(args.command)
+
+# Once sub-theads have been spawned, execution returns here,
+# even if the threads are still running. The caller can
+# now query the crunner shell for information on its
+# subprocesses.
+d.qprint(msg = "CLI << %s >>" % args.command, level = 0)
+
+if not args.b_eventloop:
+    shell.jobs_loopctl()
+else:
+    # shell.jobs_loopctl( onJobStart   = "pid_print(shell, queue='queueStart')",
+    #                     onJobDone    = "pid_print(shell, queue='queueEnd')")
+    shell.jobs_loopctl( onJobStart   = partial(pid_print, shell, queue='queueStart'),
+                        onJobDone    = partial(pid_print, shell, queue='queueEnd'))
+
+# These are two legacy/depreciated methods
+# shell.jobs_eventLoop(waitForEvent       = "self.job_started()",
+#                      onEventTriggeredDo = "pid_print(shell, queue='queueStart')")
+
+# shell.jobs_eventLoop(waitForEvent       = "self.job_done()",
+#                      onEventTriggeredDo = "pid_print(shell, queue='queueEnd')")
+
+
+# This exits to the system, but only once all threads have completed.
+# The exitcode of the subprocess is returned to the system by this
+# call.
+d.qprint('done module')
+if args.b_prettyprint:  shell.pp.pprint(shell.d_job)
+if args.b_jsonprint:    print(json.dumps(shell.d_job))
+shell.exitOnDone()

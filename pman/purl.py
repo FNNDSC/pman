@@ -24,11 +24,9 @@ import  codecs
 import  pudb
 
 # pman local dependencies
-sys.path.append(os.path.join(os.path.dirname(__file__), './'))
-from    _colors         import  Colors
-from    crunner	        import  crunner
-from    pfioh           import  *
-from    message         import  Message
+from    ._colors         import  Colors
+from    .pfioh           import  *
+from    .message         import  Message
 
 # A global variable that tracks if script was started from CLI or programmatically
 b_startFromCLI  = False
@@ -76,6 +74,7 @@ class Purl():
         self._log._b_syslog         = True
         self.__name                 = "Purl"
         self.b_useDebug             = False
+        self._startFromCLI          = False
 
         str_debugDir                = '%s/tmp' % os.environ['HOME']
         if not os.path.exists(str_debugDir):
@@ -124,6 +123,7 @@ class Purl():
             if key == 'jsonwrapper':    self.str_jsonwrapper        = val
             if key == 'useDebug':       self.b_useDebug             = val
             if key == 'debugFile':      self.str_debugFile          = val
+            if key == 'startFromCLI':   self._startFromCLI          = val
 
         if self.b_useDebug:
             self.debug                  = Message(logTo = self.str_debugFile)
@@ -156,9 +156,9 @@ class Purl():
             Debugging output will appear in *this* console.
                 """)
 
-            self.qprint('purl: Start from CLI = %d' % b_startFromCLI)
+            self.qprint('purl: Start from CLI = %d' % self._startFromCLI)
             self.qprint('purl: Command line args = %s' % sys.argv)
-            if b_startFromCLI and (sys.argv) == 1: sys.exit(1)
+            if self._startFromCLI and (sys.argv) == 1: sys.exit(1)
 
             self.col2_print("Will transmit to",     '%s://%s:%s' % (self.str_protocol, self.str_ip, self.str_port))
 
@@ -1039,117 +1039,3 @@ class Purl():
 
         if not self.b_quiet: print(Colors.CYAN)
         return(str_stdout)
-
-if __name__ == '__main__':
-
-    str_defIP   = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-    str_defPort = '5055'
-    parser  = argparse.ArgumentParser(description = 'curl-type comms in the pman system')
-
-    parser.add_argument(
-        '--msg',
-        action  = 'store',
-        dest    = 'msg',
-        default = '',
-        help    = 'Message to send to pman or similar listener.'
-    )
-    parser.add_argument(
-        '--verb',
-        action  = 'store',
-        dest    = 'verb',
-        default = 'POST',
-        help    = 'REST verb.'
-    )
-    parser.add_argument(
-        '--http',
-        action  = 'store',
-        dest    = 'http',
-        default = '%s:%s' % (str_defIP, str_defPort),
-        help    = 'HTTP string: <IP>[:<port>]</some/path/>'
-    )
-    parser.add_argument(
-        '--ip',
-        action  = 'store',
-        dest    = 'ip',
-        default = str_defIP,
-        help    = 'IP of REST server.'
-    )
-    parser.add_argument(
-        '--port',
-        action  = 'store',
-        dest    = 'port',
-        default = '5010',
-        help    = 'Port on REST server.'
-    )
-    parser.add_argument(
-        '--auth',
-        action  = 'store',
-        dest    = 'auth',
-        default = '',
-        help    = 'user:passwd authorization'
-    )
-    parser.add_argument(
-        '--jsonwrapper',
-        action  = 'store',
-        dest    = 'jsonwrapper',
-        default = '',
-        help    = 'wrap msg in optional field'
-    )
-    parser.add_argument(
-        '--quiet',
-        help    = 'if specified, only echo final JSON output returned from server',
-        dest    = 'b_quiet',
-        action  = 'store_true',
-        default = False
-    )
-    parser.add_argument(
-        '--raw',
-        help    = 'if specified, do not wrap return data from remote call in json field',
-        dest    = 'b_raw',
-        action  = 'store_true',
-        default = False
-    )
-    parser.add_argument(
-        '--man',
-        help    = 'request help: --man commands',
-        dest    = 'man',
-        action  = 'store',
-        default = ''
-    )
-    parser.add_argument(
-        '--content-type',
-        help    = 'content type',
-        dest    = 'contentType',
-        action  = 'store',
-        default = ''
-    )
-    parser.add_argument(
-        '--jsonpprintindent',
-        help    = 'pretty print json-formatted payloads',
-        dest    = 'jsonpprintindent',
-        action  = 'store',
-        default = 0
-    )
-
-    b_startFromCLI  = True
-
-    args    = parser.parse_args()
-    purl  = Purl(
-                        msg         = args.msg,
-                        http        = args.http,
-                        verb        = args.verb,
-                        contentType = args.contentType,
-                        auth        = args.auth,
-                        b_raw       = args.b_raw,
-                        b_quiet     = args.b_quiet,
-                        jsonwrapper = args.jsonwrapper,
-                        man         = args.man
-                )
-
-    if not args.jsonpprintindent:
-        print(purl())
-    else:
-        print(json.dumps(json.loads(purl()), indent=int(args.jsonpprintindent)))
-
-    sys.exit(0)
-

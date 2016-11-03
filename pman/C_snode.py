@@ -35,8 +35,8 @@ import  collections
 import  pudb
 
 # pman local dependencies
-from    C_stringCore            import  *
-import  message
+from    .C_stringCore           import  *
+from    .message                import  Message
 
 class C_meta:
         """
@@ -438,9 +438,9 @@ class C_stree:
             #
             #       - Core variables
 
-            self.debug                  = message.Message(logTo = './debug-C_snode.log')
+            self.debug                  = Message(logTo = './debug-C_snode.log')
             self.debug._b_syslog        = True
-            self._log                   = message.Message()
+            self._log                   = Message()
             self._log._b_syslog         = True
             self.__name                 = "C_stree"
 
