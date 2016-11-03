@@ -48,6 +48,7 @@ try:
     from    ._colors        import Colors
 except:
     from    _colors         import Colors
+import debug
 
 class StoreHandler(BaseHTTPRequestHandler):
 
@@ -555,6 +556,8 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
         self.str_unpackDir  = "/tmp/unpack"
         self.b_removeZip    = False
         self.args           = None
+
+        self.dp             = debug.debug(verbosity=0, level=-1)
 
         for k,v in kwargs.items():
             if k == 'args': self.args   = v
