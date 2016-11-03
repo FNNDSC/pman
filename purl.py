@@ -23,6 +23,7 @@ import  codecs
 
 import  pudb
 
+# pman local dependencies
 sys.path.append(os.path.join(os.path.dirname(__file__), './'))
 from    _colors         import  Colors
 from    crunner	        import  crunner

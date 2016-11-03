@@ -7,6 +7,7 @@ import  inspect
 import  types
 from    io          import  IOBase
 
+# pman local dependencies
 sys.path.append(os.path.join(os.path.dirname(__file__), './'))
 import  dgmsocket   as      dgm
 from    _colors     import  Colors
