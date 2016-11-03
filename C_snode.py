@@ -32,10 +32,11 @@ from    string                  import  *
 import  pickle
 import  json
 import  collections
+import  pudb
 
+# pman local dependencies
 from    C_stringCore            import  *
 import  message
-import  pudb
 
 class C_meta:
         """
