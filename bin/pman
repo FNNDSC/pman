@@ -87,4 +87,4 @@ comm = pman.pman(
     debugToFile = args.debugToFile,
     debugFile   = args.debugFile
     )
-comm.start()
+comm.thread_serve()
