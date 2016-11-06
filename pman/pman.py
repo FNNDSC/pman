@@ -96,6 +96,13 @@ class pman(object):
         # The main server function
         self.threaded_server    = None
 
+        # The listener thread array -- each element of this array is threaded listener
+        # object
+        self.l_listener         = []
+
+        # The fileIO threaded object
+        self.fileIO             = None
+
         # DB
         self.str_DBpath         = '/tmp/pman'
         self._ptree             = C_stree()
@@ -284,18 +291,26 @@ class pman(object):
         Serve the 'start' method in a thread.
         :return:
         """
-        self.threaded_server  = StoppableThread(target=comm.start)
+        self.threaded_server  = StoppableThread(target=self.start)
         self.threaded_server.start()
 
         while not self.threaded_server.stopped():
             time.sleep(5)
 
+        # Stop the listeners...
         self.dp.qprint("setting b_stopThread on all listeners...")
         for i in range(0, self.listeners):
             self.dp.qprint("b_stopThread on listener %d..." % i)
             self.l_listener[i].b_stopThread = True
+            self.l_listener[i].join()
 
-        self.dp.qprint("stop set... calling exit() on all this thread...")
+        # Stop the fileIO
+        self.fileIO.b_stopThread    = True
+        self.fileIO.join()
+
+        self.dp.qprint("stop set... calling join() on all this thread...")
+        raise('finished thread_serve()')
+        sys.exit(1)
         self.threaded_server.join()
 
     def start(self):
@@ -335,15 +350,13 @@ class pman(object):
         socket_back.bind('inproc://backend')
 
         # Start the 'fileIO' thread
-        fileIO      = FileIO(       timeout     = 60,
-                                    within      = self)
-        fileIO.start()
+        self.fileIO      = FileIO(      timeout     = 60,
+                                        within      = self)
+        self.fileIO.start()
 
         # Start the 'listener' workers... keep track of each
         # listener instance so that we can selectively stop
         # them later.
-
-        self.l_listener     = []
         for i in range(0, self.listeners):
             self.l_listener.append(Listener(
                                     id          = i,
@@ -401,6 +414,8 @@ class FileIO(threading.Thread):
         self.timeout            = 60
         self.within             = None
 
+        self.b_stopThread       = False
+
         for key,val in kwargs.items():
             if key == 'DB':             self._ptree         = val
             if key == 'DBpath':         self.str_DBpath     = val
@@ -414,14 +429,21 @@ class FileIO(threading.Thread):
         # Socket to communicate with front facing server.
         self.dp.qprint('starting FileIO handler...')
 
-        while True:
+        while not self.b_stopThread:
             # self.dp.qprint('Saving DB as type "%s" to "%s"...' % (
             #     self.within.str_fileio,
             #     self.within.str_DBpath
             # ))
             self.within.DB_fileIO(cmd = 'save')
             # self.dp.qprint('DB saved...')
-            time.sleep(self.timeout)
+            for second in range(0, self.timeout):
+                if not self.b_stopThread:
+                    time.sleep(1)
+                else:
+                    break
+
+        self.dp.qprint('returning from FileIO run method...')
+        raise ValueError('FileIO thread terminated.')
 
 class Listener(threading.Thread):
     """ Listeners accept communication requests from front facing server.
@@ -460,38 +482,49 @@ class Listener(threading.Thread):
         socket = self.zmq_context.socket(zmq.DEALER)
         socket.connect('inproc://backend')
 
-        result = True
+        b_requestWaiting        = False
+        resultFromProcessing    = False
+        request                 = ""
+        client_id               = -1
+        self.dp.qprint(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id)
         while not self.b_stopThread:
-            self.dp.qprint(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id)
-            # First string received is socket ID of client
-            client_id   = socket.recv()
-            request     = socket.recv()
-            self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Received comms from client.' % (self.worker_id))
-            result = self.process(request)
 
-            # For successful routing of result to correct client, the socket ID of client should be sent first.
-            if result:
-                self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
-                      (self.worker_id))
-                self.dp.qprint('JSON formatted response:')
-                str_payload = json.dumps(result)
-                self.dp.qprint(Colors.LIGHT_CYAN + str_payload)
-                self.dp.qprint(Colors.BROWN + 'len = %d chars' % len(str_payload))
-                socket.send(client_id, zmq.SNDMORE)
-                if self.b_http:
-                    str_contentType = "application/json"
-                    res  = Response(str_payload)
-                    res.content_type = str_contentType
+            # wait (non blocking) for input on socket
+            try:
+                client_id, request  = socket.recv_multipart(flags = zmq.NOBLOCK)
+                self.dp.qprint('Received %s from client_id: %s' % (request, client_id))
+                b_requestWaiting    = True
+            except zmq.Again as e:
+                pass
 
-                    str_HTTPpre = "HTTP/1.x "
-                    str_res     = "%s%s" % (str_HTTPpre, str(res))
-                    str_res     = str_res.replace("UTF-8", "UTF-8\nAccess-Control-Allow-Origin: *")
+            if b_requestWaiting:
+                self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Received comms from client.' % (self.worker_id))
+                self.dp.qprint(Colors.BROWN + 'Client sends: %s' % (request))
 
-                    socket.send(str_res.encode())
-                else:
-                    socket.send(str_payload)
-                # if result['action'] == 'quit': os._exit(1)
+                resultFromProcessing    = self.process(request)
+                if resultFromProcessing:
+                    self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
+                                   (self.worker_id))
+                    self.dp.qprint('JSON formatted response:')
+                    str_payload = json.dumps(resultFromProcessing)
+                    self.dp.qprint(Colors.LIGHT_CYAN + str_payload)
+                    self.dp.qprint(Colors.BROWN + 'len = %d chars' % len(str_payload))
+                    socket.send(client_id, zmq.SNDMORE)
+                    if self.b_http:
+                        str_contentType = "application/json"
+                        res  = Response(str_payload)
+                        res.content_type = str_contentType
+
+                        str_HTTPpre = "HTTP/1.x "
+                        str_res     = "%s%s" % (str_HTTPpre, str(res))
+                        str_res     = str_res.replace("UTF-8", "UTF-8\nAccess-Control-Allow-Origin: *")
+
+                        socket.send(str_res.encode())
+                    else:
+                        socket.send(str_payload)
+            b_requestWaiting    = False
         self.dp.qprint('Listnener ID - %s: Returning from run()...' % self.worker_id)
+        raise('Listener ID - %s: Thread terminated' % self.worker_id)
         return True
 
     def t_search_process(self, *args, **kwargs):
@@ -1157,6 +1190,8 @@ class Listener(threading.Thread):
                     self.processPOST(   request = d_request,
                                         ret     = d_ret)
             return d_ret
+        else:
+            return False
 
     def processPOST(self, **kwargs):
         """
