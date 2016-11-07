@@ -23,29 +23,18 @@ socket interface.
 # from __future__ import print_function
 
 import  abc
-import  json
 import  sys
-import  datetime
 import  time
 import  os
 
 import  threading
 import  zmq
-import  json
-import  argparse
-import  datetime
+from    zmq.devices     import ProcessDevice
 from    webob           import  Response
 import  psutil
-import  uuid
-import  shutil
-
-from    http.server     import BaseHTTPRequestHandler, HTTPServer
-from    socketserver    import ThreadingMixIn
-import  socket
 
 import  queue
 from    functools       import  partial
-import  inspect
 import  platform
 
 import  multiprocessing
@@ -66,13 +55,13 @@ class StoppableThread(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         super(StoppableThread, self).__init__(*args, **kwargs)
-        self._stop = threading.Event()
+        self._stopper = threading.Event()
 
-    def stop(self):
-        self._stop.set()
+    def stopit(self):
+        self._stopper.set()
 
     def stopped(self):
-        return self._stop.isSet()
+        return self._stopper.isSet()
 
 class pman(object):
     """
@@ -295,23 +284,39 @@ class pman(object):
         self.threaded_server.start()
 
         while not self.threaded_server.stopped():
-            time.sleep(5)
+            time.sleep(1)
 
         # Stop the listeners...
         self.dp.qprint("setting b_stopThread on all listeners...")
         for i in range(0, self.listeners):
-            self.dp.qprint("b_stopThread on listener %d..." % i)
+            self.dp.qprint("b_stopThread on listener %d and executing join()..." % i)
             self.l_listener[i].b_stopThread = True
             self.l_listener[i].join()
 
         # Stop the fileIO
         self.fileIO.b_stopThread    = True
+        self.dp.qprint("b_stopThread on fileIO executing join()...")
         self.fileIO.join()
 
-        self.dp.qprint("stop set... calling join() on all this thread...")
-        raise('finished thread_serve()')
-        sys.exit(1)
+        self.dp.qprint("Shutting down the zmq infrastructure...")
+        try:
+            self.dp.qprint('calling self.socket_back.close()')
+            self.socket_back.close()
+        except:
+            self.dp.qprint('Caught exception in closing back socket')
+
+        try:
+            self.dp.qprint('calling self.socket_front.close()')
+            self.socket_front.close()
+        except zmq.error.ZMQError:
+            self.dp.qprint('Caught exception in closing front socket...')
+
+        self.dp.qprint('calling zmq_context.term()')
+        # self.zmq_context.term()
+
+        self.dp.qprint("calling join() on all this thread...")
         self.threaded_server.join()
+        self.dp.qprint("shutdown successful...")
 
     def start(self):
         """
@@ -330,24 +335,26 @@ class pman(object):
         self.col2_print('Starting Listener threads', self.listeners)
 
         # Front facing socket to accept client connections.
-        socket_front = self.zmq_context.socket(zmq.ROUTER)
-        socket_front.router_raw = self.router_raw
+        self.socket_front = self.zmq_context.socket(zmq.ROUTER)
+        self.socket_front.router_raw = self.router_raw
         # socket_front.setsockopt(zmq.RCVBUF, 65536)
         # socket_front.setsockopt(zmq.SNDBUF, 65536)
         # socket_front.setsockopt(zmq.SNDHWM, 65536)
         # socket_front.setsockopt(zmq.RCVHWM, 65536)
-        socket_front.bind('%s://%s:%s' % (self.str_protocol,
+        self.socket_front.setsockopt(zmq.LINGER, 1)
+        self.socket_front.bind('%s://%s:%s' % (self.str_protocol,
                                           self.str_IP,
                                           self.str_port)
                           )
 
         # Backend socket to distribute work.
-        socket_back = self.zmq_context.socket(zmq.DEALER)
+        self.socket_back = self.zmq_context.socket(zmq.DEALER)
         # socket_back.setsockopt(zmq.RCVBUF, 65536)
         # socket_back.setsockopt(zmq.SNDBUF, 65536)
         # socket_back.setsockopt(zmq.SNDHWM, 65536)
         # socket_back.setsockopt(zmq.RCVHWM, 65536)
-        socket_back.bind('inproc://backend')
+        self.socket_back.setsockopt(zmq.LINGER, 1)
+        self.socket_back.bind('inproc://backend')
 
         # Start the 'fileIO' thread
         self.fileIO      = FileIO(      timeout     = 60,
@@ -373,7 +380,12 @@ class pman(object):
         #   2. Send socket ID and request to a worker.
         #   3. Read a client's socket ID and result from a worker.
         #   4. Route result back to the client using socket ID.
-        zmq.device(zmq.QUEUE, socket_front, socket_back)
+        self.dp.qprint("*******before  zmq.device!!!")
+        try:
+            zmq.device(zmq.QUEUE, self.socket_front, self.socket_back)
+        except:
+            self.dp.qprint('Hmmm... some error was caught on shutting down the zmq.device...')
+        self.dp.qprint("*******after zmq.device!!!")
 
     def __iter__(self):
         yield('Feed', dict(self._stree.snode_root))
@@ -443,7 +455,7 @@ class FileIO(threading.Thread):
                     break
 
         self.dp.qprint('returning from FileIO run method...')
-        raise ValueError('FileIO thread terminated.')
+        # raise ValueError('FileIO thread terminated.')
 
 class Listener(threading.Thread):
     """ Listeners accept communication requests from front facing server.
@@ -524,7 +536,7 @@ class Listener(threading.Thread):
                         socket.send(str_payload)
             b_requestWaiting    = False
         self.dp.qprint('Listnener ID - %s: Returning from run()...' % self.worker_id)
-        raise('Listener ID - %s: Thread terminated' % self.worker_id)
+        # raise('Listener ID - %s: Thread terminated' % self.worker_id)
         return True
 
     def t_search_process(self, *args, **kwargs):
@@ -666,7 +678,7 @@ class Listener(threading.Thread):
             self.within.DB_fileIO(cmd = 'save')
 
         self.dp.qprint('calling threaded_server.stop()')
-        self.within.threaded_server.stop()
+        self.within.threaded_server.stopit()
         self.dp.qprint('called threaded_server.stop()')
 
         return {'d_ret':    d_ret,
@@ -1350,7 +1362,7 @@ class Poller(threading.Thread):
                 self.queueEnd.put(self.crunner.queueEnd.get())
 
         self.queueAllDone.put(b_jobsAllDone)
-        self.dp.qprint("done with run")
+        self.dp.qprint("done with Poller.run")
 
 class Crunner(threading.Thread):
     """
@@ -1407,3 +1419,4 @@ class Crunner(threading.Thread):
         self.queueStart.put({'allJobsStarted': True})
         self.queueEnd.put({'allJobsDone': True})
         # self.shell.exitOnDone()
+        self.dp.qprint('Crunner.run() returning...')
