@@ -71,9 +71,9 @@ class pman(object):
     __metaclass__   = abc.ABCMeta
 
     def col2_print(self, str_left, str_right):
-        print(Colors.WHITE +
+        self.dp.qprint(Colors.WHITE +
               ('%*s' % (self.LC, str_left)), end='')
-        print(Colors.LIGHT_BLUE +
+        self.dp.qprint(Colors.LIGHT_BLUE +
               ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
 
     def __init__(self, **kwargs):
@@ -110,8 +110,8 @@ class pman(object):
         self.jid                = ''
 
         # Debug parameters
-        self.str_debugFile      = ''
-        self.b_debugToFile      = False
+        self.str_debugFile      = '/dev/null'
+        self.b_debugToFile      = True
 
         for key,val in kwargs.items():
             if key == 'protocol':       self.str_protocol   = val
@@ -160,6 +160,7 @@ class pman(object):
 
         """)
 
+        # pudb.set_trace()
         self.col2_print('Server is listening on',
                         '%s://%s:%s' % (self.str_protocol, self.str_IP, self.str_port))
         self.col2_print('Router raw mode',
@@ -358,7 +359,9 @@ class pman(object):
 
         # Start the 'fileIO' thread
         self.fileIO      = FileIO(      timeout     = 60,
-                                        within      = self)
+                                        within      = self,
+                                        debugFile   = self.str_debugFile,
+                                        debugToFile = self.b_debugToFile)
         self.fileIO.start()
 
         # Start the 'listener' workers... keep track of each
@@ -371,7 +374,9 @@ class pman(object):
                                     DB          = self._ptree,
                                     DBpath      = self.str_DBpath,
                                     http        = self.b_http,
-                                    within      = self))
+                                    within      = self,
+                                    debugToFile = self.b_debugToFile,
+                                    debugFile   = self.str_debugFile))
             self.l_listener[i].start()
 
         # Use built in queue device to distribute requests among workers.
@@ -419,7 +424,6 @@ class FileIO(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "FileIO"
         self.b_http             = False
-        self.dp                 = debug(verbosity=0, level=-1)
 
         self.str_DBpath         = "/tmp/pman"
 
@@ -428,19 +432,30 @@ class FileIO(threading.Thread):
 
         self.b_stopThread       = False
 
+        # Debug parameters
+        self.str_debugFile      = '/dev/null'
+        self.b_debugToFile      = True
+
         for key,val in kwargs.items():
             if key == 'DB':             self._ptree         = val
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'timeout':        self.timeout        = val
             if key == 'within':         self.within         = val
+            if key == 'debugFile':      self.str_debugFile  = val
+            if key == 'debugToFile':    self.b_debugToFile  = val
+
+        self.dp                 = debug(verbosity   = 0,
+                                        level       = -1,
+                                        debugFile   = self.str_debugFile,
+                                        debugToFile = self.b_debugToFile)
+
 
         threading.Thread.__init__(self)
 
     def run(self):
         """ Main execution. """
+        # pudb.set_trace()
         # Socket to communicate with front facing server.
-        self.dp.qprint('starting FileIO handler...')
-
         while not self.b_stopThread:
             # self.dp.qprint('Saving DB as type "%s" to "%s"...' % (
             #     self.within.str_fileio,
@@ -464,7 +479,6 @@ class Listener(threading.Thread):
     def __init__(self, **kwargs):
         self.__name             = "Listener"
         self.b_http             = False
-        self.dp                 = debug(verbosity=0, level=-1)
 
         self.poller             = None
         self.str_DBpath         = "/tmp/pman"
@@ -476,6 +490,10 @@ class Listener(threading.Thread):
         self.within             = None
         self.b_stopThread       = False
 
+        # Debug parameters
+        self.str_debugFile      = '/dev/null'
+        self.b_debugToFile      = True
+
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'id':             self.worker_id      = val
@@ -483,6 +501,13 @@ class Listener(threading.Thread):
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'http':           self.b_http         = val
             if key == 'within':         self.within         = val
+            if key == 'debugFile':      self.str_debugFile  = val
+            if key == 'debugToFile':    self.b_debugToFile  = val
+
+        self.dp                 = debug(verbosity   = 0,
+                                        level       = -1,
+                                        debugFile   = self.str_debugFile,
+                                        debugToFile = self.b_debugToFile)
 
         threading.Thread.__init__(self)
         # logging.debug('leaving __init__')
@@ -982,7 +1007,9 @@ class Listener(threading.Thread):
         self.dp.qprint("spawing and starting poller thread")
 
         # Start the 'poller' worker
-        self.poller  = Poller(cmd = str_cmd)
+        self.poller  = Poller(cmd           = str_cmd,
+                              debugToFile   = self.b_debugToFile,
+                              debugFile     = self.str_debugFile)
         self.poller.start()
 
         str_timeStamp       = datetime.datetime.today().strftime('%Y%m%d%H%M%S.%f')
@@ -1319,9 +1346,6 @@ class Poller(threading.Thread):
     def __init__(self, **kwargs):
 
         self.pollTime           = 10
-
-        self.dp                 = debug(verbosity=0, level=-1)
-
         self.str_cmd            = ""
         self.crunner            = None
         self.queueStart         = queue.Queue()
@@ -1330,9 +1354,20 @@ class Poller(threading.Thread):
 
         # self.dp.qprint('starting...', level=-1)
 
+        # Debug parameters
+        self.str_debugFile      = '/dev/null'
+        self.b_debugToFile      = True
+
         for key,val in kwargs.items():
             if key == 'pollTime':       self.pollTime       = val
             if key == 'cmd':            self.str_cmd        = val
+            if key == 'debugFile':      self.str_debugFile  = val
+            if key == 'debugToFile':    self.b_debugToFile  = val
+
+        self.dp                 = debug(verbosity   = 0,
+                                        level       = -1,
+                                        debugFile   = self.str_debugFile,
+                                        debugToFile = self.b_debugToFile)
 
         threading.Thread.__init__(self)
 
@@ -1345,7 +1380,9 @@ class Poller(threading.Thread):
         """ Main execution. """
 
         # Spawn the crunner object container
-        self.crunner  = Crunner(cmd = self.str_cmd)
+        self.crunner  = Crunner(cmd         = self.str_cmd,
+                                debugToFile = self.b_debugToFile,
+                                debugFile   = self.str_debugFile)
         self.crunner.start()
 
         b_jobsAllDone   = False
@@ -1371,19 +1408,33 @@ class Crunner(threading.Thread):
 
     def __init__(self, **kwargs):
         self.__name             = "Crunner"
-        self.dp                 = debug(verbosity=0, level=-1)
 
-        self.dp.qprint('starting crunner...', level=-1)
 
         self.queueStart         = queue.Queue()
         self.queueEnd           = queue.Queue()
         self.queueAllDone       = queue.Queue()
 
         self.str_cmd            = ""
-        self.shell              = crunner(verbosity=0)
+
+        # Debug parameters
+        self.str_debugFile      = '/dev/null'
+        self.b_debugToFile      = True
 
         for k,v in kwargs.items():
-            if k == 'cmd':  self.str_cmd    = v
+            if k == 'cmd':          self.str_cmd        = v
+            if k == 'debugFile':    self.str_debugFile  = v
+            if k == 'debugToFile':  self.b_debugToFile  = v
+
+        self.shell              = crunner(  verbosity   = 0,
+                                            level       = -1,
+                                            debugToFile = self.b_debugToFile,
+                                            debugFile   = self.str_debugFile)
+
+        self.dp                 = debug(    verbosity   = 0,
+                                            level       = -1,
+                                            debugFile   = self.str_debugFile,
+                                            debugToFile = self.b_debugToFile)
+        self.dp.qprint('starting crunner...')
 
         threading.Thread.__init__(self)
 
