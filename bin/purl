@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 #
 # (c) 2016 Fetal-Neonatal Neuroimaging & Developmental Science Center
 #                   Boston Children's Hospital
@@ -8,8 +8,8 @@
 #
 
 # FOR DEV PURPOSE
-# import sys, os
-# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import argparse, socket, os, json, sys, pman
 

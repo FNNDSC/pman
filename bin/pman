@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 #
 # (c) 2016 Fetal-Neonatal Neuroimaging & Developmental Science Center
 #                   Boston Children's Hospital
@@ -8,10 +8,10 @@
 #
 
 # FOR DEV PURPOSE
-# import sys, os
-# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-import argparse, socket, os, pman
+import argparse, socket, os, pman, threading
 
 parser  = argparse.ArgumentParser(description = 'simple client for talking to pman')
 str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
@@ -87,4 +87,24 @@ comm = pman.pman(
     debugToFile = args.debugToFile,
     debugFile   = args.debugFile
     )
-comm.thread_serve()
+
+# This starts the main thread and "detaches" execution from the main
+# program.
+t1 = threading.Thread(target = comm.thread_serve)
+t1.start()
+
+print('pman started successfully.')
+
+# Execution will block until pman receives an asynchronous http quit
+# request, i.e.
+# purl    --content-type application/vnd.collection+json      \
+#         --verb POST                                         \
+#         --raw --http 192.168.1.189:5010/api/v1/cmd          \
+#         --jsonwrapper 'payload'                             \
+#         --msg '{    "action": "quit",
+#                     "meta": {
+#                         "when":         "now",
+#                         "saveDB":       true
+#                     }
+#                 }'
+
