@@ -21,6 +21,8 @@ from    functools       import  partial
 # pman local dependencies
 from    .debug          import debug
 
+import  pudb
+
 def synopsis(ab_shortOnly = False):
     str_scriptName  = os.path.basename(sys.argv[0])
     str_shortSynopsis = """
@@ -164,7 +166,7 @@ class crunner(object):
         self.b_shell            = True
         self.b_showStdOut       = True
         self.b_showStdErr       = True
-        self.b_echoCmd          = True
+        self.b_echoCmd          = False
 
         # Debugging
         self.verbosity          = 0
@@ -210,15 +212,15 @@ class crunner(object):
 
         self.pp                 = pprint.PrettyPrinter(indent=4)
 
-        str_debugTo             = ''
-        b_debug                 = False
+        str_debugFile           = ''
+        b_debugToFile           = False
         for key, val in kwargs.items():
-            if key == 'verbosity':  self.verbosity  = val
-            if key == 'debugTo':    str_debugTo     = val
-            if key == 'debug':      b_debug         = val
-        self.debug              = debug(verbosity   = self.verbosity,
-                                        debugTo     = str_debugTo,
-                                        debug       = b_debug)
+            if key == 'verbosity':      self.verbosity  = val
+            if key == 'debugFile':      str_debugFile   = val
+            if key == 'debugToFile':    b_debugToFile   = val
+        self.debug              = debug(verbosity       = self.verbosity,
+                                        debugFile       = str_debugFile,
+                                        debugToFile     = b_debugToFile)
 
     def __call__(self, str_cmd, **kwargs):
         """
@@ -612,6 +614,7 @@ class crunner(object):
 
         self.debug.qprint("Start Queue contains: %d events" % self.queue_startEvent.qsize())
         self.debug.qprint("Start Queue current job = %d/%d" % (self.jobCount, self.jobTotal))
+        # pudb.set_trace()
         if self.jobCount < self.jobTotal:
             b_start = self.queue_startEvent.get()
             self.debug.qprint("Got a start event!")
