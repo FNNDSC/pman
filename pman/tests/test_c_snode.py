@@ -2,6 +2,8 @@ from unittest import TestCase
 
 from pman import C_stree
 
+import pudb
+
 class TestCSnode(TestCase):
     def test_csnode_constructor(self):
 
@@ -114,6 +116,7 @@ class TestCSnode(TestCase):
                         saveJSON        = True,
                         savePickle      = False)
 
+        # pudb.set_trace()
         print('Reading aTree into cTree...')
         cTree = C_stree.tree_load(
                         pathDiskRoot    = '/tmp/aTree',
