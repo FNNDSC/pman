@@ -93,6 +93,7 @@ class pman(object):
         self.fileIO             = None
 
         # DB
+        self.b_clearDB          = False
         self.str_DBpath         = '/tmp/pman'
         self._ptree             = C_stree()
         self.str_fileio         = 'json'
@@ -123,6 +124,8 @@ class pman(object):
             if key == 'within':         self.within         = val
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
+            if key == 'DBpath':         self.str_DBpath     = val
+            if key == 'clearDB':        self.b_clearDB      = val
 
         # Screen formatting
         self.LC                 = 30

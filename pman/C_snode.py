@@ -438,6 +438,11 @@ class C_stree:
             #
             #       - Core variables
 
+            self.debug                  = Message(logTo = './debug-C_snode.log')
+            self.debug._b_syslog        = True
+            self._log                   = Message()
+            self._log._b_syslog         = True
+            self.__name                 = "C_stree"
 
             self.str_obj                = 'C_stree'     # name of object class
             self.str_name               = 'void'        # name of object variable
@@ -464,23 +469,11 @@ class C_stree:
             self.b_initFromDict         = False
             adict                       = {}
             al_rootBranch               = []
-
-            self.str_debugFile          = '/dev/null'
-            self.b_debugToFile          = False
-
             for key,value in kwargs.items():
                 if key == 'rootBranch': al_rootBranch   = value
                 if key == 'dict':
                     self.b_initFromDict = True
                     adict               = value
-                if key == 'debugFile':      self.str_debugFile  = val
-                if key == 'debugToFile':    self.b_debugToFile  = val
-
-            self.debug                  = Message(logTo = self.str_debugFile)
-            self.debug._b_syslog        = True
-            self._log                   = Message()
-            self._log._b_syslog         = True
-            self.__name                 = "C_stree"
 
             if not len(al_rootBranch):
                 al_rootBranch           = ['/']
