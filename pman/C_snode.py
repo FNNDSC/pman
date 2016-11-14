@@ -438,7 +438,13 @@ class C_stree:
             #
             #       - Core variables
 
-            self.debug                  = Message(logTo = './debug-C_snode.log')
+            self.b_debugToFile          = True
+            self.str_debugFile          = '/dev/null'
+            for key,val in kwargs.items():
+                if key == 'debugFile':      self.str_debugFile  = val
+                if key == 'debugToFile':    self.b_debugToFile  = val
+
+            self.debug                  = Message(logTo = self.str_debugFile)
             self.debug._b_syslog        = True
             self._log                   = Message()
             self._log._b_syslog         = True
