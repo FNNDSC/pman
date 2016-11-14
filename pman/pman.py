@@ -127,6 +127,8 @@ class pman(object):
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'clearDB':        self.b_clearDB      = val
 
+        # pudb.set_trace()
+
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
@@ -134,6 +136,9 @@ class pman(object):
                                             level       = -1,
                                             debugFile   = self.str_debugFile,
                                             debugToFile = self.b_debugToFile)
+
+        if self.b_clearDB and os.path.isdir(self.str_DBpath):
+            shutil.rmtree(self.str_DBpath)
 
         self.dp.qprint(Colors.YELLOW)
         self.dp.qprint("""
