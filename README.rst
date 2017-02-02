@@ -23,7 +23,7 @@ Pman - v0.10.4
 
 .. code-block:: bash
 
-   apt install python-zmq python-webob
+   apt install libssl-dev libcurl4-openssl-dev
    pip install pman
    # optional
    pip install httpie
@@ -69,10 +69,10 @@ Now, assuming the IP of the host as below, a job can be submitted to 'pman' usin
    Content-Type:application/json Accept:application/json \
    payload:='
      {
-     "exec": {"cmd": "cal 7 1970"}, 
+     "exec": {"cmd": "cal 7 1970"},
      "action":"run",
      "meta": {
-         "jid": "123-456-1", 
+         "jid": "123-456-1",
          "auid": "rudolphpienaar"
        }
      }'
