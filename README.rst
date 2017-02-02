@@ -25,6 +25,7 @@ Pman - v0.10.4
 
    apt install libssl-dev libcurl4-openssl-dev
    pip install pman
+   
    # optional
    pip install httpie
 
