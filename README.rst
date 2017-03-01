@@ -19,7 +19,7 @@ This repository provides several python scripts that can be used as either stand
 
 - ``pman``: a *process* manager;
 - ``pfioh``: a *file* IO manager;
-- ``purl``: a tool to transfer data using HTTP (similar to ``curl``)
+- ``purl``: a tool to transfer data using HTTP (similar to ``curl``);
 - ``crunner``: a low-level encapsulator that runs commands (and is used by ``pman``).
 
 pman
