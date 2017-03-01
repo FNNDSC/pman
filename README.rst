@@ -12,13 +12,19 @@ pman - v0.10.4
     :target: https://badge.fury.io/py/pman
 
 ***************
-1. Overview
+Overview
 ***************
 
-'pman' is a process management system that launches and tracks the status of jobs. In the most general sense, jobs are simply applications run on an underlying system shell.
+This repository provides several python scripts that can be used as either standalone executables or as modules in python code. The common theme of this respository is *process* (and *file*) **management**. The following scripts/modules are provided:
+
+- ``pman``: a *process* manager;
+- ``pfioh``: a *file* IO manager;
+- ``purl``: a tool to transfer data using HTTP (similar to ``curl``)
+- ``crunner``: a low-level encapsulator that runs commands (and is used by ``pman``).
+
 
 ***************
-2. Installation
+Installation
 ***************
 
 .. code-block:: bash
