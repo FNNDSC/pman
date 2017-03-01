@@ -23,7 +23,7 @@ This repository provides several python scripts that can be used as either stand
 - ``crunner``: a low-level encapsulator that runs commands (and is used by ``pman``).
 
 pman
-----
+====
 
 Most simply, ``pman`` is given with some string that describes a program to run on an underlying system shell. This program is executed, and ``pman`` can then be asked for information about this process. Some of the queries that ``pman`` can address are
 
@@ -34,17 +34,17 @@ Most simply, ``pman`` is given with some string that describes a program to run 
 ``pman`` also maintains a persistent human-readable/friendly database-in-the-filesystem of jobs and states of jobs.
 
 pfioh
------
+=====
 
 While ``pman`` is a service that runs other programs (and provides information about them), ``pfioh`` is a service that pushes/pulls files and directories between different locations.
 
 purl
-----
+====
 
 Since both ``pman`` and ``pfioh`` are services that are spoken to using ``http``, a companion application called ``purl`` is provided that can be used to speak to both ``pman`` and ``pfioh``.
 
 crunner
--------
+=======
 
 ``crunner`` is the actual "shim" or "wrapper" around an underlying system process.
 
