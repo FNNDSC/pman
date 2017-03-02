@@ -43,24 +43,61 @@ While ``pman`` is a service that runs other programs (and provides information a
 purl
 ====
 
-Since both ``pman`` and ``pfioh`` are services that are spoken to using ``http``, a companion application called ``purl`` is provided that can be used to speak to both ``pman`` and ``pfioh``.
+Since both ``pman`` and ``pfioh`` are services that listen for messages transported via ``http`` , a companion application called ``purl`` is provided that can be used to speak to both ``pman`` and ``pfioh``.
 
 crunner
 =======
 
-``crunner`` is the actual "shim" or "wrapper" around an underlying system process.
+``crunner`` is the actual "shim" or "wrapper" around an underlying system process. Most users will not need nor want necessarily to use ``crunner`` directly, although in many respects ``pman`` is a thin layer above ``crunner``.
 
 ***************
 Installation
 ***************
 
+Installation is relatively straightforward, and we recommend using either python virtual environments or docker.
+
+Python Virtual Environment
+==========================
+
+On Ubuntu, install the Python virtual environment creator
+
+.. code-block:: bash
+    sudo apt install virtualenv
+
+Then, create a directory for your virtual environments e.g.:
+
+.. code-block:: bash
+    mkdir ~/python-envs
+
+You might want to add to your .bashrc file these two lines:
+
+.. code-block:: bash
+    export WORKON_HOME=~/python-envs
+    source /usr/local/bin/virtualenvwrapper.sh
+
+Then you can source your .bashrc and create a new Python3 virtual environment:
+
+.. code-block:: bash
+    source .bashrc
+    mkvirtualenv --python=python3 python_env
+
+To activate or "enter" the virtual env:
+
+.. code-block:: bash
+    workon chris_env
+
+To deactivate virtual env:
+
+.. code-block:: bash
+    deactivate
+
+Using docker
+============
+
 .. code-block:: bash
 
    apt install libssl-dev libcurl4-openssl-dev
    pip install pman
-   
-   # optional
-   pip install httpie
 
 ***************
 Usage
