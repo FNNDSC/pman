@@ -62,33 +62,39 @@ Python Virtual Environment
 On Ubuntu, install the Python virtual environment creator
 
 .. code-block:: bash
+
     sudo apt install virtualenv
 
 Then, create a directory for your virtual environments e.g.:
 
 .. code-block:: bash
+
     mkdir ~/python-envs
 
 You might want to add to your .bashrc file these two lines:
 
 .. code-block:: bash
+
     export WORKON_HOME=~/python-envs
     source /usr/local/bin/virtualenvwrapper.sh
 
 Then you can source your .bashrc and create a new Python3 virtual environment:
 
 .. code-block:: bash
+
     source .bashrc
     mkvirtualenv --python=python3 python_env
 
 To activate or "enter" the virtual env:
 
 .. code-block:: bash
+
     workon chris_env
 
 To deactivate virtual env:
 
 .. code-block:: bash
+
     deactivate
 
 Using docker
