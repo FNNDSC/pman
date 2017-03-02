@@ -11,6 +11,8 @@ pman - v0.10.4
 .. image:: https://img.shields.io/badge/python-3.5%2B-blue.svg
     :target: https://badge.fury.io/py/pman
 
+.. contents:: Table of Contents
+
 ***************
 Overview
 ***************
