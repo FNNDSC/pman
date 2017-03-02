@@ -63,7 +63,7 @@ Installation
    pip install httpie
 
 ***************
-3. Usage
+Usage
 ***************
 
 Scripts
@@ -88,7 +88,7 @@ Modules
 
 
 ***************
-4. More
+More
 ***************
 
 .. code-block:: bash
