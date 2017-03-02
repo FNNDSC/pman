@@ -156,3 +156,14 @@ For usage of the individual componets, ``pman``, ``pfioh``, and ``purl``, consul
 
 For ``pman`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/pman>`_.
 
+``pfioh``
+========
+
+For ``pfioh`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/pfioh>`_.
+
+``purl``
+========
+
+For ``purl`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/purl>`_.
+
+
