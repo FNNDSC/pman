@@ -97,70 +97,57 @@ To deactivate virtual env:
 
     deactivate
 
-Using docker
-============
+Using the fnndsc/ubuntu-python3 dock
+=============================
+
+We provide a slim docker image with python3 based off Ubuntu. If you want to play inside this dock and install ``pman`` manually, do
 
 .. code-block:: bash
 
-   apt install libssl-dev libcurl4-openssl-dev
-   pip install pman
+    docker pull fnndsc/ubuntu-python3
 
+This docker has an entry point ``python3``. To enter the dock at a different entry and install your own stuff:
+
+.. code-block:: bash
+
+   docker run -ti --entrypoint /bin/bash fnndsc/ubuntu-python3
+   
+Now, install ``pman`` and friends using ``pip``
+
+.. code-block:: bash
+
+   apt update
+   apt install libssl-dev libcurl4-openssl-dev libcurl4-gnutls-dev librtmp-dev
+   pip install pman
+   
+**If you do the above, remember to ``commit`` your changes to the docker image otherwise they'll be lost when you remove the dock instance!**
+
+.. code-block:: bash
+
+  docker commit <image-ID> fnndsc/ubuntu-python3
+  
+ where ``<image-ID>`` is the ID of the image.
+  
+
+Using the fnndsc/pman dock
+==========================
+
+The easiest option however, is to just use the ``fnndsc/pman`` dock.
+
+.. code-block:: bash
+
+    docker pull fnndsc/pman
+    
+and then run
+
+.. code-block:: bash
+
+    docker run -ti fnndsc/pman 
+
+   
 ***************
 Usage
 ***************
 
-Scripts
-===============
+For usage of the individual componets, ``pman``, ``pfioh``, and ``purl``, consult the relevnat wiki pages.
 
-.. code-block:: bash
-
-   # start 'pman', listening on port 5010 of the current host
-   pman --raw 1 --http  --port 5010 --listeners 12
-
-Modules
-===============
-
-.. code-block:: python
-
-   # in yourscript.py
-   import pman
-
-   pman.pman(
-     debugFile = '/tmp/debug.file'
-     )
-
-
-***************
-More
-***************
-
-.. code-block:: bash
-
-   pman.py --raw 1 --http  --port 5010 --listeners 12
-
-Now, assuming the IP of the host as below, a job can be submitted to 'pman' using a REST type interface
-
-.. code-block:: bash
-
-   http POST http://10.17.24.163:5010/api/v1/cmd/ \
-   Content-Type:application/json Accept:application/json \
-   payload:='
-     {
-     "exec": {"cmd": "cal 7 1970"},
-     "action":"run",
-     "meta": {
-         "jid": "123-456-1",
-         "auid": "rudolphpienaar"
-       }
-     }'
-
-'pman' will then spawn the process and provide information on the status of the job. Note the <tt>payload</tt> JSON dictionary that provides some additional behaviour options (see later).
-
-Jobs launched by 'pman.py' can be queried with
-
-.. code-block:: bash
-
-   http GET http://10.17.24.163:5010/api/v1/_01/endInfo \
-     Content-Type:application/json Accept:application/json
-
-for the pid and status of job "1", for example
