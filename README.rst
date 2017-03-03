@@ -27,7 +27,7 @@ This repository provides several python scripts that can be used as either stand
 pman
 ====
 
-Most simply, ``pman`` is given with some string that describes a program to run on an underlying system shell. This program is executed, and ``pman`` can then be asked for information about this process. Some of the queries that ``pman`` can address are
+Most simply, ``pman`` manages processes, i.e. programs or applications that are run by an underlying system. For the most part, these processes are command line applications (i.e. have no GUI) and usually do not interact really with a user at all. The purpose of ``pman`` is to provide other software agents the ability to execute processes via ``http`` and then be able to respond to these agents when queried about the process. In the simplest case, ``pman`` is given some string text that is the command line of the program to run on an underlying system shell. This program is executed, and ``pman`` can then be asked for information about this process. Some of the queries that ``pman`` can address are
 
 - *state*: Is job <XYZ> still running?
 - *result*: What is the stdout (or stderr) from job <XYZ>?
