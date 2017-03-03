@@ -63,13 +63,13 @@ On Ubuntu, install the Python virtual environment creator
 
 .. code-block:: bash
 
-sudo apt install virtualenv
+  sudo apt install virtualenv
 
 Then, create a directory for your virtual environments e.g.:
 
 .. code-block:: bash
 
-    mkdir ~/python-envs
+  mkdir ~/python-envs
 
 You might want to add to your .bashrc file these two lines:
 
