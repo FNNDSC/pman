@@ -120,7 +120,7 @@ Now, install ``pman`` and friends using ``pip``
    apt install libssl-dev libcurl4-openssl-dev libcurl4-gnutls-dev librtmp-dev
    pip install pman
    
-**If you do the above, remember to ``commit`` your changes to the docker image otherwise they'll be lost when you remove the dock instance!**
+**If you do the above, remember to** ``commit`` **your changes to the docker image otherwise they'll be lost when you remove the dock instance!**
 
 .. code-block:: bash
 
@@ -154,7 +154,7 @@ For usage of the individual componets, ``pman``, ``pfioh``, and ``purl``, consul
 ``pman``
 ========
 
-For ``pman`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/pman>`_.
+For ``pman`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/pman-overview>`_.
 
 ``pfioh``
 ========
