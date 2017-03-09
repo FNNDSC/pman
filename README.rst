@@ -43,7 +43,7 @@ While ``pman`` is a service that runs other programs (and provides information a
 purl
 ====
 
-Since both ``pman`` and ``pfioh`` are services that listen for messages transported via ``http`` , a companion application called ``purl`` is provided that can be used to speak to both ``pman`` and ``pfioh``.
+Since both ``pman`` and ``pfioh`` are services that listen for messages transported via ``http`` , a companion client application called ``purl`` is provided that can be used to speak to both ``pman`` and ``pfioh``.
 
 crunner
 =======
@@ -89,7 +89,7 @@ To activate or "enter" the virtual env:
 
 .. code-block:: bash
 
-    workon chris_env
+    workon python_env
 
 To deactivate virtual env:
 
