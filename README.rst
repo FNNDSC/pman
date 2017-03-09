@@ -124,9 +124,9 @@ Now, install ``pman`` and friends using ``pip``
 
 .. code-block:: bash
 
-  docker commit <image-ID> fnndsc/ubuntu-python3
+  docker commit <container-ID> local/ubuntu-python3-pman
   
- where ``<image-ID>`` is the ID of the image.
+ where ``<container-ID>`` is the ID of the above container.
   
 
 Using the ``fnndsc/pman`` dock
@@ -142,7 +142,7 @@ and then run
 
 .. code-block:: bash
 
-    docker run -ti fnndsc/pman 
+    docker run --name pman fnndsc/pman 
 
    
 ***************
