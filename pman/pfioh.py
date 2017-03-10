@@ -14,12 +14,15 @@ str_desc = """
 
                          A simple http file IO handler
 
-    `pfioh.py' is a simple http-based file I/O handler/server, usually started
-    by `pman.py'.
+    `pfioh' is a simple http-based file I/O handler/server allowing software
+    agents to perform useful file transfers over http.
 
-    `pfioh.py' handles HTTP REST-like requests on a given port -- it can accept
-    incoming file data from a client, and can also return server-side filetrees
+    `pfioh' handles HTTP REST-like requests on a given port -- it can accept
+    incoming file data from a client, and can also return server-side file trees
     to a client.
+
+    `pfioh' can also zip up/unzip file trees so that entire paths can be easily
+    transferred.
 
 """
 
@@ -562,7 +565,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
         self.col2_print("Listening on address:",    self.args['ip'])
         self.col2_print("Listening on port:",       self.args['port'])
-
+        self.col2_print("Server listen forever:",   self.args['b_forever'])
         print(Colors.LIGHT_GREEN + "\n\n\tWaiting for incoming data..." + Colors.NO_COLOUR)
 
 def zipdir(path, ziph, **kwargs):
