@@ -7,9 +7,8 @@
 #                        dev@babyMRI.org
 #
 
-# FOR DEV PURPOSE
-# import sys, os
-# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import sys, os
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '..'))
 
 import argparse, socket, os, pman
 
@@ -29,12 +28,15 @@ str_desc = """
 
                          A simple http file IO handler
 
-    `pfioh.py' is a simple http-based file I/O handler/server, usually started
-    by `pman.py'.
+    `pfioh' is a simple http-based file I/O handler/server allowing software
+    agents to perform useful file transfers over http.
 
-    `pfioh.py' handles HTTP REST-like requests on a given port -- it can accept
-    incoming file data from a client, and can also return server-side filetrees
+    `pfioh' handles HTTP REST-like requests on a given port -- it can accept
+    incoming file data from a client, and can also return server-side file trees
     to a client.
+
+    `pfioh' can also zip up/unzip file trees so that entire paths can be easily
+    transferred.
 
 """
 
