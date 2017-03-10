@@ -2,7 +2,7 @@
 
 '''
 
-pman - curl module
+purl - python curl module
 
 '''
 
@@ -138,15 +138,15 @@ class Purl():
 
             print(Colors.LIGHT_GREEN)
             print("""
-            \t\t\t+--------------------+
-            \t\t\t|  Welcome to purl!  |
-            \t\t\t+--------------------+
+            \t\t\t\t+--------------------+
+            \t\t\t\t|  Welcome to purl!  |
+            \t\t\t\t+--------------------+
             """)
             print(Colors.CYAN + """
-            'purl' is a wrapper about pycurl, specifically designed for the ChRIS/pman interface. When called
-            from the command line is also acts as a client for REST GET / POST calls.
+            'purl' is a wrapper about pycurl, originally designed for the ChRIS/pman interface.
+            It also functions as a reasonable CLI curl client, too!
 
-            Type 'purl.py --man commands' for more help.""")
+            Type 'purl --man commands' for more help.""")
             if self.b_useDebug:
                 print("""
             Debugging output is directed to the file '%s'.
@@ -542,7 +542,7 @@ class Purl():
         if d_compress['encoding'] == 'base64':
             self.qprint("Decoding base64 encoded text stream to %s..." % \
                         str_localFile, comms = 'status')
-            d_fio = pfioh.base64_process(
+            d_fio = base64_process(
                 action          = 'decode',
                 payloadBytes    = str_response,
                 saveToFile      = str_localFile
@@ -563,7 +563,7 @@ class Purl():
         if d_compress['archive'] == 'zip':
             self.qprint("Unzipping %s to %s"  % (str_localFile, str_localPath),
                         comms = 'status')
-            d_fio = pfioh.zip_process(
+            d_fio = zip_process(
                 action          = "unzip",
                 payloadFile     = str_localFile,
                 path            = str_localPath
@@ -686,11 +686,11 @@ class Purl():
             c.setopt(c.READFUNCTION,    fread.read)
             c.setopt(c.POSTFIELDSIZE,   filesize)
         else:
-            # c.setopt(c.HTTPPOST, [
-            #                         ("d_msg",    str_msg),
-            #                      ]
-            #          )
-            c.setopt(c.POSTFIELDS, str_msg)
+            c.setopt(c.HTTPPOST, [
+                                    ("d_msg",    str_msg),
+                                 ]
+                     )
+            # c.setopt(c.POSTFIELDS, str_msg)
         if verbose:                     c.setopt(c.VERBOSE, 1)
         # print(self.str_contentType)
         if len(self.str_contentType):   c.setopt(c.HTTPHEADER, ['Content-type: %s' % self.str_contentType])
@@ -815,7 +815,7 @@ class Purl():
         # of the local path
         if b_zip:
             self.qprint("Zipping target...", comms = 'status')
-            d_fio   = pfioh.zip_process(
+            d_fio   = zip_process(
                 action  = 'zip',
                 path    = str_localPath,
                 arcroot = str_localPath
@@ -830,7 +830,7 @@ class Purl():
         # transmission.
         if str_encoding     == 'base64':
             self.qprint("base64 encoding target...", comms = 'status')
-            d_fio   = pfioh.base64_process(
+            d_fio   = base64_process(
                 action      = 'encode',
                 payloadFile = str_fileToProcess,
                 saveToFile  = str_fileToProcess + ".b64"
