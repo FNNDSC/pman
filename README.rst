@@ -98,7 +98,7 @@ To deactivate virtual env:
     deactivate
 
 Using the ``fnndsc/ubuntu-python3`` dock
-=============================
+========================================
 
 We provide a slim docker image with python3 based off Ubuntu. If you want to play inside this dock and install ``pman`` manually, do
 
@@ -130,7 +130,7 @@ Now, install ``pman`` and friends using ``pip``
   
 
 Using the ``fnndsc/pman`` dock
-==========================
+==============================
 
 The easiest option however, is to just use the ``fnndsc/pman`` dock.
 
@@ -149,7 +149,7 @@ and then run
 Usage
 ***************
 
-For usage of the individual componets, ``pman``, ``pfioh``, and ``purl``, consult the relevnat wiki pages.
+For usage of the individual components, ``pman``, ``pfioh``, and ``purl``, consult the relevant wiki pages.
 
 ``pman``
 ========
