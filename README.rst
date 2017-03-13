@@ -154,17 +154,17 @@ For usage of the individual components, ``pman``, ``pfioh``, and ``purl``, consu
 ``pman`` usage
 ===============
 
-For ``pman`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/pman-overview>`_.
+For ``pman`` detailed information, see the `pman wiki page <https://github.com/FNNDSC/pman/wiki/pman-overview>`_.
 
 ``pfioh`` usage
 ===============
 
-For ``pfioh`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/pfioh>`_.
+For ``pfioh`` detailed information, see the `pfioh wiki page <https://github.com/FNNDSC/pman/wiki/pfioh>`_.
 
 ``purl`` usage
 ==============
 
-For ``purl`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/purl>`_.
+For ``purl`` detailed information, see the `purl wiki page <https://github.com/FNNDSC/pman/wiki/purl>`_.
 
 
 
