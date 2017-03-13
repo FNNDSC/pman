@@ -1,5 +1,5 @@
 ##############
-pman - v0.11.0
+pman - v0.11.1
 ##############
 
 .. image:: https://badge.fury.io/py/pman.svg
