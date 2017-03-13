@@ -1,6 +1,6 @@
-####################################
+##############
 pman - v0.11.0
-####################################
+##############
 
 .. image:: https://badge.fury.io/py/pman.svg
     :target: https://badge.fury.io/py/pman
@@ -13,9 +13,9 @@ pman - v0.11.0
 
 .. contents:: Table of Contents
 
-***************
+********
 Overview
-***************
+********
 
 This repository provides several python scripts that can be used as either standalone executables or as modules in python code. The common theme of this respository is *process* (and *file*) **management**. The following scripts/modules are provided:
 
@@ -50,9 +50,9 @@ crunner
 
 ``crunner`` is the actual "shim" or "wrapper" around an underlying system process. Most users will not need nor want necessarily to use ``crunner`` directly, although in many respects ``pman`` is a thin layer above ``crunner``.
 
-***************
+************
 Installation
-***************
+************
 
 Installation is relatively straightforward, and we recommend using either python virtual environments or docker.
 
@@ -145,9 +145,9 @@ and then run
     docker run --name pman fnndsc/pman 
 
    
-***************
+*****
 Usage
-***************
+*****
 
 For usage of the individual components, ``pman``, ``pfioh``, and ``purl``, consult the relevant wiki pages.
 
@@ -165,5 +165,6 @@ For ``pfioh`` detailed information, see the `wiki page here <https://github.com/
 ==============
 
 For ``purl`` detailed information, see the `wiki page here <https://github.com/FNNDSC/pman/wiki/purl>`_.
+
 
 
