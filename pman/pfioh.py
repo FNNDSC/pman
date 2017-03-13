@@ -175,6 +175,7 @@ class StoreHandler(BaseHTTPRequestHandler):
             d_ret['msg']        = d_fio['msg']
             d_ret['timestamp']  = '%s' % datetime.datetime.now()
             str_fileToProcess   = d_fio['fileProcessed']
+            d_ret['encoding']   = {}
             d_ret['encoding']['filesize']   = '%s' % os.stat(str_fileToProcess).st_size
             str_base64File      = str_fileToProcess
 
@@ -335,8 +336,6 @@ class StoreHandler(BaseHTTPRequestHandler):
         # d_msg               = json.loads(ast.literal_eval(d_form['d_msg']))
         d_msg               = json.loads((d_form['d_msg']))
         d_meta              = d_msg['meta']
-
-        self.qprint(d_msg, comms = 'rx')
 
         if 'ctl' in d_meta:
             self.do_POST_serverctl(d_meta)
