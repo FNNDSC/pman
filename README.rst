@@ -159,12 +159,12 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
 ``pfioh`` usage
 ===============
 
-For ``pfioh`` detailed information, see the `pfioh wiki page <https://github.com/FNNDSC/pman/wiki/pfioh>`_.
+For ``pfioh`` detailed information, see the `pfioh wiki page <https://github.com/FNNDSC/pman/wiki/pfioh-overview>`_.
 
 ``purl`` usage
 ==============
 
-For ``purl`` detailed information, see the `purl wiki page <https://github.com/FNNDSC/pman/wiki/purl>`_.
+For ``purl`` detailed information, see the `purl wiki page <https://github.com/FNNDSC/pman/wiki/purl-overview>`_.
 
 
 
