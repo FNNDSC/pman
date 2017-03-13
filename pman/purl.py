@@ -95,6 +95,7 @@ class Purl():
         self.str_man            = ''
         self.b_quiet            = False
         self.b_raw              = False
+        self.b_oneShot          = False
         self.auth               = ''
         self.str_jsonwrapper    = ''
         self.str_contentType    = ''
@@ -119,6 +120,7 @@ class Purl():
             if key == 'port':           self.str_port               = val
             if key == 'b_quiet':        self.b_quiet                = val
             if key == 'b_raw':          self.b_raw                  = val
+            if key == 'b_oneShot':      self.b_oneShot              = val
             if key == 'man':            self.str_man                = val
             if key == 'jsonwrapper':    self.str_jsonwrapper        = val
             if key == 'useDebug':       self.b_useDebug             = val
@@ -249,14 +251,14 @@ class Purl():
             str_manTxt += """
 
                 This pushes a file over HTTP. The 'meta' dictionary
-                can be used to specifiy content specific information
+                can be used to specify content specific information
                 and other information.
 
                 Note that the "file" server is typically *not* on the
-                same port as the pman.py process. Usually a prior call
-                must be made to pman.py to start a one-shot listener
+                same port as the `pman` process. Usually a prior call
+                must be made to `pman` to start a one-shot listener
                 on a given port. This port then accepts the file transfer
-                from the 'push' method.
+                from the 'pushPath' method.
                 
                 The "meta" dictionary consists of several nested 
                 dictionaries. In particular, the "remote/path"
@@ -268,7 +270,7 @@ class Purl():
 
                 """ + Colors.YELLOW + """EXAMPLE:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
+                purl --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pushPath",
                         "meta":
                             {
@@ -295,7 +297,7 @@ class Purl():
                 """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR  + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
+                purl --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pushPath",
                         "meta":
                             {
@@ -341,14 +343,14 @@ class Purl():
             str_manTxt += """
 
                 This pulls data over HTTP from a remote server.
-                The 'meta' dictionary can be used to specifiy content
+                The 'meta' dictionary can be used to specify content
                 specific information and other detail.
 
                 Note that the "file" server is typically *not* on the
-                same port as the pman.py process. Usually a prior call
-                must be made to pman.py to start a one-shot listener
+                same port as a `pman` process. Usually a prior call
+                must be made to `pman` to start a one-shot listener
                 on a given port. This port then accepts the file transfer
-                from the 'pull' method.
+                from the 'pullPath' method.
 
                 The "meta" dictionary consists of several nested
                 dictionaries. In particular, the "remote/path"
@@ -359,7 +361,7 @@ class Purl():
 
                 """ + Colors.YELLOW + """EXAMPLE -- using zip:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
+                purl --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pullPath",
                         "meta":
                             {
@@ -386,7 +388,7 @@ class Purl():
                 """ % (self.str_ip, self.str_port) + Colors.NO_COLOUR + """
                 """ + Colors.YELLOW + """ALTERNATE -- using copy/symlink:
                 """ + Colors.LIGHT_GREEN + """
-                ./purl.py --verb POST --http %s:%s/api/v1/cmd/ --msg \\
+                purl --verb POST --http %s:%s/api/v1/cmd/ --msg \\
                     '{  "action": "pullPath",
                         "meta":
                             {
@@ -537,7 +539,6 @@ class Purl():
         str_localFile       = "%s/%s%s" % (d_meta['local']['path'], str_localStem, str_fileSuffix)
         str_response        = d_pull['response']
         d_pull['response']  = '<truncated>'
-
 
         if d_compress['encoding'] == 'base64':
             self.qprint("Decoding base64 encoded text stream to %s..." % \
@@ -951,8 +952,20 @@ class Purl():
             d_ret['status']   = False
             d_ret['msg']      = 'No push/pull operation was performed! A filepath check failed!'
 
-        d_meta['ctl']       = {
-            'serverCmd':    'quit'
+        if self.b_oneShot:
+            d_ret['shutdown'] = self.server_ctlQuit(d_msg)
+        return {'stdout': d_ret}
+
+    def server_ctlQuit(self, d_msg):
+        """
+
+        :return: d_shutdown shut down JSON message from remote service.
+        """
+
+        d_shutdown      = {}
+        d_meta          = d_msg['meta']
+        d_meta['ctl'] = {
+            'serverCmd': 'quit'
         }
 
         self.qprint('Attempting to shut down remote server...', comms = 'status')
@@ -960,9 +973,7 @@ class Purl():
             d_shutdown  = self.push_core(d_msg, fileToPush = None)
         except:
             pass
-
-        # return {'stdout': json.dumps(d_ret)}
-        return {'stdout': d_ret}
+        return d_shutdown
 
     def pushPath(self, d_msg, **kwargs):
         """
