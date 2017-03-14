@@ -116,8 +116,8 @@ Now, install ``pman`` and friends using ``pip``
 
 .. code-block:: bash
 
-   apt update
-   apt install libssl-dev libcurl4-openssl-dev libcurl4-gnutls-dev librtmp-dev
+   apt update && \
+   apt install libssl-dev libcurl4-openssl-dev librtmp-dev && \
    pip install pman
    
 **If you do the above, remember to** ``commit`` **your changes to the docker image otherwise they'll be lost when you remove the dock instance!**
