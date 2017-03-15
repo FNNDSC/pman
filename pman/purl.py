@@ -687,11 +687,11 @@ class Purl():
             c.setopt(c.READFUNCTION,    fread.read)
             c.setopt(c.POSTFIELDSIZE,   filesize)
         else:
-            c.setopt(c.HTTPPOST, [
-                                    ("d_msg",    str_msg),
-                                 ]
-                     )
-            # c.setopt(c.POSTFIELDS, str_msg)
+            # c.setopt(c.HTTPPOST, [
+            #                         ("d_msg",    str_msg),
+            #                      ]
+            #          )
+            c.setopt(c.POSTFIELDS, str_msg)
         if verbose:                     c.setopt(c.VERBOSE, 1)
         # print(self.str_contentType)
         if len(self.str_contentType):   c.setopt(c.HTTPHEADER, ['Content-type: %s' % self.str_contentType])
@@ -970,7 +970,8 @@ class Purl():
 
         self.qprint('Attempting to shut down remote server...', comms = 'status')
         try:
-            d_shutdown  = self.push_core(d_msg, fileToPush = None)
+            # d_shutdown  = self.push_core(d_msg, fileToPush = None)
+            d_shutdown  = self.push_core(d_msg)
         except:
             pass
         return d_shutdown
