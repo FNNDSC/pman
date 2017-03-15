@@ -1216,6 +1216,9 @@ class Listener(threading.Thread):
                 d_ret['GET']    = self.DB_get(path = str_path)
                 d_ret['status'] = True
 
+            self.dp.qprint('json_payload = %s' % json_payload)
+            d_ret['client_json_payload']    = json_payload
+            d_ret['client_json_len']        = len(json_payload)
             if len(json_payload):
                 d_payload           = json.loads(json_payload)
                 d_request           = d_payload['payload']
