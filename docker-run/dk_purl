@@ -45,7 +45,7 @@ parser.add_argument(
     action  = 'store_true',
     dest    = 'b_pman',
     default = False,
-    help    = 'if specified, indicates to transmit to a linked <pman> container.',
+    help    = 'if specified, indicates transmission to a linked <pman> container.',
 )
 
 parser.add_argument(
@@ -53,7 +53,7 @@ parser.add_argument(
     action  = 'store_true',
     dest    = 'b_pfioh',
     default = False,
-    help    = 'if specified, indicates to transmit to a linked <pfioh> container.',
+    help    = 'if specified, indicates transmission to a linked <pfioh> container.',
 )
 
 parser.add_argument(
