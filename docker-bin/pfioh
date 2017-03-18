@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+G_CONTAINER="fnndsc/pman"
+
+G_SYNOPSIS="
+
+    NAME
+
+        dk_pfioh
+
+    SYNOPSIS
+
+        dk_pfioh        [-d <container>]                                \\
+                        [... cmd line parameters to contained pman ]
+
+    DESCRIPTION
+
+        'dk_pfioh' is a helper script that starts a dockerized instance
+        of 'pfioh' from (by default) the fnndsc/pman container (this can
+        be overridden by a '-d <container>' specification.
+
+        Any additional command line parameters are passed unchanged to the
+        container entrypoint.
+
+"
+
+TEMP=$(getopt -q -o c: -n 'parse-options' -- "$@")
+
+while true; do
+    case "$1"
+    in
+        -c)  shift ; G_CONTAINER=$1 ; shift ;;
+        --) shift ; break ;;
+        *) break ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+PFIOHARGS=$*
+
+CMD="docker run --name pman -v /home:/Users --rm -ti $G_CONTAINER pfioh $PFIOHARGS"
+eval $CMD
