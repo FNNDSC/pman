@@ -13,11 +13,16 @@ G_SYNOPSIS="
         pfioh           [-c <container>]                                \\
                         [... cmd line parameters to contained phioh ]
 
+    ARGS
+
+        [-c <container>]
+        An optional container to use. If not specified, will assume 'fnndsc/pman'.
+
     DESCRIPTION
 
         'docker-bin/pfioh' is a helper script that starts an instance
         of 'pfioh' that is within the fnndsc/pman container (note the actual
-        container can be overridden by a '-d <container>' specification.
+        container can be overridden with a '-d <container>' specification.
 
         Any additional command line parameters are passed unchanged to the
         container entrypoint.
