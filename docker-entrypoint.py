@@ -71,19 +71,28 @@ def http_construct(args, unknown):
     return str_http
 
 def pman_do(args, unknown):
-    str_CMD = "/usr/local/bin/pman --raw 1 --http --port 5010 --listeners 12"
+
+    str_otherArgs   = ' '.join(unknown)
+
+    str_CMD = "/usr/local/bin/pman %s" % (str_otherArgs)
     return str_CMD
 
 def pfioh_do(args, unknown):
-    str_CMD = "/usr/local/bin/phfioh --forever"
+
+    str_otherArgs   = ' '.join(unknown)
+
+    str_CMD = "/usr/local/bin/phfioh %s" % (str_otherArgs)
     return str_CMD
 
 def purl_do(args, unknown):
 
     str_http        = http_construct(args, unknown)
     str_otherArgs   = ' '.join(unknown)
+    str_raw         = ''
 
-    str_CMD = "/usr/local/bin/purl --verb POST --raw  %s --jsonwrapper 'payload' --msg '%s' %s" % (str_http, args.msg, str_otherArgs)
+    if args.raw: str_raw = '--raw'
+
+    str_CMD = "/usr/local/bin/purl --verb %s %s %s --jsonwrapper '%s' --msg '%s' %s" % (args.verb, args.raw, str_http, args.jsonwrapper, args.msg, str_otherArgs)
     return str_CMD
 
 def bash_do(args, unknown):
@@ -126,6 +135,45 @@ parser.add_argument(
     default = '',
     help    = 'JSON msg payload'
 )
+
+# Pattern of minimum required purl args
+parser.add_argument(
+    '--verb',
+    action  = 'store',
+    dest    = 'verb',
+    default = 'POST',
+    help    = 'REST verb.'
+)
+parser.add_argument(
+    '--http',
+    action  = 'store',
+    dest    = 'http',
+    default = '%s:%s' % (str_defIP, str_defPort),
+    help    = 'HTTP string: <IP>[:<port>]</some/path/>'
+)
+
+parser.add_argument(
+    '--jsonwrapper',
+    action  = 'store',
+    dest    = 'jsonwrapper',
+    default = '',
+    help    = 'wrap msg in optional field'
+)
+parser.add_argument(
+    '--raw',
+    help    = 'if specified, do not wrap return data from remote call in json field',
+    dest    = 'b_raw',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--jsonpprintindent',
+    help    = 'pretty print json-formatted payloads',
+    dest    = 'jsonpprintindent',
+    action  = 'store',
+    default = 0
+)
+
 
 args, unknown   = parser.parse_known_args()
 
