@@ -145,14 +145,6 @@ parser.add_argument(
     help    = 'REST verb.'
 )
 parser.add_argument(
-    '--http',
-    action  = 'store',
-    dest    = 'http',
-    default = '%s:%s' % (str_defIP, str_defPort),
-    help    = 'HTTP string: <IP>[:<port>]</some/path/>'
-)
-
-parser.add_argument(
     '--jsonwrapper',
     action  = 'store',
     dest    = 'jsonwrapper',
