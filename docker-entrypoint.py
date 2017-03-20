@@ -81,7 +81,7 @@ def pfioh_do(args, unknown):
 
     str_otherArgs   = ' '.join(unknown)
 
-    str_CMD = "/usr/local/bin/phfioh %s" % (str_otherArgs)
+    str_CMD = "/usr/local/bin/pfioh %s" % (str_otherArgs)
     return str_CMD
 
 def purl_do(args, unknown):
