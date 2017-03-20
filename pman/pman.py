@@ -88,6 +88,7 @@ class pman(object):
         # The listener thread array -- each element of this array is threaded listener
         # object
         self.l_listener         = []
+        self.listenerSleep      = 0.1
 
         # The fileIO threaded object
         self.fileIO             = None
@@ -120,6 +121,7 @@ class pman(object):
             if key == 'port':           self.str_port       = val
             if key == 'raw':            self.router_raw     = int(val)
             if key == 'listeners':      self.listeners      = int(val)
+            if key == 'listenerSleep':  self.listenerSleep  = float(val)
             if key == 'http':           self.b_http         = int(val)
             if key == 'within':         self.within         = val
             if key == 'debugFile':      self.str_debugFile  = val
@@ -171,11 +173,9 @@ class pman(object):
         # pudb.set_trace()
         self.col2_print('Server is listening on',
                         '%s://%s:%s' % (self.str_protocol, self.str_IP, self.str_port))
-        self.col2_print('Router raw mode',
-                        str(self.router_raw))
-        self.col2_print('HTTP response back mode',
-                        str(self.b_http))
-
+        self.col2_print('Router raw mode',                  str(self.router_raw))
+        self.col2_print('HTTP response back mode',          str(self.b_http))
+        self.col2_print('listener sleep',                   str(self.listenerSleep))
 
         # Read the DB from HDD
         self._ptree             = C_stree()
@@ -346,10 +346,6 @@ class pman(object):
         # Front facing socket to accept client connections.
         self.socket_front = self.zmq_context.socket(zmq.ROUTER)
         self.socket_front.router_raw = self.router_raw
-        # socket_front.setsockopt(zmq.RCVBUF, 65536)
-        # socket_front.setsockopt(zmq.SNDBUF, 65536)
-        # socket_front.setsockopt(zmq.SNDHWM, 65536)
-        # socket_front.setsockopt(zmq.RCVHWM, 65536)
         self.socket_front.setsockopt(zmq.LINGER, 1)
         self.socket_front.bind('%s://%s:%s' % (self.str_protocol,
                                           self.str_IP,
@@ -358,10 +354,6 @@ class pman(object):
 
         # Backend socket to distribute work.
         self.socket_back = self.zmq_context.socket(zmq.DEALER)
-        # socket_back.setsockopt(zmq.RCVBUF, 65536)
-        # socket_back.setsockopt(zmq.SNDBUF, 65536)
-        # socket_back.setsockopt(zmq.SNDHWM, 65536)
-        # socket_back.setsockopt(zmq.RCVHWM, 65536)
         self.socket_back.setsockopt(zmq.LINGER, 1)
         self.socket_back.bind('inproc://backend')
 
@@ -377,14 +369,15 @@ class pman(object):
         # them later.
         for i in range(0, self.listeners):
             self.l_listener.append(Listener(
-                                    id          = i,
-                                    context     = self.zmq_context,
-                                    DB          = self._ptree,
-                                    DBpath      = self.str_DBpath,
-                                    http        = self.b_http,
-                                    within      = self,
-                                    debugToFile = self.b_debugToFile,
-                                    debugFile   = self.str_debugFile))
+                                    id              = i,
+                                    context         = self.zmq_context,
+                                    DB              = self._ptree,
+                                    DBpath          = self.str_DBpath,
+                                    http            = self.b_http,
+                                    within          = self,
+                                    listenerSleep   = self.listenerSleep,
+                                    debugToFile     = self.b_debugToFile,
+                                    debugFile       = self.str_debugFile))
             self.l_listener[i].start()
 
         # Use built in queue device to distribute requests among workers.
@@ -492,6 +485,8 @@ class Listener(threading.Thread):
         self.str_DBpath         = "/tmp/pman"
         self.str_jobRootDir     = ''
 
+        self.listenerSleep      = 0.1
+
         self.jid                = ''
         self.auid               = ''
 
@@ -504,6 +499,7 @@ class Listener(threading.Thread):
 
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
+            if key == 'listenerSleep':  self.listenerSleep  = float(val)
             if key == 'id':             self.worker_id      = val
             if key == 'DB':             self._ptree         = val
             if key == 'DBpath':         self.str_DBpath     = val
@@ -540,7 +536,10 @@ class Listener(threading.Thread):
                 self.dp.qprint('Received %s from client_id: %s' % (request, client_id))
                 b_requestWaiting    = True
             except zmq.Again as e:
-                pass
+                if self.listenerSleep:
+                    time.sleep(0.1)
+                else:
+                    pass
 
             if b_requestWaiting:
                 self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Received comms from client.' % (self.worker_id))
