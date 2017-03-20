@@ -71,20 +71,29 @@ parser.add_argument(
     default = '%s/tmp/debug-pman.log' % os.environ['HOME'],
     help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
 )
+parser.add_argument(
+    '--listenerSleep',
+    action  = 'store',
+    dest    = 'listenerSleep',
+    default = '0.1',
+    help    = 'A delay in each listener loop to prevent busy-wait.'
+)
+
 args = parser.parse_args()
 
 # server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
 # server.setup(args = vars(args))
 
 comm = pman.pman(
-    IP          = args.ip,
-    port        = args.port,
-    protocol    = args.protocol,
-    raw         = args.raw,
-    listeners   = args.listeners,
-    http        = args.http,
-    debugToFile = args.debugToFile,
-    debugFile   = args.debugFile
+    IP              = args.ip,
+    port            = args.port,
+    protocol        = args.protocol,
+    raw             = args.raw,
+    listeners       = args.listeners,
+    http            = args.http,
+    listenerSleep   = args.listenerSleep,
+    debugToFile     = args.debugToFile,
+    debugFile       = args.debugFile
     )
 
 # This starts the main thread and "detaches" execution from the main
