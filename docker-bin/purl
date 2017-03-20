@@ -7,25 +7,25 @@ str_desc = """
 
     NAME
 
-        dk_purl
+        purl
 
     SYNOPSIS
 
-        dk_purl         [-d <container>]                                \\
+        purl            [-c <container>]                                \\
                         [--pman || --phioh]                             \\
                         --msg <JSON_payload>                            \\
                         [... cmd line parameters to contained purl ]
 
     DESCRIPTION
 
-        'dk_purl' is a helper script that sends containerized 'purl'
+        'docker-bin/purl' is a helper script that sends containerized 'purl'
         payloads to a containerized instance of either 'pman' or 'pfioh'.
 
         By default, and in the simplest case, this script only needs a
         payload --msg arg and a destination --pman or --pfioh arg.
 
-        Any normal 'purl' argument can be specified, and will
-        override an underlying default.
+        Any normal 'purl' argument can be specified, and will simply be passed
+        through unchanged to the containerized 'purl'.
 
 """
 

@@ -6,22 +6,22 @@ G_SYNOPSIS="
 
     NAME
 
-        dk_pman
+        pman
 
     SYNOPSIS
 
-        dk_pman         [-d <container>]                                \\
+        pman            [-c <container>]                                \\
                         [... cmd line parameters to contained pman ]
 
     DESCRIPTION
 
-        'dk_pman' is a helper script that starts a dockerized instance
-        of 'pman' from (by default) the fnndsc/pman container (this can
-        be overridden by a '-d <container>' specification.
+        'pman' is a helper script that starts a dockerized instance
+        of 'pman' from the fnndsc/pman container (note that the
+        actual container can be overridden by a '-c <container>'
+        specification).
 
         Any additional command line parameters are passed unchanged to the
         container entrypoint.
-
 "
 
 TEMP=$(getopt -q -o c: -n 'parse-options' -- "$@")

@@ -6,18 +6,18 @@ G_SYNOPSIS="
 
     NAME
 
-        dk_pfioh
+        pfioh
 
     SYNOPSIS
 
-        dk_pfioh        [-d <container>]                                \\
-                        [... cmd line parameters to contained pman ]
+        pfioh           [-c <container>]                                \\
+                        [... cmd line parameters to contained phioh ]
 
     DESCRIPTION
 
-        'dk_pfioh' is a helper script that starts a dockerized instance
-        of 'pfioh' from (by default) the fnndsc/pman container (this can
-        be overridden by a '-d <container>' specification.
+        'docker-bin/pfioh' is a helper script that starts an instance
+        of 'pfioh' that is within the fnndsc/pman container (note the actual
+        container can be overridden by a '-d <container>' specification.
 
         Any additional command line parameters are passed unchanged to the
         container entrypoint.
