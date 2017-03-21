@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     str_link = ''
     if args.b_pfioh:
-        str_link = '--link pman:pfioh'
+        str_link = '--link pfioh:pfioh'
     if args.b_pman:
         str_link = '--link pman:pman'
 
