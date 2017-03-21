@@ -20,9 +20,10 @@ G_SYNOPSIS="
 
     DESCRIPTION
 
-        'docker-bin/pfioh' is a helper script that starts an instance
-        of 'pfioh' that is within the fnndsc/pman container (note the actual
-        container can be overridden with a '-d <container>' specification.
+        'pfioh' is a helper script that starts a dockerized instance
+        of 'pfioh' from the fnndsc/pman container (note that the
+        actual container can be overridden with a '-c <container>'
+        specification).
 
         Any additional command line parameters are passed unchanged to the
         container entrypoint.
@@ -43,6 +44,6 @@ done
 shift $(($OPTIND - 1))
 PFIOHARGS=$*
 
-CMD="docker run --name pman -p 5055:5055 -v /home:/Users --rm -ti $G_CONTAINER pfioh $PFIOHARGS"
+CMD="docker run --name pfioh -p 5055:5055 -v /home:/Users --rm -ti $G_CONTAINER pfioh $PFIOHARGS"
 echo "$CMD"
 eval $CMD
