@@ -89,7 +89,10 @@ def purl_do(args, unknown):
     str_http        = http_construct(args, unknown)
     str_otherArgs   = ' '.join(unknown)
 
-    str_CMD = "/usr/local/bin/purl --verb %s --raw %s %s --jsonwrapper '%s' --msg '%s' %s" % (args.verb, args.raw, str_http, args.jsonwrapper, args.msg, str_otherArgs)
+    str_raw = ''
+    if args.b_raw: str_raw = "--raw"
+
+    str_CMD = "/usr/local/bin/purl --verb %s %s %s --jsonwrapper '%s' --msg '%s' %s" % (args.verb, str_raw, str_http, args.jsonwrapper, args.msg, str_otherArgs)
     return str_CMD
 
 def bash_do(args, unknown):
@@ -151,13 +154,6 @@ parser.add_argument(
     dest    = 'b_raw',
     action  = 'store_true',
     default = False
-)
-parser.add_argument(
-    '--jsonpprintindent',
-    help    = 'pretty print json-formatted payloads',
-    dest    = 'jsonpprintindent',
-    action  = 'store',
-    default = 0
 )
 
 
