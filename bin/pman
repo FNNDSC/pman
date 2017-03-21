@@ -107,7 +107,7 @@ print('pman started successfully.')
 # request, i.e.
 # purl    --content-type application/vnd.collection+json      \
 #         --verb POST                                         \
-#         --raw --http 192.168.1.189:5010/api/v1/cmd          \
+#         --rawmode --http 192.168.1.189:5010/api/v1/cmd      \
 #         --jsonwrapper 'payload'                             \
 #         --msg '{    "action": "quit",
 #                     "meta": {
