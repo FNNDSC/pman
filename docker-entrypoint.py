@@ -88,11 +88,8 @@ def purl_do(args, unknown):
 
     str_http        = http_construct(args, unknown)
     str_otherArgs   = ' '.join(unknown)
-    str_raw         = ''
 
-    if args.raw: str_raw = '--raw'
-
-    str_CMD = "/usr/local/bin/purl --verb %s %s %s --jsonwrapper '%s' --msg '%s' %s" % (args.verb, args.raw, str_http, args.jsonwrapper, args.msg, str_otherArgs)
+    str_CMD = "/usr/local/bin/purl --verb %s --raw %s %s --jsonwrapper '%s' --msg '%s' %s" % (args.verb, args.raw, str_http, args.jsonwrapper, args.msg, str_otherArgs)
     return str_CMD
 
 def bash_do(args, unknown):
@@ -111,7 +108,6 @@ parser.add_argument(
     nargs   = '?',
     default = 'pman'
 )
-
 parser.add_argument(
     '--pman',
     action  = 'store_true',
@@ -119,7 +115,6 @@ parser.add_argument(
     default = False,
     help    = 'if specified, indicates transmission to a linked <pman> container.',
 )
-
 parser.add_argument(
     '--pfioh',
     action  = 'store_true',
@@ -127,7 +122,6 @@ parser.add_argument(
     default = False,
     help    = 'if specified, indicates transmission to a linked <pfioh> container.',
 )
-
 parser.add_argument(
     '--msg',
     action  = 'store',
