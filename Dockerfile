@@ -19,7 +19,7 @@ MAINTAINER fnndsc "dev@babymri.org"
 
 RUN apt-get update \
   && apt-get install -y libssl-dev libcurl4-openssl-dev \
-  && pip3 install pman==0.12.1
+  && pip3 install pman==0.12.2
 
 COPY ./docker-entrypoint.py /root/docker-entrypoint.py
 ENTRYPOINT ["/root/docker-entrypoint.py"]
