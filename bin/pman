@@ -37,10 +37,10 @@ parser.add_argument(
     help    = 'Protocol to use.'
 )
 parser.add_argument(
-    '--raw',
+    '--rawmode',
     action  = 'store',
     dest    = 'raw',
-    default = '0',
+    default = '1',
     help    = 'Router raw mode.'
 )
 parser.add_argument(
