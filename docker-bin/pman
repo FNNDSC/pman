@@ -43,7 +43,7 @@ done
 shift $(($OPTIND - 1))
 PMANARGS=$*
 
-CMD="docker run --name pman -p 5010:5010 -v /home:/Users --rm -ti $G_CONTAINER pman $PMANARGS"
+CMD="docker run --name pman -p 5010:5010 -v /tmp/pman:/tmp/pman -v /home:/Users --rm -ti $G_CONTAINER pman $PMANARGS"
 echo "$CMD"
 eval $CMD
 
