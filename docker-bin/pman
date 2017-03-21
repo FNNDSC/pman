@@ -44,5 +44,6 @@ shift $(($OPTIND - 1))
 PMANARGS=$*
 
 CMD="docker run --name pman -v /home:/Users --rm -ti $G_CONTAINER pman $PMANARGS"
+echo "$CMD"
 eval $CMD
 
