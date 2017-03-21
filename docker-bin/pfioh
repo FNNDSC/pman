@@ -43,6 +43,6 @@ done
 shift $(($OPTIND - 1))
 PFIOHARGS=$*
 
-CMD="docker run --name pman -v /home:/Users --rm -ti $G_CONTAINER pfioh $PFIOHARGS"
+CMD="docker run --name pman -p 5055:5055 -v /home:/Users --rm -ti $G_CONTAINER pfioh $PFIOHARGS"
 echo "$CMD"
 eval $CMD
