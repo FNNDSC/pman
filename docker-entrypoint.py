@@ -2,8 +2,9 @@
 
 # Single entry point / dispatcher for simplified running of 'pman'
 
-import  argparse
 import  os
+from    argparse            import RawTextHelpFormatter
+from    argparse            import ArgumentParser
 
 str_desc = """
 
@@ -38,8 +39,7 @@ def bash_do(args, unknown):
     str_CMD = "/bin/bash"
     return str_CMD
 
-
-parser  = argparse.ArgumentParser(description = str_desc)
+parser  = ArgumentParser(description = str_desc, formatter_class = RawTextHelpFormatter)
 
 parser.add_argument(
     '--msg',
