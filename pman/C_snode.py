@@ -541,7 +541,6 @@ class C_stree:
             # and now add the leaves
             for file,contents in a_flat.items(): self.touch(file, contents)
 
-
         def __str__(self):
             self.sCore.reset()
             self.sCore.write('%s' % self.snode_root)
@@ -658,7 +657,6 @@ class C_stree:
 
         def mkdir(self, astr_dirSpec):
             """
-
             Given an <astr_dirSpec> in form '/a/b/c/d/.../f',
             create that path in the internal stree, creating all
             intermediate nodes as necessary
@@ -1269,7 +1267,6 @@ class C_stree:
             :return:
             """
             return self.tree_copy(**kwargs)
-
 
         def tree_copy(self, **kwargs):
             """
