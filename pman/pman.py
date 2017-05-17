@@ -2,13 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import  abc
-#import  sys
 import  time
 import  os
 
 import  threading
 import  zmq
-#from    zmq.devices     import ProcessDevice
 from    webob           import  Response
 import  psutil
 
@@ -19,6 +17,8 @@ import  platform
 import  multiprocessing
 
 import  pudb
+import  json
+
 
 # pman local dependencies
 from   ._colors           import Colors
@@ -26,6 +26,29 @@ from   .crunner           import crunner
 from   .C_snode           import *
 from   .debug             import debug
 from   .pfioh             import *
+
+import  docker
+
+str_devNotes = """
+
+    10 May 2017
+    *   Should methods in the listener be functors? Certain methods, such as 'run' and 'status' need
+        specialized implementations based on a run environment. This run environment is not known 
+        by the listener when it starts, but can be specified at payload parsing by the process() 
+        method. This, a method such as
+        
+            t_run_process()
+            
+        might need at arbitrary call time to be specialized to some external condition set (say by
+        running as a container). Naively, this can be parsed in the message and thread redirected to
+        
+            t_run_process_swarm()
+            
+        for example.
+        
+        Would a functor type approach be useful at all?
+
+"""
 
 
 class StoppableThread(threading.Thread):
@@ -434,7 +457,6 @@ class FileIO(threading.Thread):
                                         level       = -1,
                                         debugFile   = self.str_debugFile,
                                         debugToFile = self.b_debugToFile)
-
 
         threading.Thread.__init__(self)
 
@@ -863,7 +885,6 @@ class Listener(threading.Thread):
         return {"d_ret":    d_ret,
                 "status":   b_status}
 
-
     def t_done_process(self, *args, **kwargs):
         """
 
@@ -877,7 +898,6 @@ class Listener(threading.Thread):
         self.dp.qprint("In done process...")
 
         return self.job_state(*args, **kwargs)
-
 
     def t_status_process(self, *args, **kwargs):
         """
@@ -982,9 +1002,11 @@ class Listener(threading.Thread):
         str_cmd             = ""
         d_request           = {}
         d_meta              = {}
+        d_Tcontainer        = {}
 
         for k,v in kwargs.items():
-            if k == 'request': d_request    = v
+            if k == 'request':      d_request       = v
+            if k == 'treeList':     d_Tcontainer    = v
 
         d_meta          = d_request['meta']
 
@@ -1010,11 +1032,18 @@ class Listener(threading.Thread):
         self.str_jobRootDir = str_dir
 
         b_jobsAllDone       = False
-
         p                   = self._ptree
 
         p.cd('/')
         p.mkcd(str_dir)
+
+        if d_Tcontainer:
+            # Save the trees in this list to the DB...
+            for name,tree in d_Tcontainer.items():
+                p.mkcd(name)
+                tree.copy(startPath = '/', destination = p, pathDiskRoot = '/%s/%s' % (str_dir, name))
+                p.cd('/%s' % str_dir)
+
         p.touch('d_meta',       json.dumps(d_meta))
         p.touch('cmd',          str_cmd)
         if len(self.auid):
@@ -1051,6 +1080,96 @@ class Listener(threading.Thread):
                 p.touch('/%s/jobCount' % str_dir,   jobCount)
                 jobCount        += 1
         self.dp.qprint('All jobs processed.')
+
+    def t_run_process_swarm(self, *args, **kwargs):
+        """
+        A threaded run method specialized to calling the swarm module.
+        
+        Typical JSON d_request:
+        
+        {   "action": "run",
+            "meta":  {
+                "cmd":      "$execshell $selfpath/$selfexec --prefix test --sleepLength 0 /share/incoming /share/outgoing",
+                "auid":     "rudolphpienaar",
+                "jid":      "simpledsapp-1",
+                "threaded": true,
+                "container":   {
+                        "image": {
+                            "name":     "fnndsc/pl-simpledsapp",
+                            "cmdParse": true
+                        },
+                        "manager": {
+                            "type":     "swarm",
+                            "env":  {
+                                "shareDir": "/home/tmp/share",
+                                "serviceName":  "testService"
+                            }
+                        }
+                }
+            }
+        }
+        """
+
+        str_cmd             = ""
+        str_shareDir        = ""
+        str_serviceName     = ""
+        d_request           = {}
+        d_meta              = {}
+        d_container         = {}
+        d_image             = {}
+        d_manager           = {}
+        d_env               = {}
+        d_dictFlatten       = {}
+
+        for k,v in kwargs.items():
+            if k == 'request': d_request    = v
+
+        d_meta          = d_request['meta']
+        # pudb.set_trace()
+
+        if d_meta:
+            self.jid    = d_meta['jid']
+            self.auid   = d_meta['auid']
+            str_cmd     = d_meta['cmd']
+
+        if 'container' in d_meta.keys():
+            d_container         = d_meta['container']
+            d_image             = d_container['image']
+            str_image           = d_image['name']
+
+            d_manager           = d_container['manager']
+            str_type            = d_manager['type']
+            d_env               = d_manager['env']
+            str_shareDir        = d_env['shareDir']
+            str_serviceName     = d_env['serviceName']
+
+        # First, attach to the docker daemon and call the swarm image container
+        client = docker.from_env()
+
+        # If 'container/cmdParse', get a JSON representation of the image and
+        # parse the cmd for substitutions
+        if d_image['cmdParse']:
+            byte_str    = client.containers.run(str_image)
+            d_jsonRep   = json.loads(byte_str.decode())
+            for str_meta in ['execshell', 'selfexec', 'selfpath']:
+                str_cmd = str_cmd.replace("$"+str_meta, d_jsonRep[str_meta])
+
+        str_cmdLine     = str_cmd
+        str_swarmLine   = 'swarm.py -s %s -m %s -i %s -c "%s"' % \
+                          (str_serviceName, str_shareDir, str_image, str_cmdLine)
+        byte_str        = client.containers.run('local/swarm',
+                                         str_swarmLine,
+                                         volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
+                                         remove  = True)
+
+        # Call the "parent" method -- reset the cmdLine to an "echo"
+        # and create a flattenDictionary structure
+        d_meta['cmd']   = 'echo "%s"' % str_cmd
+        T_container     = C_stree()
+        T_container.initFromDict(d_container)
+        d_Tcontainer    = {'container': T_container}
+        self.t_run_process(request  = d_request,
+                           treeList = d_Tcontainer)
 
     def json_filePart_get(self, **kwargs):
         """
@@ -1226,6 +1345,30 @@ class Listener(threading.Thread):
             return d_ret
         else:
             return False
+        
+    def methodName_parse(self, **kwargs):
+        """
+        Construct the processing method name (string) by parsing the
+        d_meta dictionary.
+        """
+        d_meta              = {}
+        d_container         = {}
+        str_method          = ""        # The main 'parent' method
+        str_methodSuffix    = ""        # A possible 'subclass' specialization
+
+        for k,v in kwargs.items():
+            if k == 'request': d_request= v
+        payload_verb        = d_request['action']
+
+        if 'meta' in d_request.keys():
+            d_meta          = d_request['meta']
+
+        if 'container' in d_meta.keys():
+            d_container         = d_meta['container']
+            str_methodSuffix    = d_container['manager']['type']
+
+        str_method  = 't_%s_process_%s' %(payload_verb, str_methodSuffix)
+        return str_method
 
     def processPOST(self, **kwargs):
         """
@@ -1249,14 +1392,16 @@ class Listener(threading.Thread):
 
         if b_threaded:
             self.dp.qprint("Will process request in new thread.")
-            method      = None
-            str_method  = 't_%s_process' % payload_verb
+            pf_method   = None
+            # pudb.set_trace()
+            str_method  = self.methodName_parse(request = d_request)
+            # str_method  = 't_%s_process' % payload_verb
             try:
-                method  = getattr(self, str_method)
+                pf_method  = getattr(self, str_method)
             except AttributeError:
                 raise NotImplementedError("Class `{}` does not implement `{}`".format(my_cls.__class__.__name__, method_name))
 
-            t_process           = threading.Thread(     target      = method,
+            t_process           = threading.Thread(     target      = pf_method,
                                                         args        = (),
                                                         kwargs      = kwargs)
             t_process.start()
@@ -1318,7 +1463,6 @@ class Listener(threading.Thread):
 
             # print(Tdb)
             tree_DB     = Tdb
-
 
         if 'context'    in d_meta:  str_context     = d_meta['context']
         if 'operation'  in d_meta:  str_cmd         = d_meta['operation']
@@ -1403,7 +1547,6 @@ class Crunner(threading.Thread):
 
     def __init__(self, **kwargs):
         self.__name             = "Crunner"
-
 
         self.queueStart         = queue.Queue()
         self.queueEnd           = queue.Queue()
