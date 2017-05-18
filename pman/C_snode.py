@@ -738,6 +738,22 @@ class C_stree:
                         b_isFile    = True
             return b_isFile
 
+        def exists(self, fileDirSpec, **kwargs):
+            """
+            Simple returns a boolean if the <fileDirSpec>
+            exists in the current dir (or dir spec'd by **kwargs)
+            """
+
+            str_path        = self.cwd()
+            str_pathOrig    = str_path
+            for k,v in kwargs.items():
+                if k == 'path': str_path    = v
+            if fileDirSpec in self.lstr_lsnode(str_path):
+                return True
+            if fileDirSpec in self.lsf(str_path):
+                return True
+            return False
+
         def cat(self, name):
             """
             Returns the contents of the 'name'd element at this level.
@@ -759,6 +775,10 @@ class C_stree:
 
         def graft(self, atree, apath = '/'):
             """
+
+            NB: THIS METHOD HAS UNEXPECTED MEMORY BEHAVIOUR!
+                USE THE copy() METHOD INSTEAD!
+
             Attach (link) apath in a separate atree to here.
 
             Functionally equivalent to
