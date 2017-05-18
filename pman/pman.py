@@ -1081,6 +1081,9 @@ class Listener(threading.Thread):
                 jobCount        += 1
         self.dp.qprint('All jobs processed.')
 
+        # Save DB state...
+        self.within.DB_fileIO(cmd = 'save')
+
     def t_run_process_swarm(self, *args, **kwargs):
         """
         A threaded run method specialized to calling the swarm module.
@@ -1119,7 +1122,8 @@ class Listener(threading.Thread):
         d_image             = {}
         d_manager           = {}
         d_env               = {}
-        d_dictFlatten       = {}
+
+        self.dp.qprint('Processing swarm-type job...')
 
         for k,v in kwargs.items():
             if k == 'request': d_request    = v
@@ -1163,13 +1167,15 @@ class Listener(threading.Thread):
                                          remove  = True)
 
         # Call the "parent" method -- reset the cmdLine to an "echo"
-        # and create a flattenDictionary structure
+        # and create an stree off the 'container' dictionary to store
+        # in the pman DB entry.
         d_meta['cmd']   = 'echo "%s"' % str_cmd
         T_container     = C_stree()
         T_container.initFromDict(d_container)
         d_Tcontainer    = {'container': T_container}
         self.t_run_process(request  = d_request,
                            treeList = d_Tcontainer)
+        self.dp.qprint('Returning from swarm-type job...')
 
     def json_filePart_get(self, **kwargs):
         """
@@ -1307,13 +1313,12 @@ class Listener(threading.Thread):
             # remove trailing '/' if any on path
             if str_path[-1]         == '/': str_path = str_path[0:-1]
 
-            d_ret                   = {}
-            d_ret['status']         = False
-            d_ret['RESTheader']     = REST_header
-            d_ret['RESTverb']       = REST_verb
-            d_ret['action']         = ""
-            d_ret['path']           = str_path
-            d_ret['receivedByServer'] = l_raw
+            d_ret                   = {'status': False,
+                                       'RESTheader': REST_header,
+                                       'RESTverb': REST_verb,
+                                       'action': "",
+                                       'path': str_path,
+                                       'receivedByServer': l_raw}
 
             if REST_verb == 'GET':
                 d_ret['GET']    = self.DB_get(path = str_path)
@@ -1336,12 +1341,13 @@ class Listener(threading.Thread):
 
                 if payload_verb == 'run' and REST_verb == 'PUT':
                     d_ret['action']     = payload_verb
-                    self.processPUT(                            request     = d_request)
+                    self.processPUT(    request     = d_request)
                     d_ret['status'] = True
 
                 if REST_verb == 'POST':
                     self.processPOST(   request = d_request,
                                         ret     = d_ret)
+
             return d_ret
         else:
             return False
