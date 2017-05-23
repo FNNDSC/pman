@@ -592,14 +592,14 @@ class C_stree:
                 If specified, return only the directory name at depth <node>.
 
             """
-            
+
             b_node  = False
             node    = 0
             for key,val in kwargs.items():
-                if key == 'node':   
+                if key == 'node':
                     b_node  = True
                     node    = int(val)
-            
+
             str_path = self.cwd()
             if b_node:
                 l_path      = str_path.split('/')
@@ -745,7 +745,6 @@ class C_stree:
             """
 
             str_path        = self.cwd()
-            str_pathOrig    = str_path
             for k,v in kwargs.items():
                 if k == 'path': str_path    = v
             if fileDirSpec in self.lstr_lsnode(str_path):
@@ -762,16 +761,21 @@ class C_stree:
 
             TODO: parse possible path spec in name...
             """
+
+            origDir = self.cwd()
             # First, parse any path specs...
+            ret     = None
             path    = '/'.join(name.split('/')[0:-1])
             if len(path):
                 name    = name.split('/')[-1]
                 ret     = self.cd(path)
 
             if name in self.snode_current.d_data:
-                return self.snode_current.d_data[name]
+                ret     =  self.snode_current.d_data[name]
             else:
-                return False
+                ret     = False
+            self.cd(origDir)
+            return ret
 
         def graft(self, atree, apath = '/'):
             """
@@ -932,30 +936,30 @@ class C_stree:
             # Check for absolute path
             if not len(al_path[0]):
                 al_path[0]          = '/'
-                #print "returning %s : %s" % (self.b_pathOK(al_path), al_path)
+                # print "returning %s : %s" % (self.b_pathOK(al_path), al_path)
                 return self.b_pathOK(al_path), al_path
             # Here we are in relative mode...
             # First, resolve any leading '..'
             l_path        = self.l_cwd[:]
-            if(al_path[0] == '..'):
-                while(al_path[0] == '..' and len(al_path)):
+            if al_path[0] == '..':
+                while al_path[0] == '..' and len(al_path):
                     l_path    = l_path[0:-1]
-                    if(len(al_path) >= 2): al_path   = al_path[1:]
+                    if len(al_path) >= 2: al_path   = al_path[1:]
                     else: al_path[0] = ''
-                    #print "l_path  = %s" % l_path
-                    #print "al_path = %s (%d)" % (al_path, len(al_path[0]))
-                if(len(al_path[0])):
-                    #print "extending %s with %s" % (l_path, al_path)
+                    # print "l_path  = %s" % l_path
+                    # print "al_path = %s (%d)" % (al_path, len(al_path[0]))
+                if len(al_path[0]):
+                    # print "extending %s with %s" % (l_path, al_path)
                     l_path.extend(al_path)
             else:
                 l_path      = self.l_cwd
                 l_path.extend(al_path)
-            #print "final path list = %s (%d)" % (l_path, len(l_path))
-            if(len(l_path)>=1 and l_path[0] != '/'):      l_path.insert(0, '/')
-            if(len(l_path)>1):            l_path[0]       = ''
-            if(not len(l_path)):          l_path          = ['/']
+            # print "final path list = %s (%d)" % (l_path, len(l_path))
+            if len(l_path)>=1 and l_path[0] != '/':      l_path.insert(0, '/')
+            if len(l_path)>1:            l_path[0]       = ''
+            if not len(l_path):          l_path          = ['/']
             str_path      = '/'.join(l_path)
-            #print "final path str  = %s" % str_path
+            # print "final path str  = %s" % str_path
             b_valid, al_path = self.b_pathInTree(str_path)
             return b_valid, al_path
 
