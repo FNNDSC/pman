@@ -556,6 +556,7 @@ class Listener(threading.Thread):
                 if resultFromProcessing:
                     self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
                                    (self.worker_id))
+                    pudb.set_trace()
                     self.dp.qprint('JSON formatted response:')
                     str_payload = json.dumps(resultFromProcessing)
                     self.dp.qprint(Colors.LIGHT_CYAN + str_payload)
@@ -757,9 +758,10 @@ class Listener(threading.Thread):
         d_ret['fileioport'] = "%s" % (int(self.within.str_port) + self.worker_id)
         d_ret['serveforever']=d_meta['serveforever']
 
-        d_args              = {}
-        d_args['ip']        = d_ret['fileioIP']
-        d_args['port']      = d_ret['fileioport']
+        d_args              = {
+                                'ip':    d_ret['fileioIP'],
+                                'port':  d_ret['fileioport']
+                               }
 
         server              = ThreadedHTTPServer((d_args['ip'], int(d_args['port'])), StoreHandler)
         server.setup(args   = d_args)
@@ -793,6 +795,7 @@ class Listener(threading.Thread):
         d_request   = {}
         d_ret       = {}
         b_status    = False
+        b_container = False
         hits        = 0
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
@@ -807,24 +810,11 @@ class Listener(threading.Thread):
             for job in d_j.keys():
                 str_pathStart       = '/api/v1/' + job + '/start'
                 str_pathEnd         = '/api/v1/' + job + '/end'
-                str_jobStart        = '/' + job + '/start'
-                str_jobEnd          = '/' + job + '/end'
 
                 d_start             = self.DB_get(path = str_pathStart)
                 d_end               = self.DB_get(path = str_pathEnd)
                 Ts.initFromDict(d_start)
                 Te.initFromDict(d_end)
-
-                # self.DB_get(path = str_pathStart).copy(startPath = '/', destination = Ts)
-                # self.DB_get(path = str_pathEnd).copy(startPath = '/',   destination = Te)
-
-                # pudb.set_trace()
-
-                # print('Ts startPath = %s' % str_pathStart)
-                # print('Te startPath = %s' % str_pathEnd)
-
-                # p.tree_copy(startPath = str_jobStart,   destination = Ts)
-                # p.tree_copy(startPath = str_jobEnd,     destination = Te)
 
                 self.dp.qprint("Ts.cwd = %s " % Ts.cwd())
                 self.dp.qprint(Ts)
@@ -867,23 +857,24 @@ class Listener(threading.Thread):
                 if len(l_subJobsEnd):
                     latestJob   = l_subJobsEnd[-1]
                     for j in list(range(0, latestJob+1)):
-                        l_subJobsEnd[j]     = Te.cat('/%s/end/%s/endInfo/%d/returncode' % (job, latestJob, j))
-
-                d_ret[str(hits)+'.start']   = {"jobRoot": job, "startTrigger":  l_subJobsStart}
-                d_ret[str(hits)+'.end']     = {"jobRoot": job, "returncode":    l_subJobsEnd}
+                        l_subJobsEnd[j]         = Te.cat('/%s/end/%s/endInfo/%d/returncode' % (job, latestJob, j))
+                T_container     = False
+                if p.exists('container', path = '/%s' % job):
+                    T_container = C_stree()
+                    p.copy(startPath = '/%s/container' % job, destination = T_container)
+                d_ret[str(hits)+'.start']       = {"jobRoot": job, "startTrigger":  l_subJobsStart}
+                d_ret[str(hits)+'.end']         = {"jobRoot": job, "returncode":    l_subJobsEnd}
+                d_ret[str(hits)+'.container']   = {"jobRoot": job, "tree":          dict(T_container.snode_root)}
                 hits               += 1
         if not hits:
-            d_ret                   = {
-                "-1":   {
-                    "noJobFound":   {
-                        "endInfo":  {"allJobsDone": None}
-                    }
-                }
-            }
+            d_ret['-1.start']       = {"jobRoot":   None, "startTrigger":   None}
+            d_ret['-1.end']         = {"jobRoot":   None, "returncode":     None}
+            d_ret['-1.container']   = {"jobRoot":   None, "tree":           None}
         else:
             b_status            = True
-        return {"d_ret":    d_ret,
-                "status":   b_status}
+        return {"hits":         hits,
+                "d_ret":        d_ret,
+                "status":       b_status}
 
     def t_done_process(self, *args, **kwargs):
         """
@@ -904,6 +895,8 @@ class Listener(threading.Thread):
 
         Return status on a given job.
 
+        Attempts to check if a containerized job, and branch accordingly.
+
         :param args:
         :param kwargs:
         :return:
@@ -912,7 +905,6 @@ class Listener(threading.Thread):
         self.dp.qprint("In status process...")
 
         d_state     = self.job_state(*args, **kwargs)
-
         d_ret       = d_state['d_ret']
         b_status    = d_state['status']
 
@@ -925,20 +917,128 @@ class Listener(threading.Thread):
             except:
                 endcode     = None
 
-            if endcode == None and b_startEvent:
-                l_status.append('started')
-            if not endcode and b_startEvent and type(endcode) is int:
-                l_status.append('finishedSuccessfully')
-            if endcode and b_startEvent:
-                l_status.append('finishedWithError')
+            pudb.set_trace()
+            if d_state['d_ret']['%s.container' % str(i)]['tree']:
+                kwargs['d_state']   = d_state
+                kwargs['hitIndex']  = str(i)
+                l_status.append(self.t_status_process_container(*args, **kwargs))
+            else:
+                if endcode is None and b_startEvent:
+                    l_status.append('started')
+                if not endcode and b_startEvent and type(endcode) is int:
+                    l_status.append('finishedSuccessfully')
+                if endcode and b_startEvent:
+                    l_status.append('finishedWithError')
 
             self.dp.qprint('b_startEvent = %d' % b_startEvent)
             self.dp.qprint(endcode)
             self.dp.qprint('l_status = %s' % l_status)
 
         d_ret['l_status']   = l_status
+
         return {"d_ret":    d_ret,
                 "status":   b_status}
+
+    def t_status_process_container_stateObject(self, *args, **kwargs):
+        """
+        Process the actual JSON container return object on service
+        state.
+
+        PRECONDITIONS:
+        o   This method should only ever be called by t_status_process_container().
+
+        POSTCONDITIONS:
+        o   A string denoting the current state is returned.
+        o   If state is complete and service still running, save state object to
+            tree and remove service.
+
+        """
+        d_serviceState      = None
+        d_jobState          = None
+        str_hitIndex        = "0"
+        str_ret             = 'undefined'
+        b_shutDownService   = False
+        for k,v in kwargs.items():
+            if k == 'jobState':         d_jobState      = v
+            if k == 'serviceState':     d_serviceState  = v
+            if k == 'hitIndex':         str_hitIndex    = v
+        if d_serviceState:
+            str_state   = d_serviceState['Status']['State']
+            str_message = d_serviceState['Status']['Message']
+            if str_state == 'running'   and str_message == 'started':
+                str_ret = 'started'
+            if str_state == 'failed'    and str_message == 'started':
+                str_ret = 'finishedWithError'
+                b_shutDownService   = True
+            if str_state == 'complete'  and str_message == 'finished':
+                str_ret     = 'finishedSuccessfully'
+                b_shutDownService   = True
+            if b_shutDownService:
+                str_jobRoot = d_jobState['d_ret']['%s.container' % str_hitIndex]['jobRoot']
+                if not self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
+                    # Store the service state
+                    self._ptree.touch('/%s/container/state' % str_jobRoot, d_serviceState)
+                    # And remove the service from the container scheduler
+                    client  = docker.from_env()
+                    self._ptree.cd('/%s/container' % str_jobRoot)
+                    str_serviceName     = self._ptree.cat('manager/env/serviceName')
+                    str_managerImage    = self._ptree.cat('manager/image')
+                    str_managerApp      = self._ptree.cat('manager/app')
+                    str_cmdManager      = '%s --remove %s' % \
+                                          (str_managerApp, str_serviceName)
+                    byte_str = client.containers.run('%s' % str_managerImage,
+                                                     str_cmdManager,
+                                                     volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
+                                                     remove=True)
+        return str_ret
+
+    def t_status_process_container(self, *args, **kwargs):
+        """
+        Determine the status of a job scheduled using the container manager.
+
+        PRECONDITIONS:
+        o   Only call this method if a container structure exists
+            in the relevant job tree!
+
+        POSTCONDITIONS:
+        o   If the job is completed, then shutdown the container cluster
+            service.
+
+        """
+        d_state         = None
+        str_jobRoot     = ''
+        str_hitIndex    = "0"
+
+        for k,v in kwargs.items():
+            if k == 'd_state':  d_state         = v
+            if k == 'hitIndex': str_hitIndex    = v
+
+        self.dp.qprint('checking on status using container...')
+        str_jobRoot         = d_state['d_ret']['%s.container' % str_hitIndex]['jobRoot']
+        self._ptree.cd('/%s/container' % str_jobRoot)
+        str_serviceName     = self._ptree.cat('manager/env/serviceName')
+        str_managerImage    = self._ptree.cat('manager/image')
+        str_managerApp      = self._ptree.cat('manager/app')
+
+        # Check if the state of the container service has been recorded to the data tree
+        if self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
+            # The job has actually completed and its state recorded in the data tree
+            d_json          = self._ptree.cat('/%s/container/state')
+        else:
+            # Ask the container service for the state of the service...
+            client = docker.from_env()
+
+            # Get the state of the service...
+            str_cmdManager  = '%s --state %s' % \
+                              (str_managerApp, str_serviceName)
+            byte_str        = client.containers.run('%s' % str_managerImage,
+                                                    str_cmdManager,
+                                                    volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
+                                                    remove  = True)
+            d_json          = json.loads(byte_str.decode())
+        return self.t_status_process_container_stateObject( hitIndex        = str_hitIndex,
+                                                            jobState        = d_state,
+                                                            serviceState    = d_json)
 
     def t_hello_process(self, *args, **kwargs):
         """
@@ -1084,10 +1184,13 @@ class Listener(threading.Thread):
         # Save DB state...
         self.within.DB_fileIO(cmd = 'save')
 
-    def t_run_process_swarm(self, *args, **kwargs):
+    def t_run_process_container(self, *args, **kwargs):
         """
-        A threaded run method specialized to calling the swarm module.
-        
+        A threaded run method specialized to handling containerized managers and targets.
+
+        NOTE: If 'serviceName' is not specified/present, then this defaults to the 'jid'
+        value and is in fact the default behaviour.
+
         Typical JSON d_request:
         
         {   "action": "run",
@@ -1097,12 +1200,13 @@ class Listener(threading.Thread):
                 "jid":      "simpledsapp-1",
                 "threaded": true,
                 "container":   {
-                        "image": {
-                            "name":     "fnndsc/pl-simpledsapp",
+                        "target": {
+                            "image":     "fnndsc/pl-simpledsapp",
                             "cmdParse": true
                         },
                         "manager": {
-                            "type":     "swarm",
+                            "image":    "fnndsc/swarm"
+                            "app":      "swarm.py",
                             "env":  {
                                 "shareDir": "/home/tmp/share",
                                 "serviceName":  "testService"
@@ -1132,50 +1236,59 @@ class Listener(threading.Thread):
         # pudb.set_trace()
 
         if d_meta:
-            self.jid    = d_meta['jid']
-            self.auid   = d_meta['auid']
-            str_cmd     = d_meta['cmd']
+            self.jid            = d_meta['jid']
+            self.auid           = d_meta['auid']
+            str_cmd             = d_meta['cmd']
+            str_serviceName     = self.jid
 
-        if 'container' in d_meta.keys():
-            d_container         = d_meta['container']
-            d_image             = d_container['image']
-            str_image           = d_image['name']
+            if 'container' in d_meta.keys():
+                d_container         = d_meta['container']
+                d_target            = d_container['target']
+                str_targetImage     = d_target['image']
 
-            d_manager           = d_container['manager']
-            str_type            = d_manager['type']
-            d_env               = d_manager['env']
-            str_shareDir        = d_env['shareDir']
-            str_serviceName     = d_env['serviceName']
+                d_manager           = d_container['manager']
+                str_managerImage    = d_manager['image']
+                str_managerApp      = d_manager['app']
 
-        # First, attach to the docker daemon and call the swarm image container
-        client = docker.from_env()
+                d_env               = d_manager['env']
+                if 'shareDir' in d_env.keys():
+                    str_shareDir    = d_env['shareDir']
+                if 'serviceName' in d_env.keys():
+                    str_serviceName = d_env['serviceName']
 
-        # If 'container/cmdParse', get a JSON representation of the image and
-        # parse the cmd for substitutions
-        if d_image['cmdParse']:
-            byte_str    = client.containers.run(str_image)
-            d_jsonRep   = json.loads(byte_str.decode())
-            for str_meta in ['execshell', 'selfexec', 'selfpath']:
-                str_cmd = str_cmd.replace("$"+str_meta, d_jsonRep[str_meta])
+            # First, attach to the docker daemon...
+            client = docker.from_env()
 
-        str_cmdLine     = str_cmd
-        str_swarmLine   = 'swarm.py -s %s -m %s -i %s -c "%s"' % \
-                          (str_serviceName, str_shareDir, str_image, str_cmdLine)
-        byte_str        = client.containers.run('local/swarm',
-                                         str_swarmLine,
-                                         volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
-                                         remove  = True)
+            #
+            # If 'container/cmdParse', get a JSON representation of the image and
+            # parse the cmd for substitutions -- this replaces any of
+            # $exeshell, $selfpath, and/or $selfexec with the values provided
+            # in the JSON representation.
+            #
+            if d_target['cmdParse']:
+                byte_str    = client.containers.run(str_targetImage)
+                d_jsonRep   = json.loads(byte_str.decode())
+                for str_meta in ['execshell', 'selfexec', 'selfpath']:
+                    str_cmd = str_cmd.replace("$"+str_meta, d_jsonRep[str_meta])
 
-        # Call the "parent" method -- reset the cmdLine to an "echo"
-        # and create an stree off the 'container' dictionary to store
-        # in the pman DB entry.
-        d_meta['cmd']   = 'echo "%s"' % str_cmd
-        T_container     = C_stree()
-        T_container.initFromDict(d_container)
-        d_Tcontainer    = {'container': T_container}
-        self.t_run_process(request  = d_request,
-                           treeList = d_Tcontainer)
-        self.dp.qprint('Returning from swarm-type job...')
+            str_cmdLine     = str_cmd
+            str_cmdManager  = '%s -s %s -m %s -i %s -p none -c "%s"' % \
+                              (str_managerApp, str_serviceName, str_shareDir, str_targetImage, str_cmdLine)
+            byte_str        = client.containers.run('%s' % str_managerImage,
+                                             str_cmdManager,
+                                             volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
+                                             remove  = True)
+
+            # Call the "parent" method -- reset the cmdLine to an "echo"
+            # and create an stree off the 'container' dictionary to store
+            # in the pman DB entry.
+            d_meta['cmd']   = 'echo "%s"' % str_cmd
+            T_container     = C_stree()
+            T_container.initFromDict(d_container)
+            d_Tcontainer    = {'container': T_container}
+            self.t_run_process(request  = d_request,
+                               treeList = d_Tcontainer)
+            self.dp.qprint('Returning from swarm-type job...')
 
     def json_filePart_get(self, **kwargs):
         """
@@ -1370,8 +1483,11 @@ class Listener(threading.Thread):
             d_meta          = d_request['meta']
 
         if 'container' in d_meta.keys():
-            d_container         = d_meta['container']
-            str_methodSuffix    = d_container['manager']['type']
+            # If the 'container' json paragraph exists, then route processing to
+            # a suffixed '_container' method.
+            str_methodSuffix    = 'container'
+            # d_container         = d_meta['container']
+            # str_methodSuffix    = d_container['manager']['type']
 
         str_method  = 't_%s_process_%s' %(payload_verb, str_methodSuffix)
         return str_method
