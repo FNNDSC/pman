@@ -1,6 +1,8 @@
 language: python
 python:
   - "3.5"
+services:
+  - docker
 # command to install dependencies
 install: "pip install ."
 # command to run tests
