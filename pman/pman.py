@@ -556,7 +556,6 @@ class Listener(threading.Thread):
                 if resultFromProcessing:
                     self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
                                    (self.worker_id))
-                    pudb.set_trace()
                     self.dp.qprint('JSON formatted response:')
                     str_payload = json.dumps(resultFromProcessing)
                     self.dp.qprint(Colors.LIGHT_CYAN + str_payload)
@@ -917,7 +916,7 @@ class Listener(threading.Thread):
             except:
                 endcode     = None
 
-            pudb.set_trace()
+            # pudb.set_trace()
             if d_state['d_ret']['%s.container' % str(i)]['tree']:
                 kwargs['d_state']   = d_state
                 kwargs['hitIndex']  = str(i)
@@ -953,6 +952,45 @@ class Listener(threading.Thread):
             tree and remove service.
 
         """
+
+        def store_state(state, where, name):
+            """
+            Simply stores the state object to the internal memory DB (which is in turn
+            automatically persisted to HDD during periodic poll update).
+            """
+            if not self._ptree.exists(name, path = where):
+                self._ptree.touch('%s/%s' % (where, name), state)
+
+        def service_exists(str_serviceName):
+            """
+            Returns a bool:
+                - True:     <str_serviceName> does exist
+                - False:    <str_serviceName> does not exist
+            """
+            b_exists        = False
+            client          = docker.from_env()
+            try:
+                service     = client.services.get(str_serviceName)
+                b_exists    = True
+            except:
+                b_exists    = False
+            return b_exists
+
+        def service_shutDown(d_serviceInfo):
+            """
+            Shut down a service
+            """
+            client          = docker.from_env()
+            str_cmdShutDown = '%s --remove %s' % \
+                (d_serviceInfo['managerApp'], d_serviceInfo['serviceName'])
+            byte_str        = client.containers.run('%s' % d_serviceInfo['managerImage'],
+                                                    str_cmdShutDown,
+                                                    volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock',
+                                                                                      'mode': 'rw'}},
+                                                    remove=True)
+            return byte_str
+
+        # pudb.set_trace()
         d_serviceState      = None
         d_jobState          = None
         str_hitIndex        = "0"
@@ -963,33 +1001,28 @@ class Listener(threading.Thread):
             if k == 'serviceState':     d_serviceState  = v
             if k == 'hitIndex':         str_hitIndex    = v
         if d_serviceState:
+            str_jobRoot = d_jobState['d_ret']['%s.container' % str_hitIndex]['jobRoot']
             str_state   = d_serviceState['Status']['State']
             str_message = d_serviceState['Status']['Message']
             if str_state == 'running'   and str_message == 'started':
                 str_ret = 'started'
             if str_state == 'failed'    and str_message == 'started':
                 str_ret = 'finishedWithError'
+                store_state(d_serviceState, '/%s/container' % str_jobRoot, 'state')
                 b_shutDownService   = True
             if str_state == 'complete'  and str_message == 'finished':
                 str_ret     = 'finishedSuccessfully'
+                store_state(d_serviceState, '/%s/container' % str_jobRoot, 'state')
                 b_shutDownService   = True
             if b_shutDownService:
-                str_jobRoot = d_jobState['d_ret']['%s.container' % str_hitIndex]['jobRoot']
-                if not self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
-                    # Store the service state
-                    self._ptree.touch('/%s/container/state' % str_jobRoot, d_serviceState)
-                    # And remove the service from the container scheduler
-                    client  = docker.from_env()
-                    self._ptree.cd('/%s/container' % str_jobRoot)
-                    str_serviceName     = self._ptree.cat('manager/env/serviceName')
-                    str_managerImage    = self._ptree.cat('manager/image')
-                    str_managerApp      = self._ptree.cat('manager/app')
-                    str_cmdManager      = '%s --remove %s' % \
-                                          (str_managerApp, str_serviceName)
-                    byte_str = client.containers.run('%s' % str_managerImage,
-                                                     str_cmdManager,
-                                                     volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
-                                                     remove=True)
+                self._ptree.cd('/%s/container' % str_jobRoot)
+                d_serviceInfo       = {
+                                        'serviceName':  self._ptree.cat('manager/env/serviceName'),
+                                        'managerImage': self._ptree.cat('manager/image'),
+                                        'managerApp':   self._ptree.cat('manager/app')
+                                    }
+                if service_exists(d_serviceInfo['serviceName']):
+                    service_shutDown(d_serviceInfo)
         return str_ret
 
     def t_status_process_container(self, *args, **kwargs):
@@ -1020,6 +1053,8 @@ class Listener(threading.Thread):
         str_managerImage    = self._ptree.cat('manager/image')
         str_managerApp      = self._ptree.cat('manager/app')
 
+        # pudb.set_trace()
+
         # Check if the state of the container service has been recorded to the data tree
         if self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
             # The job has actually completed and its state recorded in the data tree
@@ -1033,7 +1068,8 @@ class Listener(threading.Thread):
                               (str_managerApp, str_serviceName)
             byte_str        = client.containers.run('%s' % str_managerImage,
                                                     str_cmdManager,
-                                                    volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
+                                                    volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock',
+                                                                                        'mode': 'rw'}},
                                                     remove  = True)
             d_json          = json.loads(byte_str.decode())
         return self.t_status_process_container_stateObject( hitIndex        = str_hitIndex,
@@ -1192,29 +1228,31 @@ class Listener(threading.Thread):
         value and is in fact the default behaviour.
 
         Typical JSON d_request:
-        
+
         {   "action": "run",
             "meta":  {
-                "cmd":      "$execshell $selfpath/$selfexec --prefix test --sleepLength 0 /share/incoming /share/outgoing",
+                "cmd":      "$execshell $selfpath/$selfexec --prefix test- --sleepLength 0 /share/incoming /share/outgoing",
                 "auid":     "rudolphpienaar",
                 "jid":      "simpledsapp-1",
                 "threaded": true,
                 "container":   {
                         "target": {
-                            "image":     "fnndsc/pl-simpledsapp",
-                            "cmdParse": true
+                            "image":        "fnndsc/pl-simpledsapp",
+                            "cmdParse":     true
                         },
                         "manager": {
-                            "image":    "fnndsc/swarm"
-                            "app":      "swarm.py",
+                            "image":        "fnndsc/swarm",
+                            "app":          "swarm.py",
                             "env":  {
-                                "shareDir": "/home/tmp/share",
+                                "shareDir":     "/home/tmp/share",
+                                "serviceType":  "docker",
                                 "serviceName":  "testService"
                             }
                         }
                 }
             }
         }
+
         """
 
         str_cmd             = ""
@@ -1242,19 +1280,21 @@ class Listener(threading.Thread):
             str_serviceName     = self.jid
 
             if 'container' in d_meta.keys():
-                d_container         = d_meta['container']
-                d_target            = d_container['target']
-                str_targetImage     = d_target['image']
+                d_container                 = d_meta['container']
+                d_target                    = d_container['target']
+                str_targetImage             = d_target['image']
 
-                d_manager           = d_container['manager']
-                str_managerImage    = d_manager['image']
-                str_managerApp      = d_manager['app']
+                d_manager                   = d_container['manager']
+                str_managerImage            = d_manager['image']
+                str_managerApp              = d_manager['app']
 
-                d_env               = d_manager['env']
+                d_env                       = d_manager['env']
                 if 'shareDir' in d_env.keys():
-                    str_shareDir    = d_env['shareDir']
+                    str_shareDir            = d_env['shareDir']
                 if 'serviceName' in d_env.keys():
-                    str_serviceName = d_env['serviceName']
+                    str_serviceName         = d_env['serviceName']
+                else:
+                    d_env['serviceName']    = str_serviceName
 
             # First, attach to the docker daemon...
             client = docker.from_env()
@@ -1274,10 +1314,15 @@ class Listener(threading.Thread):
             str_cmdLine     = str_cmd
             str_cmdManager  = '%s -s %s -m %s -i %s -p none -c "%s"' % \
                               (str_managerApp, str_serviceName, str_shareDir, str_targetImage, str_cmdLine)
-            byte_str        = client.containers.run('%s' % str_managerImage,
+            try:
+                byte_str    = client.containers.run('%s' % str_managerImage,
                                              str_cmdManager,
                                              volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
                                              remove  = True)
+            except:
+                # An exception here most likely occurs due to a serviceName collision.
+                # Solution is to stop the service and retry.
+                pass
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
