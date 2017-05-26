@@ -125,6 +125,13 @@ parser.add_argument(
     help    = 'A delay in each listener loop to prevent busy-wait.'
 )
 parser.add_argument(
+    '--DBsavePeriod',
+    action  = 'store',
+    dest    = 'DBsavePeriod',
+    default = '60',
+    help    = 'The periodicity, in seconds, for the internal DB to be flushed to disk.'
+)
+parser.add_argument(
     '--version',
     help    = 'if specified, print version number',
     dest    = 'b_version',
@@ -149,6 +156,7 @@ comm = pman.pman(
     listeners       = args.listeners,
     http            = args.http,
     listenerSleep   = args.listenerSleep,
+    DBsavePeriod    = args.DBsavePeriod,
     debugToFile     = args.debugToFile,
     debugFile       = args.debugFile,
     desc            = str_desc
