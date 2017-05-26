@@ -4,7 +4,7 @@ python:
 services:
   - docker
 # command to install dependencies
-install: "pip install - requirements"
+install: "pip install ."
 # command to run tests
 script: nosetests
 notifications:
