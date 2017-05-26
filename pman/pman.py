@@ -104,6 +104,7 @@ class pman(object):
         self.str_DBpath         = '/tmp/pman'
         self._ptree             = C_stree()
         self.str_fileio         = 'json'
+        self.DBsavePeriod       = 60
 
         # Comms
         self.str_protocol       = "tcp"
@@ -112,6 +113,8 @@ class pman(object):
         self.router_raw         = 0
         self.listeners          = 1
         self.b_http             = False
+        self.socket_front       = None
+        self.socket_back        = None
 
         # Job info
         self.auid               = ''
@@ -128,6 +131,7 @@ class pman(object):
             if key == 'raw':            self.router_raw     = int(val)
             if key == 'listeners':      self.listeners      = int(val)
             if key == 'listenerSleep':  self.listenerSleep  = float(val)
+            if key == 'DBsavePeriod':   self.DBsavePeriod   = int(val)
             if key == 'http':           self.b_http         = int(val)
             if key == 'within':         self.within         = val
             if key == 'debugFile':      self.str_debugFile  = val
@@ -151,34 +155,6 @@ class pman(object):
 
         print(self.str_desc)
 
-        # self.dp.qprint(Colors.YELLOW)
-        # self.dp.qprint("""
-        # \t+-----------------------------------------------+
-        # \t| Welcome to the pman process management system |
-        # \t+-----------------------------------------------+
-        # """)
-        # self.dp.qprint(Colors.CYAN + """
-        # 'pman' is a client/server system that allows users to monitor
-        # and control processes on (typically) Linux systems. Actual
-        # processes are spawned using the 'crunner' module and as such
-        # are ssh and HPC aware.
-        #
-        # The 'pman' server can be queried for running processes, lost/dead
-        # processes, exit status, etc.
-        #
-        # Communication from the 'pman' server is via JSON constructs. See the
-        # github page for more information.
-        #
-        # Typical calling syntax is:
-        #
-        #         ./pman.py   --raw 1                 \\
-        #                     --http                  \\
-        #                     --ip <someIP>           \\
-        #                     --port 5010             \\
-        #                     --listeners <listeners>
-        #
-        # """)
-
         # pudb.set_trace()
         self.col2_print('Server is listening on',
                         '%s://%s:%s' % (self.str_protocol, self.str_IP, self.str_port))
@@ -186,9 +162,10 @@ class pman(object):
         self.col2_print('HTTP response back mode',          str(self.b_http))
         self.col2_print('listener sleep',                   str(self.listenerSleep))
 
-        # Read the DB from HDD
+        # Create the main internal DB data structure/abstraction
         self._ptree             = C_stree()
-        # self.DB_read()
+
+        # Read the DB from HDD
         self.DB_fileIO(cmd = 'load')
 
         # Setup zmq context
@@ -229,7 +206,6 @@ class pman(object):
         """
         str_cmd     = 'save'
         str_DBpath  = self.str_DBpath
-        str_fileio  = 'json'
         tree_DB     = self._ptree
 
         for k,v in kwargs.items():
@@ -367,7 +343,7 @@ class pman(object):
         self.socket_back.bind('inproc://backend')
 
         # Start the 'fileIO' thread
-        self.fileIO      = FileIO(      timeout     = 60,
+        self.fileIO      = FileIO(      timeout     = self.DBsavePeriod,
                                         within      = self,
                                         debugFile   = self.str_debugFile,
                                         debugToFile = self.b_debugToFile)
@@ -908,9 +884,19 @@ class Listener(threading.Thread):
         d_ret       = d_state['d_ret']
         b_status    = d_state['status']
 
-        l_keys      = d_ret.items()
+        d_keys      = d_ret.items()
         l_status    = []
-        for i in range(0, int(len(l_keys)/2)):
+
+        #
+        # The d_ret keys consist of groups of
+        #
+        #       *.start
+        #       *.end
+        #       *.container
+        #
+        # thus the loop grouping is number of items / 3
+        #
+        for i in range(0, int(len(d_keys)/3)):
             b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
             try:
                 endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
@@ -961,6 +947,8 @@ class Listener(threading.Thread):
             """
             if not self._ptree.exists(name, path = where):
                 self._ptree.touch('%s/%s' % (where, name), state)
+                # Save DB state...
+                self.within.DB_fileIO(cmd = 'save')
 
         def service_exists(str_serviceName):
             """
@@ -976,6 +964,26 @@ class Listener(threading.Thread):
             except:
                 b_exists    = False
             return b_exists
+
+        def service_shutDown_check():
+            """
+            Verifies that a docker service can be shutdown.
+
+            Should multiple jobs have been scheduled temporally serially
+            with the same jid/serviceName, then the actual service can
+            only be shut down once all identical jobs have had their
+            state stored.
+
+            Returns bool:
+                - True:     can shut down
+                - False:    cannot shut down
+            """
+            ret = False
+            if int(str_hitIndex) < int(d_jobState['hits'])-1:
+                ret     = False
+            else:
+                ret      = True
+            return ret
 
         def service_shutDown(d_serviceInfo):
             """
@@ -1014,7 +1022,7 @@ class Listener(threading.Thread):
             if str_state == 'complete'  and str_message == 'finished':
                 str_ret     = 'finishedSuccessfully'
                 store_state(d_serviceState, '/%s/container' % str_jobRoot, 'state')
-                b_shutDownService   = True
+                b_shutDownService   = service_shutDown_check()
             if b_shutDownService:
                 self._ptree.cd('/%s/container' % str_jobRoot)
                 d_serviceInfo       = {
