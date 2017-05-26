@@ -32,9 +32,10 @@ import  docker
 str_devNotes = """
 
     10 May 2017
-    *   Should methods in the listener be functors? Certain methods, such as 'run' and 'status' need
-        specialized implementations based on a run environment. This run environment is not known 
-        by the listener when it starts, but can be specified at payload parsing by the process() 
+    *   Should methods in the listener be functors? Certain methods, such as 
+        'run' and 'status' need specialized implementations based on a run 
+        environment. This run environment is not known by the listener when 
+        it starts, but can be specified at payload parsing by the process() 
         method. This, a method such as
         
             t_run_process()
