@@ -28,6 +28,7 @@ from   .debug             import debug
 from   .pfioh             import *
 
 import  docker
+import  pudb
 
 str_devNotes = """
 
@@ -40,8 +41,9 @@ str_devNotes = """
         
             t_run_process()
             
-        might need at arbitrary call time to be specialized to some external condition set (say by
-        running as a container). Naively, this can be parsed in the message and thread redirected to
+        might need at arbitrary call time to be specialized to some external 
+        condition set (say by running as a container). Naively, this can be 
+        parsed in the message and thread redirected to
         
             t_run_process_swarm()
             
@@ -66,6 +68,7 @@ class StoppableThread(threading.Thread):
     def stopped(self):
         return self._stopper.isSet()
 
+
 class pman(object):
     """
     The server class for the pman (process manager) server
@@ -87,6 +90,8 @@ class pman(object):
 
         # Description
         self.str_desc           = ""
+        self.str_name           = ""
+        self.str_version        = ""
 
         # The main server function
         self.threaded_server    = None
@@ -139,7 +144,8 @@ class pman(object):
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'clearDB':        self.b_clearDB      = val
             if key == 'desc':           self.str_desc       = val
-
+            if key == 'name':           self.str_name       = val
+            if key == 'version':        self.str_version    = val
         # pudb.set_trace()
 
         # Screen formatting
@@ -530,6 +536,7 @@ class Listener(threading.Thread):
                 self.dp.qprint(Colors.BROWN + 'Client sends: %s' % (request))
 
                 resultFromProcessing    = self.process(request)
+                # pudb.set_trace()
                 if resultFromProcessing:
                     self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
                                    (self.worker_id))
@@ -539,17 +546,24 @@ class Listener(threading.Thread):
                     self.dp.qprint(Colors.BROWN + 'len = %d chars' % len(str_payload))
                     socket.send(client_id, zmq.SNDMORE)
                     if self.b_http:
-                        str_contentType = "application/json"
-                        res  = Response(str_payload)
-                        res.content_type = str_contentType
+                        str_contentType     = "application/html"
+                        res                 = Response(str_payload)
+                        res.content_type    = str_contentType
 
-                        str_HTTPpre = "HTTP/1.x "
-                        str_res     = "%s%s" % (str_HTTPpre, str(res))
-                        str_res     = str_res.replace("UTF-8", "UTF-8\nAccess-Control-Allow-Origin: *")
-
+                        str_HTTPpre         = "HTTP/1.x "
+                        str_res             = "%s%s" % (str_HTTPpre, str(res))
+                        str_res             = str_res.replace("UTF-8", "UTF-8\nAccess-Control-Allow-Origin: *")
+                        self.dp.qprint('HTML response')
+                        self.dp.qprint(str_res.encode())
                         socket.send(str_res.encode())
                     else:
-                        socket.send(str_payload)
+                        str_contentType     = "application/json"
+                        res                 = Response(str_payload)
+                        res.content_type    = str_contentType
+                        str_HTTPpre         = "HTTP/1.x "
+                        str_res             = '%s%s' % (str_HTTPpre, (res))
+                        self.dp.qprint(str_res)
+                        socket.send_string(str_res)
             b_requestWaiting    = False
         self.dp.qprint('Listnener ID - %s: Returning from run()...' % self.worker_id)
         # raise('Listener ID - %s: Thread terminated' % self.worker_id)
@@ -1109,6 +1123,8 @@ class Listener(threading.Thread):
         d_meta  = d_request['meta']
         if 'askAbout' in d_meta.keys():
             str_askAbout    = d_meta['askAbout']
+            d_ret['name']       = self.within.str_name
+            d_ret['version']    = self.within.str_version
             if str_askAbout == 'timestamp':
                 str_timeStamp   = datetime.datetime.today().strftime('%Y%m%d%H%M%S.%f')
                 d_ret['timestamp']              = {}
