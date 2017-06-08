@@ -32,6 +32,11 @@ import  pudb
 
 str_devNotes = """
 
+    08 June 2017
+    * NOTE: The zmq socket *always* sends back HTTP formatted headers around
+            the response string. The listening object (usually pfurl) should
+            *NOT* parse this with --httpResponseBodyParse!
+
     10 May 2017
     *   Should methods in the listener be functors? Certain methods, such as 
         'run' and 'status' need specialized implementations based on a run 
