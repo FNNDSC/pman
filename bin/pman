@@ -102,7 +102,7 @@ parser.add_argument(
     action  = 'store_true',
     dest    = 'http',
     default = False,
-    help    = 'Send HTTP formatted replie with content-type html; otherwise content-type json.'
+    help    = 'Send HTTP formatted replies with content-type html; otherwise content-type json.'
 )
 parser.add_argument(
     '--debugToFile',
