@@ -1349,10 +1349,10 @@ class Listener(threading.Thread):
                                              str_cmdManager,
                                              volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}},
                                              remove  = True)
-            except:
+            except Exception as e:
                 # An exception here most likely occurs due to a serviceName collision.
                 # Solution is to stop the service and retry.
-                pass
+                str_e   = '%s' % e
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
