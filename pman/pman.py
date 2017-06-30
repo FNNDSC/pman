@@ -570,7 +570,7 @@ class Listener(threading.Thread):
                         self.dp.qprint(str_res)
                         socket.send_string(str_res)
             b_requestWaiting    = False
-        self.dp.qprint('Listnener ID - %s: Returning from run()...' % self.worker_id)
+        self.dp.qprint('Listener ID - %s: Returning from run()...' % self.worker_id)
         # raise('Listener ID - %s: Thread terminated' % self.worker_id)
         return True
 
