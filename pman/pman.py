@@ -555,7 +555,7 @@ class Listener(threading.Thread):
                         res                 = Response(str_payload)
                         res.content_type    = str_contentType
 
-                        str_HTTPpre         = "HTTP/1.x "
+                        str_HTTPpre         = "HTTP/1.1 "
                         str_res             = "%s%s" % (str_HTTPpre, str(res))
                         str_res             = str_res.replace("UTF-8", "UTF-8\nAccess-Control-Allow-Origin: *")
                         self.dp.qprint('HTML response')
@@ -565,7 +565,7 @@ class Listener(threading.Thread):
                         str_contentType     = "application/json"
                         res                 = Response(str_payload)
                         res.content_type    = str_contentType
-                        str_HTTPpre         = "HTTP/1.x "
+                        str_HTTPpre         = "HTTP/1.1 "
                         str_res             = '%s%s' % (str_HTTPpre, (res))
                         self.dp.qprint(str_res)
                         socket.send_string(str_res)
