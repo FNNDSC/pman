@@ -106,6 +106,6 @@ class debug(object):
                     datetime.datetime.now(),
                     threading.current_thread(),
                     inspect.stack()[1][3]
-                ), end='')
+                ), end='', flush=True)
             for t in range(0, self.level): write("\t", end='')
             write(self.msg)
