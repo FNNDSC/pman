@@ -1561,11 +1561,11 @@ class Listener(threading.Thread):
         if 'container' in d_meta.keys():
             # If the 'container' json paragraph exists, then route processing to
             # a suffixed '_container' method.
-            str_methodSuffix    = 'container'
+            str_methodSuffix    = '_container'
             # d_container         = d_meta['container']
             # str_methodSuffix    = d_container['manager']['type']
 
-        str_method  = 't_%s_process_%s' %(payload_verb, str_methodSuffix)
+        str_method  = 't_%s_process%s' % (payload_verb, str_methodSuffix)
         return str_method
 
     def processPOST(self, **kwargs):
@@ -1597,7 +1597,7 @@ class Listener(threading.Thread):
             try:
                 pf_method  = getattr(self, str_method)
             except AttributeError:
-                raise NotImplementedError("Class `{}` does not implement `{}`".format(my_cls.__class__.__name__, method_name))
+                raise NotImplementedError("Class `{}` does not implement `{}`".format(pman.__class__.__name__, str_method))
 
             t_process           = threading.Thread(     target      = pf_method,
                                                         args        = (),
