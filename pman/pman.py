@@ -18,7 +18,7 @@ import  multiprocessing
 import  inspect
 
 import  json
-
+import  ast
 
 # pman local dependencies
 from   ._colors           import Colors
@@ -26,6 +26,7 @@ from   .crunner           import crunner
 from   .C_snode           import *
 from   .debug             import debug
 from   .pfioh             import *
+from   .openshiftmgr      import *
 
 import  docker
 import  pudb
@@ -58,6 +59,7 @@ str_devNotes = """
 
 """
 
+CONTAINER_NAMES = ['container', 'openshift']
 
 class StoppableThread(threading.Thread):
     """Thread class with a stop() method. The thread itself has to check
@@ -489,6 +491,8 @@ class Listener(threading.Thread):
         self.within             = None
         self.b_stopThread       = False
 
+        self.openshiftmgr       = None
+
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
@@ -855,10 +859,15 @@ class Listener(threading.Thread):
                     for j in list(range(0, latestJob+1)):
                         l_subJobsEnd[j]         = Te.cat('/%s/end/%s/endInfo/%d/returncode' % (job, latestJob, j))
                 T_container     = False
-                if p.exists('container', path = '/%s' % job):
-                    T_container = C_stree()
-                    p.copy(startPath = '/%s/container' % job, destination = T_container)
-                    d_ret[str(hits)+'.container']   = {"jobRoot": job, "tree":      dict(T_container.snode_root)}
+                str_container_name = None
+                for container_name in CONTAINER_NAMES:
+                    if p.exists(container_name, path = '/%s' % job):
+                        T_container = C_stree()
+                        p.copy(startPath = '/%s/%s' % (job, container_name), destination = T_container)
+                        str_container_name = container_name
+                        break
+                if str_container_name:
+                    d_ret[str(hits)+'.'+str_container_name]   = {"jobRoot": job, "tree": dict(T_container.snode_root)}
                 else:
                     d_ret[str(hits)+'.container']   = {"jobRoot": job, "tree":      None}
                 d_ret[str(hits)+'.start']       = {"jobRoot": job, "startTrigger":  l_subJobsStart}
@@ -927,11 +936,16 @@ class Listener(threading.Thread):
                 endcode     = None
 
             # pudb.set_trace()
-            if d_state['d_ret']['%s.container' % str(i)]['tree']:
-                kwargs['d_state']   = d_state
-                kwargs['hitIndex']  = str(i)
-                l_status.append(self.t_status_process_container(*args, **kwargs))
-            else:
+            found_container = False
+            for container_name in CONTAINER_NAMES:
+                container_path = '%s.%s' % (str(i), container_name)
+                if container_path in d_state['d_ret'] and d_state['d_ret'][container_path]['tree']:
+                    kwargs['d_state']   = d_state
+                    kwargs['hitIndex']  = str(i)
+                    l_status.append(eval("self.t_status_process_%s(*args, **kwargs)" % container_name))
+                    found_container = True
+
+            if not found_container:
                 if endcode is None and b_startEvent:
                     l_status.append('started')
                 if not endcode and b_startEvent and type(endcode) is int:
@@ -948,6 +962,16 @@ class Listener(threading.Thread):
         return {"d_ret":    d_ret,
                 "status":   b_status}
 
+    def store_state(self, state, where, name):
+        """
+        Simply stores the state object to the internal memory DB (which is in turn
+        automatically persisted to HDD during periodic poll update).
+        """
+        if not self._ptree.exists(name, path = where):
+            self._ptree.touch('%s/%s' % (where, name), state)
+            # Save DB state...
+            self.within.DB_fileIO(cmd = 'save')
+
     def t_status_process_container_stateObject(self, *args, **kwargs):
         """
         Process the actual JSON container return object on service
@@ -962,16 +986,6 @@ class Listener(threading.Thread):
             tree and remove service.
 
         """
-
-        def store_state(state, where, name):
-            """
-            Simply stores the state object to the internal memory DB (which is in turn
-            automatically persisted to HDD during periodic poll update).
-            """
-            if not self._ptree.exists(name, path = where):
-                self._ptree.touch('%s/%s' % (where, name), state)
-                # Save DB state...
-                self.within.DB_fileIO(cmd = 'save')
 
         def service_exists(str_serviceName):
             """
@@ -1033,19 +1047,7 @@ class Listener(threading.Thread):
             if k == 'serviceState':     d_serviceState  = v
             if k == 'hitIndex':         str_hitIndex    = v
         if d_serviceState:
-            str_jobRoot = d_jobState['d_ret']['%s.container' % str_hitIndex]['jobRoot']
-            str_state   = d_serviceState['Status']['State']
-            str_message = d_serviceState['Status']['Message']
-            if str_state == 'running'   and str_message == 'started':
-                str_ret = 'started'
-            if str_state == 'failed'    and str_message == 'started':
-                str_ret = 'finishedWithError'
-                store_state(d_serviceState, '/%s/container' % str_jobRoot, 'state')
-                b_shutDownService   = True
-            if str_state == 'complete'  and str_message == 'finished':
-                str_ret     = 'finishedSuccessfully'
-                store_state(d_serviceState, '/%s/container' % str_jobRoot, 'state')
-                b_shutDownService   = service_shutDown_check()
+            str_ret, str_jobRoot, b_shutDownService = self.t_status_process_state(d_serviceState, d_jobState, str_hitIndex, 'container')
             if b_shutDownService:
                 self._ptree.cd('/%s/container' % str_jobRoot)
                 d_serviceInfo       = {
@@ -1107,6 +1109,115 @@ class Listener(threading.Thread):
         return self.t_status_process_container_stateObject( hitIndex        = str_hitIndex,
                                                             jobState        = d_state,
                                                             serviceState    = d_json)
+
+    def t_status_process_openshift(self, *args, **kwargs):
+        """
+        Determine the status of a job scheduled using the openshift manager.
+
+        PRECONDITIONS:
+        o   Only call this method if a container structure exists
+            in the relevant job tree!
+
+        POSTCONDITIONS:
+        o   If the job is completed, then shutdown the container cluster
+            service.
+        """
+        d_state         = None
+        str_jobRoot     = ''
+        str_hitIndex    = "0"
+
+        for k,v in kwargs.items():
+            if k == 'd_state':  d_state         = v
+            if k == 'hitIndex': str_hitIndex    = v
+
+        self.dp.qprint('checking on status using openshift...')
+
+        str_jobRoot         = d_state['d_ret']['%s.openshift' % str_hitIndex]['jobRoot']
+        self._ptree.cd('/%s' % str_jobRoot)
+        jid = self._ptree.cat('jid')
+
+        # Check if the state of the openshift service has been recorded to the data tree
+        if self._ptree.exists('state', path = '/%s/openshift' % str_jobRoot):
+            # The job has actually completed and its state recorded in the data tree
+            d_json          = self._ptree.cat('/%s/openshift/state')
+        else:
+            d_json = self.get_openshift_manager().state(jid)
+
+        return self.t_status_process_openshift_stateObject( hitIndex        = str_hitIndex,
+                                                            jobState        = d_state,
+                                                            serviceState    = d_json)
+
+    def t_status_process_openshift_stateObject(self, *args, **kwargs):
+        """
+        Process the actual JSON container return object on service
+        state.
+
+        PRECONDITIONS:
+        o   This method should only ever be called by t_status_process_openshift().
+
+        POSTCONDITIONS:
+        o   A string denoting the current state is returned.
+
+        """
+
+        def job_exists(jid):
+            """
+            Returns a bool:
+                - True:     <jid> does exist
+                - False:    <jid> does not exist
+            """
+            b_exists        = False
+            try:
+                job         = self.get_openshift_manager().get_job(jid)
+                b_exists    = True
+            except:
+                b_exists    = False
+            return b_exists
+
+        def job_shutDown(d_serviceInfo):
+            """
+            Shut down a service
+            """
+            return self.get_openshift_manager().remove(jid)
+
+        d_serviceState      = None
+        d_jobState          = None
+        str_hitIndex        = "0"
+        str_ret             = 'undefined'
+        for k,v in kwargs.items():
+            if k == 'jobState':         d_jobState      = v
+            if k == 'serviceState':     d_serviceState  = v
+            if k == 'hitIndex':         str_hitIndex    = v
+        if d_serviceState:
+            str_ret, str_jobRoot, b_removeJob = self.t_status_process_state(d_serviceState, d_jobState, str_hitIndex, 'openshift')
+            if b_removeJob:
+                self._ptree.cd('/%s' % str_jobRoot)
+                jid = self._ptree.cat('jid')
+                if job_exists(jid):
+                    job_shutDown(jid)
+        return str_ret
+
+    def get_openshift_manager(self):
+        if not self.openshiftmgr:
+            self.openshiftmgr = OpenShiftManager()
+        return self.openshiftmgr
+
+    def t_status_process_state(self, serviceState, jobState, hitIndex, type):
+        b_removeJob = False
+        str_jobRoot = jobState['d_ret']['%s.%s' % (hitIndex, type)]['jobRoot']
+        str_state   = serviceState['Status']['State']
+        str_message = serviceState['Status']['Message']
+        if str_state == 'running'   and str_message == 'started':
+            str_ret = 'started'
+        elif str_state == 'failed'    and str_message == 'started':
+            str_ret = 'finishedWithError'
+            self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
+            b_removeJob   = True
+        elif str_state == 'complete'  and str_message == 'finished':
+            str_ret     = 'finishedSuccessfully'
+            self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
+            b_removeJob   = True
+        return [str_ret, str_jobRoot, b_removeJob]
 
     def t_hello_process(self, *args, **kwargs):
         """
@@ -1189,7 +1300,7 @@ class Listener(threading.Thread):
         if isinstance(self.jid, int):
             self.jid    = str(self.jid)
 
-        self.dp.qprint("spawing and starting poller thread")
+        self.dp.qprint("spawning and starting poller thread")
 
         # Start the 'poller' worker
         self.poller  = Poller(cmd           = str_cmd,
@@ -1358,6 +1469,7 @@ class Listener(threading.Thread):
                 # An exception here most likely occurs due to a serviceName collision.
                 # Solution is to stop the service and retry.
                 str_e   = '%s' % e
+                print(str_e)
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
@@ -1369,6 +1481,92 @@ class Listener(threading.Thread):
             self.t_run_process(request  = d_request,
                                treeList = d_Tcontainer)
             self.dp.qprint('Returning from swarm-type job...')
+
+    def t_run_process_openshift(self, *args, **kwargs):
+        """
+        A threaded run method specialized for handling openshift
+
+        Typical JSON d_request:
+
+        {   "action": "run",
+            "meta":  {
+                "cmd":      "$execshell $selfpath/$selfexec --prefix test- --sleepLength 0 /share/incoming /share/outgoing",
+                "auid":     "rudolphpienaar",
+                "jid":      "simpledsapp-1",
+                "threaded": true,
+                "openshift":   {
+                        "target": {
+                            "image":        "fnndsc/pl-simpledsapp",
+                            "cmdParse":     true
+                        }
+                }
+            }
+        }
+
+        """
+
+        str_cmd             = ""
+        d_request           = {}
+        d_meta              = {}
+        d_openshift         = {}
+        d_image             = {}
+
+        self.dp.qprint('Processing openshift job...')
+
+        for k,v in kwargs.items():
+            if k == 'request': d_request    = v
+
+        d_meta          = d_request['meta']
+
+        if d_meta:
+            self.jid            = d_meta['jid']
+            self.auid           = d_meta['auid']
+            str_cmd             = d_meta['cmd']
+
+            if 'openshift' in d_meta.keys():
+                d_openshift                 = d_meta['openshift']
+                d_target                    = d_openshift['target']
+                str_targetImage             = d_target['image']
+
+            #
+            # If 'openshift/cmdParse', get a JSON representation of the image and
+            # parse the cmd for substitutions -- this replaces any of
+            # $exeshell, $selfpath, and/or $selfexec with the values provided
+            # in the JSON representation.
+            #
+            if d_target['cmdParse']:
+                cmdparse_pod_name = self.jid + '-cmdparse'
+                self.get_openshift_manager().create_pod(str_targetImage, cmdparse_pod_name)
+                count = 0
+                log = None
+                while count < 10:
+                    try:
+                        pod = self.get_openshift_manager().get_pod_status(cmdparse_pod_name)
+                        if pod.status.container_statuses[0].state.terminated.exit_code == 0:
+                            log = self.get_openshift_manager().get_pod_log(cmdparse_pod_name)
+                            break
+                    except Exception as e:
+                        str_e   = '%s' % e
+                    count += 1
+                    time.sleep(1)
+
+                d_cmdparse = ast.literal_eval(log)
+                for str_meta in ['execshell', 'selfexec', 'selfpath']:
+                    str_cmd = str_cmd.replace("$"+str_meta, d_cmdparse[str_meta])
+
+            str_cmdLine = str_cmd
+            self.get_openshift_manager().schedule(str_targetImage, str_cmdLine, self.jid)
+
+            # Call the "parent" method -- reset the cmdLine to an "echo"
+            # and create an stree off the 'openshift' dictionary to store
+            # in the pman DB entry.
+            d_meta['cmd']   = 'echo "%s"' % str_cmd
+            T_openshift     = C_stree()
+            T_openshift.initFromDict(d_openshift)
+            d_Topenshift    = {'openshift': T_openshift}
+            self.t_run_process(request  = d_request,
+                               treeList = d_Topenshift)
+            self.dp.qprint('Returning from openshift job...')
 
     def json_filePart_get(self, **kwargs):
         """
@@ -1562,12 +1760,12 @@ class Listener(threading.Thread):
         if 'meta' in d_request.keys():
             d_meta          = d_request['meta']
 
-        if 'container' in d_meta.keys():
-            # If the 'container' json paragraph exists, then route processing to
-            # a suffixed '_container' method.
-            str_methodSuffix    = '_container'
-            # d_container         = d_meta['container']
-            # str_methodSuffix    = d_container['manager']['type']
+        for container_name in CONTAINER_NAMES:
+            if container_name in d_meta.keys():
+                # If the `container_name` json paragraph exists, then route processing to
+                # a suffixed '_<container_name>' method.
+                str_methodSuffix    = '_%s' % container_name
+                break
 
         str_method  = 't_%s_process%s' % (payload_verb, str_methodSuffix)
         return str_method
