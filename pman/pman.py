@@ -15,8 +15,8 @@ from    functools       import  partial
 import  platform
 
 import  multiprocessing
+import  inspect
 
-import  pudb
 import  json
 
 
@@ -97,6 +97,7 @@ class pman(object):
         self.str_desc           = ""
         self.str_name           = ""
         self.str_version        = ""
+        self.__name__           = 'pman'
 
         # The main server function
         self.threaded_server    = None
@@ -785,7 +786,7 @@ class Listener(threading.Thread):
         :return:
         """
 
-        self.dp.qprint("In done process...")
+        self.dp.qprint("In job_state()...")
 
         d_request   = {}
         d_ret       = {}
@@ -857,9 +858,11 @@ class Listener(threading.Thread):
                 if p.exists('container', path = '/%s' % job):
                     T_container = C_stree()
                     p.copy(startPath = '/%s/container' % job, destination = T_container)
+                    d_ret[str(hits)+'.container']   = {"jobRoot": job, "tree":      dict(T_container.snode_root)}
+                else:
+                    d_ret[str(hits)+'.container']   = {"jobRoot": job, "tree":      None}
                 d_ret[str(hits)+'.start']       = {"jobRoot": job, "startTrigger":  l_subJobsStart}
                 d_ret[str(hits)+'.end']         = {"jobRoot": job, "returncode":    l_subJobsEnd}
-                d_ret[str(hits)+'.container']   = {"jobRoot": job, "tree":          dict(T_container.snode_root)}
                 hits               += 1
         if not hits:
             d_ret['-1.start']       = {"jobRoot":   None, "startTrigger":   None}
@@ -899,6 +902,7 @@ class Listener(threading.Thread):
 
         self.dp.qprint("In status process...")
 
+        # pudb.set_trace()
         d_state     = self.job_state(*args, **kwargs)
         d_ret       = d_state['d_ret']
         b_status    = d_state['status']
