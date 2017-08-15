@@ -29,14 +29,7 @@ def pman_do(args, unknown):
     str_otherArgs   = ' '.join(unknown)
 
     str_CMD = "/usr/local/bin/pman %s" % (str_otherArgs)
-    return str_CMD
-
-def bash_do(args, unknown):
-
-    str_http        = http_construct(args, unknown)
-    str_otherArgs   = ' '.join(unknown)
-
-    str_CMD = "/bin/bash"
+    str_CMD = "/usr/local/pman/bin/pman %s" % (str_otherArgs)
     return str_CMD
 
 parser  = ArgumentParser(description = str_desc, formatter_class = RawTextHelpFormatter)

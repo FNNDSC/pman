@@ -18,8 +18,13 @@ FROM fnndsc/ubuntu-python3:latest
 MAINTAINER fnndsc "dev@babymri.org"
 
 RUN apt-get update \
-  && apt-get install -y libssl-dev libcurl4-openssl-dev bsdmainutils \
-  && pip3 install pman==1.2.4 && pip3 install docker
+  && apt-get install -y libssl-dev libcurl4-openssl-dev bsdmainutils  \
+  && pip3 install pudb                                                \
+  && pip3 install pyzmq                                               \
+  && pip3 install webob                                               \
+  && pip3 install psutil                                              \
+  && pip3 install pman==1.2.5                                         \ 
+  && pip3 install docker
 
 COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
 RUN chmod 777 /dock && chmod 777 /dock/docker-entrypoint.py
