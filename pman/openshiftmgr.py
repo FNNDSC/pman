@@ -35,7 +35,7 @@ class OpenShiftManager(object):
         self.kube_client = k_client.CoreV1Api()
         self.kube_v1_batch_client = k_client.BatchV1Api()
 
-    def schedule(self, image, command, name, mountdir=None):
+    def schedule(self, image, command, name):
         """
         Schedule a new job and returns the job object.
         """
@@ -43,43 +43,46 @@ class OpenShiftManager(object):
 apiVersion: batch/v1
 kind: Job
 metadata:
-    name: {name}
+  name: {name}
 spec:
     parallelism: 1
     completions: 1
     activeDeadlineSeconds: 3600
     template:
         metadata:
-            name: {name}
+          name: {name}
         spec:
             restartPolicy: Never
             initContainers:
             - name: init-storage
               image: fnndsc/ubuntu-python3
-              command: ['sh', '-c', 'ls']
+              command: ['touch', '/share/test']
+              volumeMounts:
+              - mountPath: /share
+                name: shared-volume
             containers:
-            - name: publish
-              image: fnndsc/ubuntu-python3
-              command: ['sh', '-c', 'ls']
-              lifecycle:
-                preStop:
-                  exec:
-                    command: ['sh', '-c', 'ls', '-l']
             - name: {name}
               image: {image}
               command: {command}
-""".format(name=name, command=str(command.split(" ")), image=image)
-
-        if mountdir is not None:
-            job_str = job_str + """
               volumeMounts:
               - mountPath: /share
-                name: openshiftmgr-storage
+                name: shared-volume
+            - name: publish
+              image: fnndsc/ubuntu-python3
+              command: ['sh', '-c', 'ls -al /share']
+              lifecycle:
+                preStop:
+                  exec:
+                    command: ['touch', '/share/test']
+              volumeMounts:
+              - mountPath: /share
+                name: shared-volume
+""".format(name=name, command=str(command.split(" ")), image=image)
+        job_str += """
             volumes:
-            - name: openshiftmgr-storage
-              hostPath:
-                path: {mountdir}
-""".format(mountdir=mountdir)
+            - name: shared-volume
+              emptyDir: {}
+"""
 
         job_yaml = yaml.load(job_str)
         job = self.kube_v1_batch_client.create_namespaced_job(namespace=self.project, body=job_yaml)
