@@ -53,7 +53,18 @@ spec:
             name: {name}
         spec:
             restartPolicy: Never
+            initContainers:
+            - name: init-storage
+              image: fnndsc/ubuntu-python3
+              command: ['sh', '-c', 'ls']
             containers:
+            - name: publish
+              image: fnndsc/ubuntu-python3
+              command: ['sh', '-c', 'ls']
+              lifecycle:
+                preStop:
+                  exec:
+                    command: ['sh', '-c', 'ls', '-l']
             - name: {name}
               image: {image}
               command: {command}
@@ -64,7 +75,7 @@ spec:
               volumeMounts:
               - mountPath: /share
                 name: openshiftmgr-storage
-            volumes: 
+            volumes:
             - name: openshiftmgr-storage
               hostPath:
                 path: {mountdir}
