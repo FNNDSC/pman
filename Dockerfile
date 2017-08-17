@@ -23,7 +23,7 @@ RUN apt-get update \
   && pip3 install pyzmq                                               \
   && pip3 install webob                                               \
   && pip3 install psutil                                              \
-  && pip3 install pman==1.2.5                                         \ 
+  && pip3 install pman==1.3.0                                         \ 
   && pip3 install docker
 
 COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
