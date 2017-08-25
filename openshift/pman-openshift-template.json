@@ -1,152 +1,182 @@
 {
-    "kind": "Template",
-    "apiVersion": "v1",
-    "metadata": {
-        "name": "pman-openshift",
-        "creationTimestamp": null,
-        "annotations": {
-            "description": "Creates pman on OpenShift",
-            "tags": ""
-        }
-    },
-    "objects": [{
-            "apiVersion": "v1",
-            "kind": "DeploymentConfig",
-            "metadata": {
-                "creationTimestamp": null,
-                "generation": 1,
-                "labels": {
-                    "app": "pman"
-                },
-                "name": "pman"
-            },
-            "spec": {
-                "replicas": 1,
-                "selector": {
-                    "app": "pman",
-                    "deploymentconfig": "pman"
-                },
-                "strategy": {
-                    "activeDeadlineSeconds": 21600,
-                    "resources": {},
-                    "rollingParams": {
-                        "intervalSeconds": 1,
-                        "maxSurge": "25%",
-                        "maxUnavailable": "25%",
-                        "timeoutSeconds": 600,
-                        "updatePeriodSeconds": 1
-                    },
-                    "type": "Rolling"
-                },
-                "template": {
-                    "metadata": {
-                        "creationTimestamp": null,
-                        "labels": {
-                            "app": "pman",
-                            "deploymentconfig": "pman"
-                        }
-                    },
-                    "spec": {
-                        "containers": [{
-                            "command": [
-                                "/usr/local/bin/pman",
-                                "--rawmode=1",
-                                "--http",
-                                "--port=5010",
-                                "--listeners=12"
-                            ],
-                            "volumeMounts": [{
-                                "name": "kubecfg-volume",
-                                "mountPath": "/tmp/.kube/",
-                                "readOnly": true
-                            }],
-                            "image": "fnndsc/pman",
-                            "imagePullPolicy": "Always",
-                            "name": "pman",
-                            "ports": [{
-                                "containerPort": 5010,
-                                "protocol": "TCP"
-                            }],
-                            "resources": {},
-                            "terminationMessagePath": "/dev/termination-log",
-                            "env": [{
-                                    "name": "KUBECFG_PATH",
-                                    "value": "/tmp/.kube/config"
-                                },
-                                {
-                                    "name": "OPENSHIFTMGR_PROJECT",
-                                    "value": "radiology"
-                                }
-                            ]
-                        }],
-                        "volumes": [{
-                            "name": "kubecfg-volume",
-                            "secret": {
-                                "secretName": "kubecfg"
-                            }
-                        }],
-                        "dnsPolicy": "ClusterFirst",
-                        "restartPolicy": "Always",
-                        "securityContext": {},
-                        "terminationGracePeriodSeconds": 30
-                    }
-                },
-                "test": false,
-                "triggers": [{
-                    "type": "ConfigChange"
-                }]
-            }
-        },
-        {
-            "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {
-                "creationTimestamp": null,
-                "labels": {
-                    "app": "pman"
-                },
-                "name": "pman"
-            },
-            "spec": {
-                "ports": [{
-                    "name": "5010-tcp",
-                    "port": 5010,
-                    "protocol": "TCP",
-                    "targetPort": 5010
-                }],
-                "selector": {
-                    "app": "pman",
-                    "deploymentconfig": "pman"
-                },
-                "sessionAffinity": "None",
-                "type": "ClusterIP"
-            }
-        },
-        {
-            "apiVersion": "v1",
-            "kind": "Route",
-            "metadata": {
-                "annotations": {
-                    "openshift.io/host.generated": "true"
-                },
-                "creationTimestamp": null,
-                "name": "pman"
-            },
-            "spec": {
-                "port": {
-                    "targetPort": "5010-tcp"
-                },
-                "to": {
-                    "kind": "Service",
-                    "name": "pman",
-                    "weight": 100
-                },
-                "wildcardPolicy": "None"
-            }
-        }
-    ],
-    "parameters": [],
-    "labels": {
-        "template": "application-template-pman-openshift"
+  "kind": "Template",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "pman-openshift",
+    "creationTimestamp": null,
+    "annotations": {
+      "description": "Creates pman on OpenShift",
+      "tags": ""
     }
+  },
+  "objects": [
+    {
+      "apiVersion": "v1",
+      "kind": "DeploymentConfig",
+      "metadata": {
+        "creationTimestamp": null,
+        "generation": 1,
+        "labels": {
+          "app": "pman"
+        },
+        "name": "pman"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "app": "pman",
+          "deploymentconfig": "pman"
+        },
+        "strategy": {
+          "activeDeadlineSeconds": 21600,
+          "resources": {
+          },
+          "rollingParams": {
+            "intervalSeconds": 1,
+            "maxSurge": "25%",
+            "maxUnavailable": "25%",
+            "timeoutSeconds": 600,
+            "updatePeriodSeconds": 1
+          },
+          "type": "Rolling"
+        },
+        "template": {
+          "metadata": {
+            "creationTimestamp": null,
+            "labels": {
+              "app": "pman",
+              "deploymentconfig": "pman"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "command": [
+                  "/usr/local/bin/pman",
+                  "--rawmode=1",
+                  "--http",
+                  "--port=5010",
+                  "--listeners=12"
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "kubecfg-volume",
+                    "mountPath": "/tmp/.kube/",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "swift-credentials",
+                    "mountPath": "/etc/swift/",
+                    "readOnly": true
+                  }
+                ],
+                "image": "FNNDSC/pman",
+                "imagePullPolicy": "Always",
+                "name": "pman",
+                "ports": [
+                  {
+                    "containerPort": 5010,
+                    "protocol": "TCP"
+                  }
+                ],
+                "resources": {
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "env": [
+                  {
+                    "name": "KUBECFG_PATH",
+                    "value": "/tmp/.kube/config"
+                  },
+                  {
+                    "name": "OPENSHIFTMGR_PROJECT",
+                    "value": "radiology"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "kubecfg-volume",
+                "secret": {
+                  "secretName": "kubecfg"
+                }
+              },
+              {
+                "name": "swift-credentials",
+                "secret": {
+                  "secretName": "swift-credentials"
+                }
+              }
+            ],
+            "dnsPolicy": "ClusterFirst",
+            "restartPolicy": "Always",
+            "securityContext": {
+            },
+            "terminationGracePeriodSeconds": 30
+          }
+        },
+        "test": false,
+        "triggers": [
+          {
+            "type": "ConfigChange"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "creationTimestamp": null,
+        "labels": {
+          "app": "pman"
+        },
+        "name": "pman"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "5010-tcp",
+            "port": 5010,
+            "protocol": "TCP",
+            "targetPort": 5010
+          }
+        ],
+        "selector": {
+          "app": "pman",
+          "deploymentconfig": "pman"
+        },
+        "sessionAffinity": "None",
+        "type": "ClusterIP"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Route",
+      "metadata": {
+        "annotations": {
+          "openshift.io/host.generated": "true"
+        },
+        "creationTimestamp": null,
+        "name": "pman"
+      },
+      "spec": {
+        "port": {
+          "targetPort": "5010-tcp"
+        },
+        "to": {
+          "kind": "Service",
+          "name": "pman",
+          "weight": 100
+        },
+        "wildcardPolicy": "None"
+      }
+    }
+  ],
+  "parameters": [
+
+  ],
+  "labels": {
+    "template": "application-template-pman-openshift"
+  }
 }
