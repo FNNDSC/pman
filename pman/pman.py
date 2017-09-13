@@ -30,6 +30,7 @@ from   .openshiftmgr      import *
 
 import  docker
 import  pudb
+import  pprint
 
 str_devNotes = """
 
@@ -136,6 +137,7 @@ class pman(object):
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
+        self.pp                 = pprint.PrettyPrinter(indent=4)
 
         for key,val in kwargs.items():
             if key == 'protocol':       self.str_protocol   = val
@@ -435,6 +437,7 @@ class FileIO(threading.Thread):
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
+        self.pp                 = pprint.PrettyPrinter(indent=4)
 
         for key,val in kwargs.items():
             if key == 'DB':             self._ptree         = val
@@ -496,6 +499,7 @@ class Listener(threading.Thread):
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
+        self.pp                 = pprint.PrettyPrinter(indent=4)
 
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
@@ -551,7 +555,7 @@ class Listener(threading.Thread):
                     self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
                                    (self.worker_id))
                     self.dp.qprint('JSON formatted response:')
-                    str_payload = json.dumps(resultFromProcessing)
+                    str_payload = json.dumps(resultFromProcessing, sort_keys=False, indent=4)
                     self.dp.qprint(Colors.LIGHT_CYAN + str_payload)
                     self.dp.qprint(Colors.BROWN + 'len = %d chars' % len(str_payload))
                     socket.send(client_id, zmq.SNDMORE)
@@ -1658,7 +1662,8 @@ class Listener(threading.Thread):
         p.cd(pcwd)
 
         self.dp.qprint(r)
-        self.dp.qprint(dict(r.snode_root))
+        # self.dp.qprint(dict(r.snode_root))
+        self.dp.qprint(self.pp.pformat(dict(r.snode_root)).strip())
         return dict(r.snode_root)
 
         # return r
@@ -1714,8 +1719,7 @@ class Listener(threading.Thread):
             if REST_verb == 'GET':
                 d_ret['GET']    = self.DB_get(path = str_path)
                 d_ret['status'] = True
-
-            self.dp.qprint('json_payload = %s' % json_payload)
+            self.dp.qprint('json_payload = %s' % self.pp.pformat(json_payload).strip())
             d_ret['client_json_payload']    = json_payload
             d_ret['client_json_len']        = len(json_payload)
             if len(json_payload):
