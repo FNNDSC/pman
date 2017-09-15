@@ -55,11 +55,17 @@ spec:
             restartPolicy: Never
             initContainers:
             - name: init-storage
-              image: fnndsc/ubuntu-python3
-              command: ['touch', '/share/test']
+              image: adi95docker/pman-swift-publisher
+              env:
+              - name: SWIFT_KEY
+                value: {name}
+              command: ['python3', 'get_data.py']
               volumeMounts:
               - mountPath: /share
                 name: shared-volume
+              - mountPath: /etc/swift
+                name: swift-credentials
+                readOnly: true
             containers:
             - name: {name}
               image: {image}
@@ -68,20 +74,25 @@ spec:
               - mountPath: /share
                 name: shared-volume
             - name: publish
-              image: fnndsc/ubuntu-python3
-              command: ['sh', '-c', 'ls -al /share']
-              lifecycle:
-                preStop:
-                  exec:
-                    command: ['touch', '/share/test']
+              image: adi95docker/pman-swift-publisher
+              env:
+              - name: SWIFT_KEY
+                value: {name}
+              command: ['sh', 'check-status.sh']
               volumeMounts:
               - mountPath: /share
                 name: shared-volume
+              - mountPath: /etc/swift
+                name: swift-credentials
+                readOnly: true
 """.format(name=name, command=str(command.split(" ")), image=image)
         job_str += """
             volumes:
             - name: shared-volume
               emptyDir: {}
+            - name: swift-credentials
+              secret: 
+                secretName: swift-credentials
 """
 
         job_yaml = yaml.load(job_str)
