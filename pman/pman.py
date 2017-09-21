@@ -236,7 +236,7 @@ class pman(object):
 
         if str_cmd == 'save':
             if os.path.isdir(str_DBpath):
-                shutil.rmtree(str_DBpath)
+                shutil.rmtree(str_DBpath, ignore_errors=True)
             #print(tree_DB)
             if self.str_fileio   == 'json':
                 tree_DB.tree_save(
