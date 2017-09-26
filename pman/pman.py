@@ -19,14 +19,26 @@ import  inspect
 
 import  json
 import  ast
+import  shutil
+import  datetime
+import  socket
+import  uuid
 
 # pman local dependencies
-from   ._colors           import Colors
-from   .crunner           import crunner
-from   .C_snode           import *
-from   .debug             import debug
-from   .pfioh             import *
-from   .openshiftmgr      import *
+try:
+    from    ._colors        import Colors
+    from    .debug          import debug
+    from   .C_snode         import *
+    from   .debug           import debug
+    from   .openshiftmgr    import *
+    from   .crunner         import *
+except:
+    from    _colors         import Colors
+    from    debug           import debug
+    from    C_snode         import *
+    from    debug           import debug
+    from    openshiftmgr    import *
+    from    crunner         import *
 
 import  docker
 import  pudb
@@ -164,7 +176,8 @@ class pman(object):
         self.dp                 = debug(    verbosity   = 0,
                                             level       = -1,
                                             debugFile   = self.str_debugFile,
-                                            debugToFile = self.b_debugToFile)
+                                            debugToFile = self.b_debugToFile,
+                                            within      = self.__name__)
 
         if self.b_clearDB and os.path.isdir(self.str_DBpath):
             shutil.rmtree(self.str_DBpath)
@@ -230,9 +243,9 @@ class pman(object):
             if k == 'dbpath':   str_DBpath          = v
             if k == 'db':       tree_DB             = v
 
-        self.dp.qprint('cmd      = %s' % str_cmd)
-        self.dp.qprint('fileio   = %s' % self.str_fileio)
-        self.dp.qprint('dbpath   = %s' % str_DBpath)
+        # self.dp.qprint('cmd      = %s' % str_cmd)
+        # self.dp.qprint('fileio   = %s' % self.str_fileio)
+        # self.dp.qprint('dbpath   = %s' % str_DBpath)
 
         if str_cmd == 'save':
             if os.path.isdir(str_DBpath):
@@ -1100,6 +1113,7 @@ class Listener(threading.Thread):
         else:
             # Ask the container service for the state of the service...
             client = docker.from_env()
+            # pudb.set_trace()
 
             # Get the state of the service...
             str_cmdManager  = '%s --state %s' % \
@@ -1207,6 +1221,7 @@ class Listener(threading.Thread):
         return self.openshiftmgr
 
     def t_status_process_state(self, serviceState, jobState, hitIndex, type):
+        # pudb.set_trace()
         b_removeJob = False
         str_jobRoot = jobState['d_ret']['%s.%s' % (hitIndex, type)]['jobRoot']
         str_state   = serviceState['Status']['State']
@@ -1439,8 +1454,15 @@ class Listener(threading.Thread):
                 str_managerApp              = d_manager['app']
 
                 d_env                       = d_manager['env']
+                # pudb.set_trace()
                 if 'shareDir' in d_env.keys():
                     str_shareDir            = d_env['shareDir']
+                if 'STOREBASE' in os.environ:
+                    str_storeBase           = os.environ['STOREBASE']
+                    (str_origBase, str_key) = os.path.split(str_shareDir)
+                    self.dp.qprint('Overriding shareDir (orig): %s' % str_shareDir)
+                    str_shareDir            = os.path.join(str_storeBase, str_key)
+                    self.dp.qprint('Overriding shareDir (new):  %s' % str_shareDir)
                 if 'serviceName' in d_env.keys():
                     str_serviceName         = d_env['serviceName']
                 else:
