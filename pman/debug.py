@@ -5,7 +5,12 @@ import  inspect
 import  logging
 
 # pman local dependencies
-from   .message           import Message
+try:
+    from    .message        import Message
+    from    ._colors        import  Colors
+except:
+    from    message         import Message
+    from    _colors         import  Colors
 
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s')
@@ -48,11 +53,13 @@ class debug(object):
 
         self.b_useDebug             = False
         self.str_debugDirFile       = '/tmp'
+        self.__name__               = 'debug'
         for k, v in kwargs.items():
             if k == 'verbosity':    self.verbosity          = v
             if k == 'level':        self.level              = v
             if k == 'debugToFile':  self.b_useDebug         = v
             if k == 'debugFile':    self.str_debugDirFile   = v
+            if k == 'within':       self.__name__           = v
 
         if self.b_useDebug:
             str_debugDir                = os.path.dirname(self.str_debugDirFile)
@@ -71,7 +78,7 @@ class debug(object):
     def __call__(self, *args, **kwargs):
         self.qprint(*args, **kwargs)
 
-    def qprint(self, *args, **kwargs):
+    def qprint_old(self, *args, **kwargs):
         """
         The "print" command for this object.
 
@@ -109,3 +116,38 @@ class debug(object):
                 ), end='', flush=True)
             for t in range(0, self.level): write("\t", end='')
             write(self.msg)
+
+    def qprint(self, msg, **kwargs):
+
+        str_comms   = "status"
+        self.level  = 0
+        self.msg    = ""
+
+        for k, v in kwargs.items():
+            if k == 'level':    self.level  = v
+            if k == 'msg':      self.msg    = v
+            if k == 'comms':    str_comms  = v
+
+        if msg != None:    
+            self.msg = msg
+
+        if self.b_useDebug:
+            write   = self.debug
+        else:
+            write   = print
+
+        str_caller  = inspect.stack()[1][3]
+
+        if self.level <= self.verbosity:
+            if not self.b_useDebug:
+                if str_comms == 'status':   write(Colors.PURPLE,    end="")
+                if str_comms == 'error':    write(Colors.RED,       end="")
+                if str_comms == "tx":       write(Colors.YELLOW + "---->")
+                if str_comms == "rx":       write(Colors.GREEN  + "<----")
+                write('%s' % datetime.datetime.now() + " ",       end="")
+            write(' | ' + '%40s' % (os.path.basename(__file__) + ':' +  self.__name__ + "." + str_caller + '()') +' | ' + '%s' % msg)
+            if not self.b_useDebug:
+                if str_comms == "tx":       write(Colors.YELLOW + "---->")
+                if str_comms == "rx":       write(Colors.GREEN  + "<----")
+                write(Colors.NO_COLOUR, end="")
+
