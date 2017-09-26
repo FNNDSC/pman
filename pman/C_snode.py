@@ -35,8 +35,8 @@ import  collections
 import  pudb
 
 # pman local dependencies
-from    .C_stringCore           import  *
-from    .message                import  Message
+from    C_stringCore           import  *
+from    message                import  Message
 
 class C_meta:
         """
