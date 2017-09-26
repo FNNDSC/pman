@@ -19,7 +19,10 @@ import  platform
 from    functools       import  partial
 
 # pman local dependencies
-from    .debug          import debug
+try:
+    from    .debug          import debug
+except:
+    from    debug           import debug
 
 import  pudb
 
