@@ -1228,8 +1228,8 @@ class Listener(threading.Thread):
         str_message = serviceState['Status']['Message']
         if str_state == 'running'   and str_message == 'started':
             str_ret = 'started'
-            self.dp.qprint('jobRoot %s started...' % str_jobRoot, comms = 'status')
-            self.dp.qprint(self.pp.pformat(serviceState).strip(), comms = 'status')
+            self.dp.qprint('jobRoot %s started...' % str_jobRoot, comms = 'rx')
+            self.dp.qprint(self.pp.pformat(serviceState).strip(), comms = 'rx')
         elif str_state == 'failed'    and str_message == 'started':
             str_ret = 'finishedWithError'
             self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
@@ -1239,8 +1239,8 @@ class Listener(threading.Thread):
         elif str_state == 'complete'  and str_message == 'finished':
             str_ret     = 'finishedSuccessfully'
             self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
-            self.dp.qprint('jobRoot %s %s' % (str_jobRoot, str_ret), comms = 'status')
-            self.dp.qprint(self.pp.pformat(serviceState).strip(), comms = 'status')
+            self.dp.qprint('jobRoot %s %s' % (str_jobRoot, str_ret), comms = 'rx')
+            self.dp.qprint(self.pp.pformat(serviceState).strip(), comms = 'rx')
             b_removeJob   = True
         return [str_ret, str_jobRoot, b_removeJob]
 
