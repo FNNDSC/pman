@@ -30,14 +30,14 @@ try:
     from    .debug          import debug
     from   .C_snode         import *
     from   .debug           import debug
-    from   .openshiftmgr    import *
+    # from   .openshiftmgr    import *
     from   .crunner         import *
 except:
     from    _colors         import Colors
     from    debug           import debug
     from    C_snode         import *
     from    debug           import debug
-    from    openshiftmgr    import *
+    # from    openshiftmgr    import *
     from    crunner         import *
 
 import  docker
