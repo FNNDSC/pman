@@ -11,7 +11,7 @@ def readme():
 
 setup(
       name             =   'pman',
-      version          =   '1.5.8',
+      version          =   '1.6.0',
       description      =   '(Python) Process Manager',
       long_description =   readme(),
       author           =   'Rudolph Pienaar',
