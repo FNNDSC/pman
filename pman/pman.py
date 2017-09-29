@@ -1226,22 +1226,24 @@ class Listener(threading.Thread):
         str_jobRoot = jobState['d_ret']['%s.%s' % (hitIndex, type)]['jobRoot']
         str_state   = serviceState['container']['Status']['State']
         str_message = serviceState['container']['Status']['Message']
-        d_logs      = serviceState['logs']
+        str_logs    = serviceState['logs']
         if str_state == 'running'   and str_message == 'started':
-            str_ret = 'started'
-            self.dp.qprint('jobRoot %s started...' % str_jobRoot, comms = 'rx')
-            self.dp.qprint(self.pp.pformat(serviceState).strip(), comms = 'rx')
+            str_ret     = 'started'
+            self.dp.qprint('jobRoot %s started...' % str_jobRoot,       comms = 'rx')
+            self.dp.qprint(self.pp.pformat(serviceState).strip(),       comms = 'rx')
         elif str_state == 'failed'    and str_message == 'started':
-            str_ret = 'finishedWithError'
+            str_ret     = 'finishedWithError'
             self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
             self.dp.qprint('jobRoot %s %s...' % (str_jobRoot, str_ret), comms = 'error')
-            self.dp.qprint(self.pp.pformat(serviceState).strip(), comms = 'error')
+            self.dp.qprint(self.pp.pformat(serviceState).strip(),       comms = 'error')
+            self.dp.qprint('job logs:\n%s' % str_logs,                  comms = 'error')
             b_removeJob   = True
         elif str_state == 'complete'  and str_message == 'finished':
             str_ret     = 'finishedSuccessfully'
             self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
-            self.dp.qprint('jobRoot %s %s' % (str_jobRoot, str_ret), comms = 'rx')
-            self.dp.qprint(self.pp.pformat(serviceState).strip(), comms = 'rx')
+            self.dp.qprint('jobRoot %s %s' % (str_jobRoot, str_ret),    comms = 'rx')
+            self.dp.qprint(self.pp.pformat(serviceState).strip(),       comms = 'rx')
+            self.dp.qprint('job logs:\n%s' % str_logs,                  comms = 'rx')
             b_removeJob   = True
         return [str_ret, str_jobRoot, b_removeJob]
 
