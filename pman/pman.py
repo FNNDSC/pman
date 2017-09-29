@@ -1224,8 +1224,9 @@ class Listener(threading.Thread):
         # pudb.set_trace()
         b_removeJob = False
         str_jobRoot = jobState['d_ret']['%s.%s' % (hitIndex, type)]['jobRoot']
-        str_state   = serviceState['Status']['State']
-        str_message = serviceState['Status']['Message']
+        str_state   = serviceState['container']['Status']['State']
+        str_message = serviceState['container']['Status']['Message']
+        d_logs      = serviceState['logs']
         if str_state == 'running'   and str_message == 'started':
             str_ret = 'started'
             self.dp.qprint('jobRoot %s started...' % str_jobRoot, comms = 'rx')
