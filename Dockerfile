@@ -41,8 +41,8 @@ RUN apt-get update                                                    \
   && pip3 install webob                                               \
   && pip3 install psutil                                              \
   && pip3 install pman==1.6.0                                         \ 
-  # && pip3 install kubernetes                                          \
-  # && pip3 install openshift                                           \
+  && pip3 install kubernetes                                          \
+  && pip3 install openshift                                           \
   && pip3 install docker                                              
 
 COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
