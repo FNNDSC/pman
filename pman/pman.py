@@ -533,6 +533,12 @@ class Listener(threading.Thread):
         threading.Thread.__init__(self)
         # logging.debug('leaving __init__')
 
+    def df_print(self, adict):
+        """
+        Return a nicely formatted string representation of a dictionary
+        """
+        return self.pp.pformat(adict).strip()
+
     def run(self):
         """ Main execution. """
         # Socket to communicate with front facing server.
@@ -917,24 +923,52 @@ class Listener(threading.Thread):
     def t_status_process(self, *args, **kwargs):
         """
 
-        Return status on a given job.
+        This method is the main (threaded) entry point for returning
+        information on the status of jobs (both active and historical)
+        that have been (or are currently) managed by pman.
 
-        Attempts to check if a containerized job, and branch accordingly.
+        Originally, the concept of "job" only extended to a command 
+        line process spawned off on the underlying shell. With time,
+        however, this concept expanded to encompass processes that
+        are containerized.
+
+        While most (if not all) of the use of pman currently is to 
+        handle containerized compute, the status determination logic
+        still retains the ability to query simple spawned jobs.
+
+        The determination about whether or not a job has been 
+        containerized is quite simple -- a token in the internal
+        job "state" memory structure (the main pman stree "DB")
+        is checked -- this initial chunk of data is returned by a
+        call to self.job_state() which delivers a dictionary
+        representation of the jobRoot in the DB tree.
 
         :param args:
         :param kwargs:
-        :return:
+        :return: dictionary of components defining job state.
         """
 
         self.dp.qprint("In status process...")
 
         # pudb.set_trace()
         d_state     = self.job_state(*args, **kwargs)
+        # {
+        #     "hits":         hits,
+        #     "d_ret":        
+        #         [<index>+'.'+str_container_name]   = {
+        #             "jobRoot": job, "tree": dict(T_container.snode_root)
+        #         }
+
+        #     d_ret,
+        #     "status":       b_status
+        # }
+
         d_ret       = d_state['d_ret']
         b_status    = d_state['status']
 
         d_keys      = d_ret.items()
         l_status    = []
+        l_logs      = []
 
         #
         # The d_ret keys consist of groups of
@@ -953,15 +987,28 @@ class Listener(threading.Thread):
                 endcode     = None
 
             # pudb.set_trace()
+            # Was this a containerized job?
             found_container = False
-            for container_name in CONTAINER_NAMES:
+            ## Huh? Why loop over both "container" and "openshift"???
+            # for container_name in CONTAINER_NAMES:
+            for container_name in ['container']:
                 container_path = '%s.%s' % (str(i), container_name)
                 if container_path in d_state['d_ret'] and d_state['d_ret'][container_path]['tree']:
                     kwargs['d_state']   = d_state
                     kwargs['hitIndex']  = str(i)
-                    l_status.append(eval("self.t_status_process_%s(*args, **kwargs)" % container_name))
-                    found_container = True
 
+                d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % container_name)
+                # d_ret {
+                #     'status':         d_ret['status'],              # bool
+                #     'logs':           str_logs,                     # logs from app in container
+                #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
+                # }
+
+                l_status.append(d_containerStatus['currentState'])
+                l_logs.append(d_containerStatus['logs'])                    
+                found_container = True
+
+            # The case for non-containerized jobs
             if not found_container:
                 if endcode is None and b_startEvent:
                     l_status.append('started')
@@ -975,24 +1022,33 @@ class Listener(threading.Thread):
             self.dp.qprint('l_status = %s' % l_status)
 
         d_ret['l_status']   = l_status
+        d_ret['l_logs']     = l_logs
 
-        return {"d_ret":    d_ret,
-                "status":   b_status}
+        return {
+                "d_ret":    d_ret,
+                "status":   b_status
+                }
 
-    def store_state(self, state, where, name):
+    def DB_store(self, data, str_path, str_file):
         """
-        Simply stores the state object to the internal memory DB (which is in turn
-        automatically persisted to HDD during periodic poll update).
+        In the DB memory tree, simply stores <data> to a location called 
+        <str_path> and a file called <str_file>.
+
+        Explicitly separating <str_path> and <str_file> is just for 
+        expedience in checking up on path validity in the DB memory tree.
+
+        This method also triggers a DB save event.
+
         """
-        if not self._ptree.exists(name, path = where):
-            self._ptree.touch('%s/%s' % (where, name), state)
+        if not self._ptree.exists(str_file, path = str_path):
+            self._ptree.touch('%s/%s' % (str_path, str_file), data)
             # Save DB state...
             self.within.DB_fileIO(cmd = 'save')
 
     def t_status_process_container_stateObject(self, *args, **kwargs):
         """
-        Process the actual JSON container return object on service
-        state.
+        This method processes the swarm manager state object and, if 
+        necessary, shuts down the service from the swarm scheduler.
 
         PRECONDITIONS:
         o   This method should only ever be called by t_status_process_container().
@@ -1001,6 +1057,7 @@ class Listener(threading.Thread):
         o   A string denoting the current state is returned.
         o   If state is complete and service still running, save state object to
             tree and remove service.
+        o   Store the state object and logs in the internal DB tree!
 
         """
 
@@ -1046,26 +1103,46 @@ class Listener(threading.Thread):
             client          = docker.from_env()
             str_cmdShutDown = '%s --remove %s' % \
                 (d_serviceInfo['managerApp'], d_serviceInfo['serviceName'])
-            byte_str        = client.containers.run('%s' % d_serviceInfo['managerImage'],
-                                                    str_cmdShutDown,
-                                                    volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock',
-                                                                                      'mode': 'rw'}},
-                                                    remove=True)
+            byte_str        = client.containers.run(
+                                    '%s' % d_serviceInfo['managerImage'],
+                                    str_cmdShutDown,
+                                    volumes = {
+                                                '/var/run/docker.sock': 
+                                                        {
+                                                            'bind': '/var/run/docker.sock',
+                                                            'mode': 'rw'
+                                                        }
+                                                },
+                                    remove=True)
             return byte_str
 
         # pudb.set_trace()
         d_serviceState      = None
         d_jobState          = None
         str_hitIndex        = "0"
-        str_ret             = 'undefined'
+        str_logs            = ""
+        str_ret             = {'state': 'undefined', 'logs': 'undefined'}
         b_shutDownService   = False
         for k,v in kwargs.items():
             if k == 'jobState':         d_jobState      = v
             if k == 'serviceState':     d_serviceState  = v
             if k == 'hitIndex':         str_hitIndex    = v
+            if k == 'logs':             str_logs        = v
+
+        # Add a clumsy descriptor of this container "type" for processing 
+        # by the t_status_process_state() method.
+        kwargs['containerType'] = 'container'
         if d_serviceState:
-            str_ret, str_jobRoot, b_shutDownService = self.t_status_process_state(d_serviceState, d_jobState, str_hitIndex, 'container')
-            if b_shutDownService:
+
+            d_ret    = self.t_status_process_state(**kwargs)
+            # d_ret {
+            #             'currentState':   str_currentState,
+            #             'removeJob':      b_removeJob,
+            #             'status':         True
+            #         }
+
+            if d_ret['removeJob']:
+                str_jobRoot = d_jobState['d_ret']['%s.%s' % (str_hitIndex, kwargs['containerType'])]['jobRoot']
                 self._ptree.cd('/%s/container' % str_jobRoot)
                 d_serviceInfo       = {
                                         'serviceName':  self._ptree.cat('manager/env/serviceName'),
@@ -1074,11 +1151,19 @@ class Listener(threading.Thread):
                                     }
                 if service_exists(d_serviceInfo['serviceName']):
                     service_shutDown(d_serviceInfo)
-        return str_ret
+
+        return {
+            'status':       True,
+            'd_process':    d_ret
+            }
 
     def t_status_process_container(self, *args, **kwargs):
         """
-        Determine the status of a job scheduled using the container manager.
+        Execution should only reach this method for "container"ized jobs
+        status determination!
+
+        The 'd_state' contains a dictionary representation of the container
+        DB tree.
 
         PRECONDITIONS:
         o   Only call this method if a container structure exists
@@ -1087,7 +1172,10 @@ class Listener(threading.Thread):
         POSTCONDITIONS:
         o   If the job is completed, then shutdown the container cluster
             service.
-
+        o   The memory container tree contains a dictionary called 'state'
+            that is the state returned by the container service, as well as
+            a file called 'logs' that is the stdout/stderr generated by the
+            job as it ran in the container.
         """
         d_state         = None
         str_jobRoot     = ''
@@ -1108,25 +1196,63 @@ class Listener(threading.Thread):
 
         # Check if the state of the container service has been recorded to the data tree
         if self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
-            # The job has actually completed and its state recorded in the data tree
-            d_json          = self._ptree.cat('/%s/container/state')
+            # If this exists, then the job has actually completed and 
+            # its state has been recorded in the data tree. We can simply 'cat'
+            # the state from this memory dictionary
+            d_serviceState  = self._ptree.cat('/%s/container/state')
+            if self._ptree.exists('logs', path = '/%s/container' % str_jobRoot):
+                # The job has actually completed and its logs are recorded in the data tree
+                str_logs     = self._ptree.cat('/%s/container/logs')
         else:
-            # Ask the container service for the state of the service...
+            # Here, the manager has not been queried yet about the state of
+            # the service. We need to ask the container service for this 
+            # state, and then record the state (and logs) in the memory
+            # tree, and then "shut down" the service.
             client = docker.from_env()
             # pudb.set_trace()
 
             # Get the state of the service...
             str_cmdManager  = '%s --state %s' % \
                               (str_managerApp, str_serviceName)
-            byte_str        = client.containers.run('%s' % str_managerImage,
-                                                    str_cmdManager,
-                                                    volumes = {'/var/run/docker.sock': {'bind': '/var/run/docker.sock',
-                                                                                        'mode': 'rw'}},
-                                                    remove  = True)
-            d_json          = json.loads(byte_str.decode())
-        return self.t_status_process_container_stateObject( hitIndex        = str_hitIndex,
-                                                            jobState        = d_state,
-                                                            serviceState    = d_json)
+            byte_str        = client.containers.run(
+                    '%s' % str_managerImage,
+                    str_cmdManager,
+                    volumes =   {
+                                '/var/run/docker.sock': 
+                                    {
+                                        'bind': '/var/run/docker.sock',
+                                        'mode': 'rw'
+                                    }
+                                },
+                                remove  = True)
+            d_serviceState  = json.loads(byte_str.decode())
+            # Now, parse for the logs of the actual container run by the service:
+            # NB: This has only really tested/used on swarm!!
+            str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
+            container   = client.containers.get(str_contID)
+            str_logs    = container.logs()
+            str_logs    = str_logs.decode()
+
+        d_ret = self.t_status_process_container_stateObject( 
+                                    hitIndex        = str_hitIndex,
+                                    jobState        = d_state,
+                                    serviceState    = d_serviceState,
+                                    logs            = str_logs
+                                    )
+        # d_ret {
+        #            'status':      bool,
+        #             d_process: {
+        #               'currentState':     str_currentState,
+        #               'removeJob':        b_removeJob,
+        #               'status':           True
+        #             }
+        #       }
+
+        return {
+            'status':           d_ret['status'],
+            'logs':             str_logs,
+            'currentState':     d_ret['d_process']['currentState']
+        }
 
     def t_status_process_openshift(self, *args, **kwargs):
         """
@@ -1140,6 +1266,8 @@ class Listener(threading.Thread):
         o   If the job is completed, then shutdown the container cluster
             service.
         """
+        return False
+
         d_state         = None
         str_jobRoot     = ''
         str_hitIndex    = "0"
@@ -1207,7 +1335,12 @@ class Listener(threading.Thread):
             if k == 'serviceState':     d_serviceState  = v
             if k == 'hitIndex':         str_hitIndex    = v
         if d_serviceState:
-            str_ret, str_jobRoot, b_removeJob = self.t_status_process_state(d_serviceState, d_jobState, str_hitIndex, 'openshift')
+            str_ret, str_jobRoot, b_removeJob = self.t_status_process_state(
+                                                            d_serviceState, 
+                                                            d_jobState, 
+                                                            str_hitIndex, 
+                                                            'openshift'
+                                                        )
             if b_removeJob:
                 self._ptree.cd('/%s' % str_jobRoot)
                 jid = self._ptree.cat('jid')
@@ -1220,37 +1353,82 @@ class Listener(threading.Thread):
             self.openshiftmgr = OpenShiftManager()
         return self.openshiftmgr
 
-    def t_status_process_state(self, serviceState, jobState, hitIndex, type):
+    def t_status_process_state(self, *args, **kwargs):
+        """
+        This method processes the swarm state object to make the 
+        final determination on a job's state and print out container
+        job state and logs.
+
+        It also returns a signal to the caller to trigger the removal
+        of the job from the swarm scheduler if the job has completed.
+
+        Both the "openshift" and "swarm/container" code calls this,
+        hence the somewhat clumsy passing of a string token. Probably
+        not the best design...
+
+        """
+
+        def debug_print(    str_jobRoot, 
+                            d_serviceState, 
+                            str_currentState, 
+                            str_logs
+                        ):
+            """
+            Simply print some useful debug info.
+            """
+            l_commsNorm = ['rx',    'rx',    'tx']
+            l_commsErr  = ['error', 'error', 'error']
+            l_comms     = l_commsNorm
+            if str_currentState == 'finishedWithError':
+                l_comms = l_commsErr
+            self.dp.qprint('\njobRoot %s\n-->%s<--...' % \
+                                    (str_jobRoot, 
+                                    str_currentState),
+                                    comms = l_comms[0])
+            self.dp.qprint('\n%s' % self.df_print(d_serviceState), 
+                                    comms = l_comms[1])
+            self.dp.qprint('\njob logs:\n%s' % str_logs,
+                                    comms = l_comms[2])
+
+        d_serviceState      = {}
+        d_jobState          = {}
+        hitIndex            = 0
+        str_logs            = ""
+        str_containerType   = ""
+
+        for k,v in kwargs.items():
+            if k == 'jobState':         d_jobState          = v
+            if k == 'serviceState':     d_serviceState      = v
+            if k == 'hitIndex':         str_hitIndex        = v
+            if k == 'logs':             str_logs            = v
+            if k == 'containerType':    str_containerType   = v
+
         # pudb.set_trace()
         b_removeJob = False
-        str_jobRoot = jobState['d_ret']['%s.%s' % (hitIndex, type)]['jobRoot']
-        str_state   = serviceState['Status']['State']
-        str_message = serviceState['Status']['Message']
-        str_contID  = serviceState['Status']['ContainerStatus']['ContainerID']
-        client      = docker.from_env()
-        container   = client.containers.get(str_contID)
-        str_logs    = container.logs()
-        str_logs    = str_logs.decode()
+        str_jobRoot = d_jobState['d_ret']['%s.%s' % (hitIndex, str_containerType)]['jobRoot']
+        str_state   = d_serviceState['Status']['State']
+        str_message = d_serviceState['Status']['Message']
+        str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
         if str_state == 'running'   and str_message == 'started':
-            str_ret     = 'started'
-            self.dp.qprint('\njobRoot %s\n-->started<--...' % str_jobRoot,  comms = 'rx')
-            self.dp.qprint('\n%s' % self.pp.pformat(serviceState).strip(),  comms = 'rx')
-        elif str_state == 'failed'    and str_message == 'started':
-            str_ret     = 'finishedWithError'
-            self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
-            self.dp.qprint('\njobRoot %s\n-->%s<--...' % (str_jobRoot, str_ret), comms = 'error')
-            self.dp.qprint('\n%s' % self.pp.pformat(serviceState).strip(),  comms = 'error')
-            self.dp.qprint('job logs:\n%s' % str_logs,                      comms = 'error')
+            str_currentState    = 'started'
+            debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+        else:
+            self.DB_store(d_serviceState,   '/%s/%s' % (str_jobRoot, str_containerType), 'state')
+            self.DB_store(str_logs,         '/%s/%s' % (str_jobRoot, str_containerType), 'logs')
             b_removeJob   = True
-        elif str_state == 'complete'  and str_message == 'finished':
-            str_ret     = 'finishedSuccessfully'
-            self.store_state(serviceState, '/%s/%s' % (str_jobRoot, type), 'state')
-            self.dp.qprint('\njobRoot %s\n-->%s<--' % (str_jobRoot, str_ret),        comms = 'rx')
-            self.dp.qprint('\n%s' % self.pp.pformat(serviceState).strip(),  comms = 'rx')
-            self.dp.qprint('job logs:\n%s' % str_logs,                      comms = 'tx')
-            b_removeJob   = True
-        return [str_ret, str_jobRoot, b_removeJob]
-
+            if str_state == 'failed'        and str_message == 'started':
+                str_currentState    = 'finishedWithError'
+                debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+            elif str_state == 'complete'    and str_message == 'finished':
+                str_currentState    = 'finishedSuccessfully'
+                debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+        self.DB_store(str_currentState, '/%s/%s' % (str_jobRoot, str_containerType), 'currentState')
+        return {
+                    'currentState':     str_currentState,
+                    'removeJob':        b_removeJob,
+                    'status':           True
+                }
+    
     def t_hello_process(self, *args, **kwargs):
         """
 
