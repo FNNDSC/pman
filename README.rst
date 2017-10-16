@@ -1,5 +1,5 @@
 ##############
-pman - v1.6.4
+pman - v1.6.5
 ##############
 
 .. image:: https://badge.fury.io/py/pman.svg
@@ -17,12 +17,7 @@ pman - v1.6.4
 Overview
 ********
 
-This repository provides several python scripts that can be used as either standalone executables or as modules in python code. The common theme of this respository is *process* (and *file*) **management**. The following scripts/modules are provided:
-
-- ``pman``: a *process* manager;
-- ``pfioh``: a *file* IO manager;
-- ``purl``: a tool to transfer data using HTTP (similar to ``curl``);
-- ``crunner``: a low-level encapsulator that runs commands (and is used by ``pman``).
+This repository proves ``pman`` -- a process manager.
 
 pman
 ====
@@ -35,20 +30,6 @@ Most simply, ``pman`` manages processes, i.e. programs or applications that are 
 
 ``pman`` also maintains a persistent human-readable/friendly database-in-the-filesystem of jobs and states of jobs.
 
-pfioh
-=====
-
-While ``pman`` is a service that runs other programs (and provides information about them), ``pfioh`` is a service that pushes/pulls files and directories between different locations.
-
-purl
-====
-
-Since both ``pman`` and ``pfioh`` are services that listen for messages transported via ``http`` , a companion client application called ``purl`` is provided that can be used to speak to both ``pman`` and ``pfioh``.
-
-crunner
-=======
-
-``crunner`` is the actual "shim" or "wrapper" around an underlying system process. Most users will not need nor want necessarily to use ``crunner`` directly, although in many respects ``pman`` is a thin layer above ``crunner``.
 
 ************
 Installation
@@ -142,28 +123,14 @@ and then run
 
 .. code-block:: bash
 
-    docker run --name pman -v /home:/Users --rm -ti fnndsc/pman pman --rawmode 1 --http --port 5010 --listeners 12
+    docker run --name pman -v /home:/Users --rm -ti fnndsc/pman --rawmode 1 --http --port 5010 --listeners 12
 
 *****
 Usage
 *****
 
-For usage of the individual components, ``pman``, ``pfioh``, and ``purl``, consult the relevant wiki pages.
-
 ``pman`` usage
 ===============
 
 For ``pman`` detailed information, see the `pman wiki page <https://github.com/FNNDSC/pman/wiki/pman-overview>`_.
-
-``pfioh`` usage
-===============
-
-For ``pfioh`` detailed information, see the `pfioh wiki page <https://github.com/FNNDSC/pman/wiki/pfioh-overview>`_.
-
-``purl`` usage
-==============
-
-For ``purl`` detailed information, see the `purl wiki page <https://github.com/FNNDSC/pman/wiki/purl-overview>`_.
-
-
 
