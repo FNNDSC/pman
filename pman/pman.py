@@ -957,9 +957,7 @@ class Listener(threading.Thread):
         #     "d_ret":        
         #         [<index>+'.'+str_container_name]   = {
         #             "jobRoot": job, "tree": dict(T_container.snode_root)
-        #         }
-
-        #     d_ret,
+        #         },
         #     "status":       b_status
         # }
 
@@ -997,16 +995,16 @@ class Listener(threading.Thread):
                     kwargs['d_state']   = d_state
                     kwargs['hitIndex']  = str(i)
 
-                d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % container_name)
-                # d_ret {
-                #     'status':         d_ret['status'],              # bool
-                #     'logs':           str_logs,                     # logs from app in container
-                #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
-                # }
+                    d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % container_name)
+                    # d_ret {
+                    #     'status':         d_ret['status'],              # bool
+                    #     'logs':           str_logs,                     # logs from app in container
+                    #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
+                    # }
 
-                l_status.append(d_containerStatus['currentState'])
-                l_logs.append(d_containerStatus['logs'])                    
-                found_container = True
+                    l_status.append(d_containerStatus['currentState'])
+                    l_logs.append(d_containerStatus['logs'])                    
+                    found_container = True
 
             # The case for non-containerized jobs
             if not found_container:
