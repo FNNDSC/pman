@@ -70,7 +70,7 @@
                     "readOnly": true
                   }
                 ],
-                "image": "FNNDSC/pman",
+                "image": "fnndsc/pman",
                 "imagePullPolicy": "Always",
                 "name": "pman",
                 "ports": [
