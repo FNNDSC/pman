@@ -15,7 +15,6 @@ Example Kube Config Setup:
     oc create secret generic kubecfg --from-file=/home/dmcphers/.kube/config -n myproject
     rm -f ~/.kube/config
     oc login
-    oc new-app openshift/pman-openshift-template.json
 
 ##############
 Swift Object Store
@@ -46,7 +45,7 @@ The credentials file for Swift should be stored in a **secret**, mounted at /etc
     osProjectName    = 
 
 **************
-Creating a secret
+Creating a secret and running pman.
 **************
 1) Create a text file with the name swift-credentials.cfg as shown above.
 
@@ -56,3 +55,9 @@ Creating a secret
 .. code-block:: bash
 
     oc create secret generic swift-credentials --from-file=<path-to-file>/swift-credentials.cfg
+
+3) Run pman template.
+
+.. code-block:: bash
+   
+    oc new-app openshift/pman-openshift-template.json
