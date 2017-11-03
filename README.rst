@@ -17,7 +17,7 @@ pman - v1.6.5
 Overview
 ********
 
-This repository proves ``pman`` -- a process manager.
+This repository proves ``pman`` -- a process manager. This is a bleeding edge development branch.
 
 pman
 ====
