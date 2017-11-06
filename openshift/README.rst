@@ -1,6 +1,8 @@
 ##############
-Example Kube Config Setup:
+Example Kube Config Setup to run locally:
 ##############
+
+Assuming oc cluster up has been run.
 
 .. code-block:: bash
 
@@ -9,12 +11,23 @@ Example Kube Config Setup:
     sudo oc describe sa robot -n myproject
     sudo oc adm policy add-role-to-user edit system:serviceaccount:myproject:robot -n myproject
     sudo oc describe secret <Ex: robot-token-4vhxc> -n myproject
+    
+    ############################
+    # Changes for using hostPath in container. These are not needed, if you want to use swift as backend storage.
+    mkdir /tmp/share           # Create a directory that could be mounted in container. This is mounted as /shareDir in container.
+    chcon -R -t svirt_sandbox_file_t /tmp/share/ # Change selinux label so that containers can read/write from/to directory.
+    oc edit scc restricted     # Update allowHostDirVolumePlugin to true and runAsUser: type: RunAsAny.
+    A restricted SCC should look like this: https://gist.github.com/ravisantoshgudimetla/91748a20766672d2f26b93b3c42517b4
+    ############################   
+
     rm -f ~/.kube/config
     oc login --token=<token from above>    # Note: Use 172.30.0.1:443 if running with oc cluster up
     oc project myproject
     oc create secret generic kubecfg --from-file=/home/dmcphers/.kube/config -n myproject
     rm -f ~/.kube/config
     oc login
+    # Ignore this step, if you are using swift as backend storage.
+    oc new-app openshift/pman-openshift-template-without-swift.json
 
 ##############
 Swift Object Store
