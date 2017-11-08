@@ -1,6 +1,6 @@
-##############
-pman - v1.6.5
-##############
+##################
+pman - v1.6.7.dev0
+##################
 
 .. image:: https://badge.fury.io/py/pman.svg
     :target: https://badge.fury.io/py/pman
