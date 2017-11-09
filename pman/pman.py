@@ -24,6 +24,8 @@ import  datetime
 import  socket
 import  uuid
 
+import  pfmisc
+
 # pman local dependencies
 try:
     from    ._colors        import Colors
@@ -173,7 +175,8 @@ class pman(object):
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 50
-        self.dp                 = debug(    verbosity   = 0,
+        self.dp                 = pfmisc.debug(    
+                                            verbosity   = 0,
                                             level       = -1,
                                             debugFile   = self.str_debugFile,
                                             debugToFile = self.b_debugToFile,
@@ -460,10 +463,12 @@ class FileIO(threading.Thread):
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
 
-        self.dp                 = debug(verbosity   = 0,
+        self.dp                 = pfmisc.debug(
+                                        verbosity   = 0,
                                         level       = -1,
                                         debugFile   = self.str_debugFile,
-                                        debugToFile = self.b_debugToFile)
+                                        debugToFile = self.b_debugToFile,
+                                        within      = self.__name)
 
         threading.Thread.__init__(self)
 
@@ -525,10 +530,12 @@ class Listener(threading.Thread):
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
 
-        self.dp                 = debug(verbosity   = 0,
+        self.dp                 = pfmisc.debug(
+                                        verbosity   = 0,
                                         level       = -1,
                                         debugFile   = self.str_debugFile,
-                                        debugToFile = self.b_debugToFile)
+                                        debugToFile = self.b_debugToFile,
+                                        within      = self.__name)
 
         threading.Thread.__init__(self)
         # logging.debug('leaving __init__')
@@ -2105,6 +2112,7 @@ class Poller(threading.Thread):
         self.queueStart         = queue.Queue()
         self.queueEnd           = queue.Queue()
         self.queueAllDone       = queue.Queue()
+        self.__name__           = 'Poller'
 
         # self.dp.qprint('starting...', level=-1)
 
@@ -2118,10 +2126,12 @@ class Poller(threading.Thread):
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
 
-        self.dp                 = debug(verbosity   = 0,
+        self.dp                 = pfmisc.debug(
+                                        verbosity   = 0,
                                         level       = -1,
                                         debugFile   = self.str_debugFile,
-                                        debugToFile = self.b_debugToFile)
+                                        debugToFile = self.b_debugToFile,
+                                        within      = self.__name__)
 
         threading.Thread.__init__(self)
 
@@ -2183,10 +2193,12 @@ class Crunner(threading.Thread):
                                             debugToFile = self.b_debugToFile,
                                             debugFile   = self.str_debugFile)
 
-        self.dp                 = debug(    verbosity   = 0,
+        self.dp                 = pfmisc.debug(    
+                                            verbosity   = 0,
                                             level       = -1,
                                             debugFile   = self.str_debugFile,
-                                            debugToFile = self.b_debugToFile)
+                                            debugToFile = self.b_debugToFile,
+                                            within      = self.__name)
         self.dp.qprint('starting crunner...')
 
         threading.Thread.__init__(self)
