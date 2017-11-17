@@ -2028,8 +2028,8 @@ class Listener(threading.Thread):
                                                         kwargs      = kwargs)
             t_process.start()
             time.sleep(0.1)
-            if payload_verb == 'run':
-                d_ret['jobRootDir'] = self.str_jobRootDir
+            # if payload_verb == 'run':
+            #     d_ret['jobRootDir'] = self.str_jobRootDir
             d_ret['status']     = True
         else:
             self.dp.qprint("Will process request in current thread.")
