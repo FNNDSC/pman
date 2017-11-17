@@ -40,7 +40,7 @@ RUN apt-get update                                                    \
   && pip3 install pyzmq                                               \
   && pip3 install webob                                               \
   && pip3 install psutil                                              \
-  && pip3 install pman==1.6.9.dev0                                    \ 
+  && pip3 install pman==1.6.11.dev0                                   \ 
   && pip3 install pfmisc==1.0.1				                                \
   && pip3 install kubernetes                                          \
   && pip3 install openshift                                           \
