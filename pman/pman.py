@@ -145,6 +145,7 @@ class pman(object):
         # Job info
         self.auid               = ''
         self.jid                = ''
+        self.container_env           = ''
 
         # Debug parameters
         self.str_debugFile      = '/dev/null'
@@ -168,6 +169,7 @@ class pman(object):
             if key == 'desc':           self.str_desc       = val
             if key == 'name':           self.str_name       = val
             if key == 'version':        self.str_version    = val
+            if key == 'container_env':       self.container_env       = val.strip().lower()
         # pudb.set_trace()
 
         # Screen formatting
@@ -1059,6 +1061,7 @@ class Listener(threading.Thread):
 
         """
 
+
         def service_exists(str_serviceName):
             """
             Returns a bool:
@@ -1708,7 +1711,7 @@ class Listener(threading.Thread):
                 "auid":     "rudolphpienaar",
                 "jid":      "simpledsapp-1",
                 "threaded": true,
-                "openshift":   {
+                "container":   {
                         "target": {
                             "image":        "fnndsc/pl-simpledsapp",
                             "cmdParse":     true
@@ -1737,8 +1740,8 @@ class Listener(threading.Thread):
             self.auid           = d_meta['auid']
             str_cmd             = d_meta['cmd']
 
-            if 'openshift' in d_meta.keys():
-                d_openshift                 = d_meta['openshift']
+            if 'container' in d_meta.keys():
+                d_openshift                 = d_meta['container']
                 d_target                    = d_openshift['target']
                 str_targetImage             = d_target['image']
 
@@ -1957,13 +1960,13 @@ class Listener(threading.Thread):
         else:
             return False
         
+
     def methodName_parse(self, **kwargs):
         """
         Construct the processing method name (string) by parsing the
         d_meta dictionary.
         """
         d_meta              = {}
-        d_container         = {}
         str_method          = ""        # The main 'parent' method
         str_methodSuffix    = ""        # A possible 'subclass' specialization
 
@@ -1974,12 +1977,13 @@ class Listener(threading.Thread):
         if 'meta' in d_request.keys():
             d_meta          = d_request['meta']
 
-        for container_name in CONTAINER_NAMES:
-            if container_name in d_meta.keys():
-                # If the `container_name` json paragraph exists, then route processing to
-                # a suffixed '_<container_name>' method.
-                str_methodSuffix    = '_%s' % container_name
-                break
+        if 'container' in d_meta.keys():
+            if self.container_env == 'openshift':
+                # append suffix _openshift to redirect to openshift function
+                str_methodSuffix    = '_openshift'
+            #if container_env is specified as swarm, or not specified, the container_env variable will default to swarm.
+            elif self.container_env == 'swarm':
+                str_methodSuffix    = '_container'
 
         str_method  = 't_%s_process%s' % (payload_verb, str_methodSuffix)
         return str_method
