@@ -1406,7 +1406,6 @@ class Listener(threading.Thread):
         str_jobRoot = d_jobState['d_ret']['%s.%s' % (hitIndex, str_containerType)]['jobRoot']
         str_state   = d_serviceState['Status']['State']
         str_message = d_serviceState['Status']['Message']
-        str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
         if str_state == 'running'   and str_message == 'started':
             str_currentState    = 'started'
             debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
