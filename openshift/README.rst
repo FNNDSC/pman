@@ -1,5 +1,5 @@
 ##############
-Example Kube Config Setup to run locally:
+Example to run locally:
 ##############
 
 Assuming oc cluster up has been run.
@@ -30,9 +30,9 @@ Assuming oc cluster up has been run.
     oc new-app openshift/pman-openshift-template-without-swift.json
 
 ##############
-Temoporary Dependancy Errors
+Temporary Dependency Errors
 ##############
-There is a dependancy error with the current versoin of the skopeo-containers library that is preventing pods from running in local Openshift instances. If you are getting errors resembling:
+There is a dependency error with the current version of the skopeo-containers library that is preventing pods from running in local OpenShift instances. If you are getting errors resembling:
 
 ::
 
