@@ -45,16 +45,6 @@ The current workaround is to move or delete the /usr/share/rhel/secrets director
 
     mv /usr/share/rhel/secrets <desired destination>
 
-
-#############
-Script
-#############
-A script named pmanSetup.sh can be used to run most of the above commands, and will leave you off in vim editing the scc restricted file. You will have to procede manually from then on, but it should cut a lot of the tedious work out. Its a work in progress. To run the script, just use the command: 
-
-.. code-block:: bash 
-
-    bash pmanSetup.sh
-
 ##############
 Swift Object Store
 ##############
