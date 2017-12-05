@@ -39,64 +39,118 @@ class OpenShiftManager(object):
         """
         Schedule a new job and returns the job object.
         """
-        job_str = """
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: {name}
-spec:
-    parallelism: 1
-    completions: 1
-    activeDeadlineSeconds: 3600
-    template:
-        metadata:
-          name: {name}
-        spec:
-            restartPolicy: Never
-            initContainers:
-            - name: init-storage
-              image: adi95docker/pman-swift-publisher
-              env:
-              - name: SWIFT_KEY
-                value: {name}
-              command: ['python3', 'get_data.py']
-              volumeMounts:
-              - mountPath: /share
-                name: shared-volume
-              - mountPath: /etc/swift
-                name: swift-credentials
-                readOnly: true
-            containers:
-            - name: {name}
-              image: {image}
-              command: {command}
-              volumeMounts:
-              - mountPath: /share
-                name: shared-volume
-            - name: publish
-              image: adi95docker/pman-swift-publisher
-              env:
-              - name: SWIFT_KEY
-                value: {name}
-              command: ['sh', 'check-status.sh']
-              volumeMounts:
-              - mountPath: /share
-                name: shared-volume
-              - mountPath: /etc/swift
-                name: swift-credentials
-                readOnly: true
-""".format(name=name, command=str(command.split(" ")), image=image)
-        job_str += """
-            volumes:
-            - name: shared-volume
-              emptyDir: {}
-            - name: swift-credentials
-              secret: 
-                secretName: swift-credentials
-"""
+        d_job = {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {
+                "name": name
+            },
+            "spec": {
+                "parallelism": 1,
+                "completions": 1,
+                "activeDeadlineSeconds": 3600,
+                "template": {
+                    "metadata": {
+                        "name": name
+                    },
+                    "spec": {
+                        "restartPolicy": "Never",
+                        "containers": [
+                            {
+                                "name": name,
+                                "image": image,
+                                "command": command.split(" "),
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/share",
+                                        "name": "shared-volume"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
 
-        job_yaml = yaml.load(job_str)
-        job = self.kube_v1_batch_client.create_namespaced_job(namespace=self.project, body=job_yaml)
+        if os.environ.get('STORAGE_TYPE') == 'swift':
+            d_job['spec']['template']['spec']['initContainers'] = [
+                {
+                    "name": "init-storage",
+                    "image": "adi95docker/pman-swift-publisher",
+                    "env": [
+                        {
+                            "name": "SWIFT_KEY",
+                            "value": name
+                        }
+                    ],
+                    "command": [
+                        "python3",
+                        "get_data.py"
+                    ],
+                    "volumeMounts": [
+                        {
+                            "mountPath": "/share",
+                            "name": "shared-volume"
+                        },
+                        {
+                            "mountPath": "/etc/swift",
+                            "name": "swift-credentials",
+                            "readOnly": True
+                        }
+                    ]
+                }
+            ]
+
+            d_job['spec']['template']['spec']['containers'].append({
+                "name": "publish",
+                "image": "adi95docker/pman-swift-publisher",
+                "env": [
+                    {
+                        "name": "SWIFT_KEY",
+                        "value": name
+                    }
+                ],
+                "command": [
+                    "sh",
+                    "check-status.sh"
+                ],
+                "volumeMounts": [
+                    {
+                        "mountPath": "/share",
+                        "name": "shared-volume"
+                    },
+                    {
+                        "mountPath": "/etc/swift",
+                        "name": "swift-credentials",
+                        "readOnly": True
+                    }
+                ]
+            })
+            d_job['spec']['template']['spec']['volumes'] = [
+                {
+                    "name": "shared-volume",
+                    "emptyDir": {
+                    }
+                },
+                {
+                    "name": "swift-credentials",
+                    "secret": {
+                        "secretName": "swift-credentials"
+                    }
+                }
+            ]
+        else: # os.environ.get('STORAGE_TYPE') == 'hostPath'
+            d_job['spec']['template']['spec']['volumes'] = [
+                {
+                    "name": "shared-volume",
+                    "hostPath": {
+                        "path": "/tmp/share"
+                    }
+                }
+            ]
+
+        job = self.kube_v1_batch_client.create_namespaced_job(namespace=self.project, body=d_job)
         return job
 
     def create_pod(self, image, name):

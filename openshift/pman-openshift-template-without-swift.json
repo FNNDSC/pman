@@ -87,6 +87,10 @@
                   {
                     "name": "OPENSHIFTMGR_PROJECT",
                     "value": "radiology"
+                  },
+                  {
+                    "name": "STORAGE_TYPE",
+                    "value": "hostPath"
                   }
                 ]
               }
