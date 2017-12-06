@@ -29,6 +29,9 @@ MAINTAINER fnndsc "dev@babymri.org"
 ARG UID=1001
 ENV UID=$UID
 
+COPY . /tmp/pman
+COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
+
 RUN apt-get update                                                    \
   && apt-get install sudo                                             \
   && useradd -u $UID -ms /bin/bash localuser                          \
@@ -40,13 +43,12 @@ RUN apt-get update                                                    \
   && pip3 install pyzmq                                               \
   && pip3 install webob                                               \
   && pip3 install psutil                                              \
-  && pip3 install pman==1.6.5                                         \ 
+  && pip3 install /tmp/pman                                           \ 
   && pip3 install kubernetes                                          \
   && pip3 install openshift                                           \
-  && pip3 install docker                                              
-
-COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
-RUN chmod 777 /dock                                                   \
+  && pip3 install docker                                              \
+  && rm -rf /tmp/pman                                                 \
+  && chmod 777 /dock                                                  \
   && chmod 777 /dock/docker-entrypoint.py                             \
   && echo "localuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
