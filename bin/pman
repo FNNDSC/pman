@@ -154,10 +154,8 @@ parser.add_argument(
 )
 parser.add_argument(
     '--container-env',
-    help    = ''' Gives you the option to specify the environment where pman is running. Defaults to local if empty.
-                  openshift\t: if you want to run this in openshift mode
-                  swarm    \t: if you want to run this in docker swarm mode ''',
-    dest    = 'container_env',
+    help    = 'The container environment to run against (openshift, swarm)',
+    dest    = 'containerEnv',
     action  = 'store',
     default = 'swarm'
 )
@@ -182,10 +180,10 @@ comm = pman.pman(
     DBsavePeriod    = args.DBsavePeriod,
     debugToFile     = args.debugToFile,
     debugFile       = args.debugFile,
+    containerEnv    = args.containerEnv,
     desc            = str_desc,
     name            = str_name,
-    version         = str_version,
-    container_env   = args.container_env
+    version         = str_version
 )
 
 # This starts the main thread and "detaches" execution from the main

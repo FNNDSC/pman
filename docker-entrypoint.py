@@ -33,6 +33,7 @@ def pman_do(args, unknown):
     return str_CMD
 
 parser  = ArgumentParser(description = str_desc, formatter_class = RawTextHelpFormatter)
+
 parser.add_argument(
     '--msg',
     action  = 'store',
