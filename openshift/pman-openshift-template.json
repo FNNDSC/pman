@@ -8,8 +8,7 @@
       "tags": ""
     }
   },
-  "objects": [
-    {
+  "objects": [{
       "apiVersion": "v1",
       "kind": "DeploymentConfig",
       "metadata": {
@@ -27,8 +26,7 @@
         },
         "strategy": {
           "activeDeadlineSeconds": 21600,
-          "resources": {
-          },
+          "resources": {},
           "rollingParams": {
             "intervalSeconds": 1,
             "maxSurge": "25%",
@@ -46,57 +44,49 @@
             }
           },
           "spec": {
-            "containers": [
-              {
-                "command": [
-                  "/usr/local/bin/pman",
-                  "--rawmode=1",
-                  "--http",
-                  "--port=5010",
-                  "--listeners=12"
-                ],
-                "volumeMounts": [
-                  {
-                    "name": "kubecfg-volume",
-                    "mountPath": "/tmp/.kube/",
-                    "readOnly": true
-                  },
-                  {
-                    "name": "swift-credentials",
-                    "mountPath": "/etc/swift/",
-                    "readOnly": true
-                  }
-                ],
-                "image": "fnndsc/pman",
-                "imagePullPolicy": "Always",
-                "name": "pman",
-                "ports": [
-                  {
-                    "containerPort": 5010,
-                    "protocol": "TCP"
-                  }
-                ],
-                "resources": {
+            "containers": [{
+              "command": [
+                "/usr/local/bin/pman",
+                "--rawmode=1",
+                "--http",
+                "--port=5010",
+                "--listeners=12"
+              ],
+              "volumeMounts": [{
+                  "name": "kubecfg-volume",
+                  "mountPath": "/tmp/.kube/",
+                  "readOnly": true
                 },
-                "terminationMessagePath": "/dev/termination-log",
-                "env": [
-                  {
-                    "name": "KUBECFG_PATH",
-                    "value": "/tmp/.kube/config"
-                  },
-                  {
-                    "name": "OPENSHIFTMGR_PROJECT",
-                    "value": "radiology"
-                  },
-                  {
-                    "name": "STORAGE_TYPE",
-                    "value": "swift"
-                  }
-                ]
-              }
-            ],
-            "volumes": [
-              {
+                {
+                  "name": "swift-credentials",
+                  "mountPath": "/etc/swift/",
+                  "readOnly": true
+                }
+              ],
+              "image": "fnndsc/pman",
+              "imagePullPolicy": "Always",
+              "name": "pman",
+              "ports": [{
+                "containerPort": 5010,
+                "protocol": "TCP"
+              }],
+              "resources": {},
+              "terminationMessagePath": "/dev/termination-log",
+              "env": [{
+                  "name": "KUBECFG_PATH",
+                  "value": "/tmp/.kube/config"
+                },
+                {
+                  "name": "OPENSHIFTMGR_PROJECT",
+                  "value": "radiology"
+                },
+                {
+                  "name": "STORAGE_TYPE",
+                  "value": "swift"
+                }
+              ]
+            }],
+            "volumes": [{
                 "name": "kubecfg-volume",
                 "secret": {
                   "secretName": "kubecfg"
@@ -111,17 +101,14 @@
             ],
             "dnsPolicy": "ClusterFirst",
             "restartPolicy": "Always",
-            "securityContext": {
-            },
+            "securityContext": {},
             "terminationGracePeriodSeconds": 30
           }
         },
         "test": false,
-        "triggers": [
-          {
-            "type": "ConfigChange"
-          }
-        ]
+        "triggers": [{
+          "type": "ConfigChange"
+        }]
       }
     },
     {
@@ -134,14 +121,12 @@
         "name": "pman"
       },
       "spec": {
-        "ports": [
-          {
-            "name": "5010-tcp",
-            "port": 5010,
-            "protocol": "TCP",
-            "targetPort": 5010
-          }
-        ],
+        "ports": [{
+          "name": "5010-tcp",
+          "port": 5010,
+          "protocol": "TCP",
+          "targetPort": 5010
+        }],
         "selector": {
           "app": "pman",
           "deploymentconfig": "pman"
