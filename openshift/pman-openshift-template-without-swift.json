@@ -71,7 +71,16 @@
                 "containerPort": 5010,
                 "protocol": "TCP"
               }],
-              "resources": {},
+              "resources": {
+                "limits": {
+                  "memory": "1024Mi",
+                  "cpu": "1000m"
+                },
+                "requests": {
+                  "memory": "128Mi",
+                  "cpu": "250m"
+                }
+              },
               "terminationMessagePath": "/dev/termination-log",
               "env": [{
                   "name": "KUBECFG_PATH",
