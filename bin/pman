@@ -152,6 +152,13 @@ parser.add_argument(
     action  = 'store_true',
     default = False
 )
+parser.add_argument(
+    '--container-env',
+    help    = 'The container environment to run against (openshift, swarm)',
+    dest    = 'containerEnv',
+    action  = 'store',
+    default = 'swarm'
+)
 
 args = parser.parse_args()
 
@@ -173,10 +180,11 @@ comm = pman.pman(
     DBsavePeriod    = args.DBsavePeriod,
     debugToFile     = args.debugToFile,
     debugFile       = args.debugFile,
+    containerEnv    = args.containerEnv,
     desc            = str_desc,
     name            = str_name,
     version         = str_version
-    )
+)
 
 # This starts the main thread and "detaches" execution from the main
 # program.

@@ -231,5 +231,5 @@ spec:
                                 'Active': job.status.active,
                                 'Failed': job.status.failed,
                                 'Succeeded': job.status.succeeded,
-                                'StartTime': job.status.start_time,
-                                'CompletionTime': job.status.completion_time}}
+                                'StartTime': str(job.status.start_time),
+                                'CompletionTime': str(job.status.completion_time)}}

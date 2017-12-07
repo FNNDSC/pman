@@ -50,7 +50,8 @@
                 "--rawmode=1",
                 "--http",
                 "--port=5010",
-                "--listeners=12"
+                "--listeners=12",
+                "--container-env=openshift"
               ],
               "volumeMounts": [{
                   "name": "kubecfg-volume",
