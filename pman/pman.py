@@ -975,52 +975,53 @@ class Listener(threading.Thread):
         #
         # thus the loop grouping is number of items / 3
         #
-        for i in range(0, int(len(d_keys)/3)):
-            b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
-            try:
-                endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
-            except:
-                endcode     = None
+        if '0.start' in d_ret:
+            for i in range(0, int(len(d_keys)/3)):
+                b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
+                try:
+                    endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
+                except:
+                    endcode     = None
 
-            # pudb.set_trace()
-            # Was this a containerized job?
-            found_container = False
-            container_path = '%s.%s' % (str(i), 'container')
-            if container_path in d_state['d_ret'] and d_state['d_ret'][container_path]['tree']:
-                kwargs['d_state']   = d_state
-                kwargs['hitIndex']  = str(i)
+                # pudb.set_trace()
+                # Was this a containerized job?
+                found_container = False
+                container_path = '%s.%s' % (str(i), 'container')
+                if container_path in d_state['d_ret'] and d_state['d_ret'][container_path]['tree']:
+                    kwargs['d_state']   = d_state
+                    kwargs['hitIndex']  = str(i)
 
-                str_methodSuffix = None
-                if self.container_env == 'openshift':
-                    # append suffix _openshift to redirect to openshift function
-                    str_methodSuffix    = 'openshift'
-                elif self.container_env == 'swarm':
-                    # append suffix _container to redirect to container function
-                    str_methodSuffix    = 'container'
+                    str_methodSuffix = None
+                    if self.container_env == 'openshift':
+                        # append suffix _openshift to redirect to openshift function
+                        str_methodSuffix    = 'openshift'
+                    elif self.container_env == 'swarm':
+                        # append suffix _container to redirect to container function
+                        str_methodSuffix    = 'container'
 
-                d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % str_methodSuffix)
-                # d_ret {
-                #     'status':         d_ret['status'],              # bool
-                #     'logs':           str_logs,                     # logs from app in container
-                #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
-                # }
+                    d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % str_methodSuffix)
+                    # d_ret {
+                    #     'status':         d_ret['status'],              # bool
+                    #     'logs':           str_logs,                     # logs from app in container
+                    #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
+                    # }
 
-                l_status.append(d_containerStatus['currentState'])
-                l_logs.append(d_containerStatus['logs'])                    
-                found_container = True
+                    l_status.append(d_containerStatus['currentState'])
+                    l_logs.append(d_containerStatus['logs'])
+                    found_container = True
 
-            # The case for non-containerized jobs
-            if not found_container:
-                if endcode is None and b_startEvent:
-                    l_status.append('started')
-                if not endcode and b_startEvent and type(endcode) is int:
-                    l_status.append('finishedSuccessfully')
-                if endcode and b_startEvent:
-                    l_status.append('finishedWithError')
+                # The case for non-containerized jobs
+                if not found_container:
+                    if endcode is None and b_startEvent:
+                        l_status.append('started')
+                    if not endcode and b_startEvent and type(endcode) is int:
+                        l_status.append('finishedSuccessfully')
+                    if endcode and b_startEvent:
+                        l_status.append('finishedWithError')
 
-            self.dp.qprint('b_startEvent = %d' % b_startEvent)
-            self.dp.qprint(endcode)
-            self.dp.qprint('l_status = %s' % l_status)
+                self.dp.qprint('b_startEvent = %d' % b_startEvent)
+                self.dp.qprint(endcode)
+                self.dp.qprint('l_status = %s' % l_status)
 
         d_ret['l_status']   = l_status
         d_ret['l_logs']     = l_logs
@@ -1195,10 +1196,10 @@ class Listener(threading.Thread):
             # If this exists, then the job has actually completed and 
             # its state has been recorded in the data tree. We can simply 'cat'
             # the state from this memory dictionary
-            d_serviceState  = self._ptree.cat('/%s/container/state')
+            d_serviceState  = self._ptree.cat('/%s/container/state' % str_jobRoot)
             if self._ptree.exists('logs', path = '/%s/container' % str_jobRoot):
                 # The job has actually completed and its logs are recorded in the data tree
-                str_logs     = self._ptree.cat('/%s/container/logs')
+                str_logs     = self._ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
             # Here, the manager has not been queried yet about the state of
             # the service. We need to ask the container service for this 
@@ -1280,7 +1281,10 @@ class Listener(threading.Thread):
         # Check if the state of the openshift service has been recorded to the data tree
         if self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
             # The job has actually completed and its state recorded in the data tree
-            d_json          = self._ptree.cat('/%s/container/state')
+            d_json = self._ptree.cat('/%s/container/state' % str_jobRoot)
+            if self._ptree.exists('logs', path = '/%s/container' % str_jobRoot):
+                # The job has actually completed and its logs are recorded in the data tree
+                str_logs = self._ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
             d_json = self.get_openshift_manager().state(jid)
             str_logs = d_json['Status']['Message']
@@ -1332,6 +1336,7 @@ class Listener(threading.Thread):
         d_jobState          = None
         str_hitIndex        = "0"
         str_logs            = ""
+        d_ret               = {}
 
         for k,v in kwargs.items():
             if k == 'jobState':         d_jobState      = v
@@ -1404,7 +1409,7 @@ class Listener(threading.Thread):
         str_jobRoot = d_jobState['d_ret']['%s.container' % (hitIndex)]['jobRoot']
         str_state   = d_serviceState['Status']['State']
         str_message = d_serviceState['Status']['Message']
-        if str_state == 'running'   and str_message == 'started':
+        if str_state == 'running' and str_message == 'started':
             str_currentState    = 'started'
             debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
         else:
