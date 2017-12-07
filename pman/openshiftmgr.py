@@ -63,7 +63,7 @@ class OpenShiftManager(object):
                                 "resources": {
                                     "limits": {
                                         "memory": "1024Mi",
-                                        "cpu": "1000m"
+                                        "cpu": "2000m"
                                     },
                                     "requests": {
                                         "memory": "128Mi",
@@ -101,7 +101,7 @@ class OpenShiftManager(object):
                     "resources": {
                         "limits": {
                             "memory": "1024Mi",
-                            "cpu": "1000m"
+                            "cpu": "2000m"
                         },
                         "requests": {
                             "memory": "128Mi",
@@ -138,7 +138,7 @@ class OpenShiftManager(object):
                 "resources": {
                     "limits": {
                         "memory": "1024Mi",
-                        "cpu": "1000m"
+                        "cpu": "2000m"
                     },
                     "requests": {
                         "memory": "128Mi",
