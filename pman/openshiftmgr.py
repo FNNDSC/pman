@@ -60,6 +60,16 @@ class OpenShiftManager(object):
                                 "name": name,
                                 "image": image,
                                 "command": command.split(" "),
+                                "resources": {
+                                    "limits": {
+                                        "memory": "1024Mi",
+                                        "cpu": "1000m"
+                                    },
+                                    "requests": {
+                                        "memory": "128Mi",
+                                        "cpu": "250m"
+                                    }
+                                },
                                 "volumeMounts": [
                                     {
                                         "mountPath": "/share",
@@ -88,6 +98,16 @@ class OpenShiftManager(object):
                         "python3",
                         "get_data.py"
                     ],
+                    "resources": {
+                        "limits": {
+                            "memory": "1024Mi",
+                            "cpu": "1000m"
+                        },
+                        "requests": {
+                            "memory": "128Mi",
+                            "cpu": "250m"
+                        }
+                    },
                     "volumeMounts": [
                         {
                             "mountPath": "/share",
@@ -115,6 +135,16 @@ class OpenShiftManager(object):
                     "sh",
                     "check-status.sh"
                 ],
+                "resources": {
+                    "limits": {
+                        "memory": "1024Mi",
+                        "cpu": "1000m"
+                    },
+                    "requests": {
+                        "memory": "128Mi",
+                        "cpu": "250m"
+                    }
+                },
                 "volumeMounts": [
                     {
                         "mountPath": "/share",
