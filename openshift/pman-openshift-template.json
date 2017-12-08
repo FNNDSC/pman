@@ -26,7 +26,6 @@
         },
         "strategy": {
           "activeDeadlineSeconds": 21600,
-          "resources": {},
           "rollingParams": {
             "intervalSeconds": 1,
             "maxSurge": "25%",
