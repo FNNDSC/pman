@@ -227,11 +227,17 @@ spec:
         """
         return self.kube_v1_batch_client.read_namespaced_job(name, self.project)
 
-    def remove(self, name):
+    def remove_job(self, name):
         """
         Remove a previously scheduled job
         """
         self.kube_v1_batch_client.delete_namespaced_job(name, self.project, {})
+
+    def remove_pod(self, name):
+        """
+        Remove a previously scheduled pod
+        """
+        self.kube_client.delete_namespaced_pod(name, self.project, {})
 
     def state(self, name):
         """

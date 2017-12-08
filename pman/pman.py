@@ -1330,7 +1330,7 @@ class Listener(threading.Thread):
             """
             Shut down a service
             """
-            return self.get_openshift_manager().remove(jid)
+            return self.get_openshift_manager().remove_job(jid)
 
         d_serviceState      = None
         d_jobState          = None
@@ -1736,18 +1736,21 @@ class Listener(threading.Thread):
             if d_target['cmdParse']:
                 cmdparse_pod_name = self.jid + '-cmdparse'
                 self.get_openshift_manager().create_pod(str_targetImage, cmdparse_pod_name)
-                count = 0
                 log = None
-                while count < 10:
-                    try:
-                        pod = self.get_openshift_manager().get_pod_status(cmdparse_pod_name)
-                        if pod.status.container_statuses[0].state.terminated.exit_code == 0:
-                            log = self.get_openshift_manager().get_pod_log(cmdparse_pod_name)
-                            break
-                    except Exception as e:
-                        str_e   = '%s' % e
-                    count += 1
-                    time.sleep(1)
+                try:
+                    count = 0
+                    while count < 10:
+                        try:
+                            pod = self.get_openshift_manager().get_pod_status(cmdparse_pod_name)
+                            if pod.status.container_statuses[0].state.terminated.exit_code == 0:
+                                log = self.get_openshift_manager().get_pod_log(cmdparse_pod_name)
+                                break
+                        except Exception as e:
+                            str_e   = '%s' % e
+                        count += 1
+                        time.sleep(1)
+                finally:
+                    self.get_openshift_manager().remove_pod(cmdparse_pod_name)
 
                 d_cmdparse = ast.literal_eval(log)
                 for str_meta in ['execshell', 'selfexec', 'selfpath']:
