@@ -14,11 +14,11 @@ Assuming oc cluster up has been run.
     
     ############################
     # Changes for using hostPath in container. These are not needed, if you want to use swift as backend storage.
-    mkdir /tmp/share           # Create a directory that could be mounted in container. This is mounted as /shareDir in container.
+    mkdir /tmp/share           # Create a directory that could be mounted in container. This is mounted as /share in container.
+    sudo chgrp 1000050000 /tmp/share
     chcon -R -t svirt_sandbox_file_t /tmp/share/ # Change selinux label so that containers can read/write from/to directory.
-    sudo oc edit scc restricted     # Update allowHostDirVolumePlugin to true and runAsUser: type: RunAsAny.
-    A restricted SCC should look like this: https://gist.github.com/ravisantoshgudimetla/91748a20766672d2f26b93b3c42517b4
-    ############################   
+    sudo oc edit scc restricted     # Update allowHostDirVolumePlugin to true
+    ############################  
 
     rm -f ~/.kube/config
     oc login --token=<token from above>    # Note: Use 172.30.0.1:443 if running with oc cluster up
