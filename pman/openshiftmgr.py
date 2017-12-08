@@ -55,10 +55,6 @@ class OpenShiftManager(object):
                     },
                     "spec": {
                         "restartPolicy": "Never",
-                        "securityContext": {
-                            "runAsUser": 1000050000,
-                            "fsGroup": 1000050000
-                        },
                         "containers": [
                             {
                                 "name": name,
@@ -179,7 +175,7 @@ class OpenShiftManager(object):
                 {
                     "name": "shared-volume",
                     "hostPath": {
-                        "path": "/tmp/share"
+                        "path": "/tmp/share/key-" + name
                     }
                 }
             ]

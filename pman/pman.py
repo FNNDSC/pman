@@ -1722,7 +1722,7 @@ class Listener(threading.Thread):
             self.auid           = d_meta['auid']
             str_cmd             = d_meta['cmd']
 
-            if 'container' in d_meta.keys():
+            if 'container' in d_meta:
                 d_container                 = d_meta['container']
                 d_target                    = d_container['target']
                 str_targetImage             = d_target['image']
