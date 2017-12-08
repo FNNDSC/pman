@@ -55,6 +55,10 @@ class OpenShiftManager(object):
                     },
                     "spec": {
                         "restartPolicy": "Never",
+                        "securityContext": {
+                            "runAsUser": 1000050000,
+                            "fsGroup": 1000050000
+                        },
                         "containers": [
                             {
                                 "name": name,
