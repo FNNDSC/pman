@@ -28,6 +28,7 @@ Assuming oc cluster up has been run.
     oc login
     # Ignore this step, if you are using swift as backend storage.
     oc new-app openshift/pman-openshift-template-without-swift.json
+    oc set env dc/pman OPENSHIFTMGR_PROJECT=myproject
 
 ##############
 Temporary Dependency Errors
