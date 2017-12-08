@@ -21,11 +21,11 @@ Assuming oc cluster up has been run.
     ############################  
 
     rm -f ~/.kube/config
-    oc login --token=<token from above>    # Note: Use 172.30.0.1:443 if running with oc cluster up
+    oc login --token=<token from describe secret call above>    # Note: Use 172.30.0.1:443 if running with oc cluster up
     oc project myproject
-    oc create secret generic kubecfg --from-file=/home/dmcphers/.kube/config -n myproject
+    oc create secret generic kubecfg --from-file=$HOME/.kube/config -n myproject
     rm -f ~/.kube/config
-    oc login
+    oc login # As developer
     # Ignore this step, if you are using swift as backend storage.
     oc new-app openshift/pman-openshift-template-without-swift.json
     oc set env dc/pman OPENSHIFTMGR_PROJECT=myproject
