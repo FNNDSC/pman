@@ -18,6 +18,8 @@ import  pprint
 import  platform
 from    functools       import  partial
 
+import  pfmisc
+
 # pman local dependencies
 try:
     from    .debug          import debug
@@ -221,9 +223,11 @@ class crunner(object):
             if key == 'verbosity':      self.verbosity  = val
             if key == 'debugFile':      str_debugFile   = val
             if key == 'debugToFile':    b_debugToFile   = val
-        self.debug              = debug(verbosity       = self.verbosity,
+        self.debug              = pfmisc.debug(
+                                        verbosity       = self.verbosity,
                                         debugFile       = str_debugFile,
-                                        debugToFile     = b_debugToFile)
+                                        debugToFile     = b_debugToFile,
+                                        within          = 'crunner')
 
     def __call__(self, str_cmd, **kwargs):
         """
