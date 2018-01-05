@@ -1,6 +1,6 @@
-##############
-pman - v1.6.5
-##############
+#################
+pman - v1.6.12.2
+#################
 
 .. image:: https://badge.fury.io/py/pman.svg
     :target: https://badge.fury.io/py/pman
@@ -17,7 +17,7 @@ pman - v1.6.5
 Overview
 ********
 
-This repository proves ``pman`` -- a process manager.
+This repository proves ``pman`` -- a process manager. 
 
 pman
 ====

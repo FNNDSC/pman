@@ -11,14 +11,14 @@ def readme():
 
 setup(
       name             =   'pman',
-      version          =   '1.6.5',
+      version          =   '1.6.12.2',
       description      =   '(Python) Process Manager',
       long_description =   readme(),
       author           =   'Rudolph Pienaar',
       author_email     =   'rudolph.pienaar@gmail.com',
-      url              =   'https://github.com/FNNDSC/pman',
+      url              =   'https://github.com/Chris210634/pman',
       packages         =   ['pman'],
-      install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift'],
+      install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc'],
       test_suite       =   'nose.collector',
       tests_require    =   ['nose'],
       scripts          =   ['bin/crunner', 'bin/pfioh', 'bin/pman', 'bin/purl', 'bin/snode'],
