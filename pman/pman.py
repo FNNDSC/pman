@@ -1655,6 +1655,8 @@ class Listener(threading.Thread):
                 # pudb.set_trace()
                 if 'shareDir' in d_env.keys():
                     str_shareDir            = d_env['shareDir']
+                    # Remove trailing '/' if it exists in shareDir
+                    str_shareDir    = str_shareDir.rstrip('/')
                 if 'STOREBASE' in os.environ:
                     str_storeBase           = os.environ['STOREBASE']
                     (str_origBase, str_key) = os.path.split(str_shareDir)
