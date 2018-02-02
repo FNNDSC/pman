@@ -1,11 +1,26 @@
 language: python
-python:
-  - "3.5"
 services:
   - docker
+matrix:
+  include:
+    # case 1: run pman unit tests
+    - python: "3.5"
+      env: TO_TEST=pman
+    # case 2: build pman and test integration with CUBE
+    - dist: xenial
+      env: TO_TEST=cube
+      
 # command to install dependencies
-install: "pip install ."
+install: 
+  - if [ "$TO_TEST" = "pman" ]; then pip install .; fi
+
+before_script:
+  - if [ "$TO_TEST" = "cube" ]; then mv pman/CUBE_CI.sh CUBE_CI.sh; ./CUBE_CI.sh; fi
+
 # command to run tests
-script: nosetests
+script: 
+  - if [ "$TO_TEST" = "pman" ];then nosetests; fi
+  - if [ "$TO_TEST" = "cube" ]; then cd ../ChRIS_ultron_backEnd/; docker-compose exec chris_dev python manage.py test --tag integration; fi
+
 notifications:
   slack: fnndsc:xcwPXeUGBBNRkwAlygS9gtCo
