@@ -983,8 +983,13 @@ class Listener(threading.Thread):
         # thus the loop grouping is number of items / 3
         #
         if '0.start' in d_ret:
+            # pudb.set_trace()
             for i in range(0, int(len(d_keys)/3)):
-                b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
+                try:
+                    b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
+                except:
+                    # pudb.set_trace()
+                    b_startEvent    = False
                 try:
                     endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
                 except:
@@ -994,7 +999,10 @@ class Listener(threading.Thread):
                 # Was this a containerized job?
                 found_container = False
                 container_path = '%s.%s' % (str(i), 'container')
-                if container_path in d_state['d_ret'] and d_state['d_ret'][container_path]['tree']:
+                if container_path in d_state['d_ret']           and \
+                    d_state['d_ret'][container_path]['tree']    and \
+                    b_startEvent:
+                    
                     kwargs['d_state']   = d_state
                     kwargs['hitIndex']  = str(i)
 
@@ -1019,6 +1027,8 @@ class Listener(threading.Thread):
 
                 # The case for non-containerized jobs
                 if not found_container:
+                    if endcode is None and not b_startEvent:
+                        l_status.append('notstarted')
                     if endcode is None and b_startEvent:
                         l_status.append('started')
                     if not endcode and b_startEvent and type(endcode) is int:
@@ -1184,6 +1194,7 @@ class Listener(threading.Thread):
         d_state         = None
         str_jobRoot     = ''
         str_hitIndex    = "0"
+        str_logs        = ''
 
         for k,v in kwargs.items():
             if k == 'd_state':  d_state         = v
@@ -1232,10 +1243,16 @@ class Listener(threading.Thread):
             d_serviceState  = json.loads(byte_str.decode())
             # Now, parse for the logs of the actual container run by the service:
             # NB: This has only really tested/used on swarm!!
-            str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
-            container   = client.containers.get(str_contID)
-            str_logs    = container.logs()
-            str_logs    = str_logs.decode()
+            try:
+                str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
+                b_containerIDFound  = True
+            except:
+                b_containerIDFound  = False
+                pudb.set_trace()
+            if b_containerIDFound:
+                container   = client.containers.get(str_contID)
+                str_logs    = container.logs()
+                str_logs    = str_logs.decode()
 
         d_ret = self.t_status_process_container_stateObject( 
                                     hitIndex        = str_hitIndex,
@@ -1696,6 +1713,7 @@ class Listener(threading.Thread):
                 # Solution is to stop the service and retry.
                 str_e   = '%s' % e
                 print(str_e)
+                pudb.set_trace()
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
