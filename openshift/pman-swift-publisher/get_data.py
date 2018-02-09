@@ -60,7 +60,10 @@ class SwiftStore():
         fileBytes  = BytesIO(fileContent)
 
         zipfileObj = zipfile.ZipFile(fileBytes, 'r', compression = zipfile.ZIP_DEFLATED)
-        zipfileObj.extractall('/share')
+        # We are extracting to the file to /share/incoming in container as plugin container is hardcoded to read from
+        # /share/incoming.
+        # TODO: @ravig. Remove this hardcoding. Need to have named arguments in all plugins.
+        zipfileObj.extractall('/share/incoming')
         
 
 if __name__ == "__main__":
