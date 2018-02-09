@@ -30,22 +30,6 @@ Assuming oc cluster up has been run.
     oc set env dc/pman OPENSHIFTMGR_PROJECT=myproject
 
 ##############
-Temporary Dependency Errors
-##############
-There is a dependency error with the current version of the skopeo-containers library that is preventing pods from running in local OpenShift instances. If you are getting errors resembling:
-
-::
-
-    container_linux.go:247: starting container process caused "process_linux.go:364: container init caused \"rootfs_linux.go:54: mounting \\\"/var/lib/origin/openshift.local.volumes/pods/ba2cd7c2-b5b9-11e7-b32d-64006a559656/volumes/kubernetes.io~secret/service-catalog-controller-token-smgtf\\\" to rootfs \\\"/var/lib/docker/devicemapper/mnt/c96d3bac59427d2b2d5c0cafd40cd5a8d1d31e380561adeb444598deec488bf8/rootfs\\\" at \\\"/var/lib/docker/devicemapper/mnt/c96d3bac59427d2b2d5c0cafd40cd5a8d1d31e380561adeb444598deec488bf8/rootfs/run/secrets/kubernetes.io/serviceaccount\\\" caused \\\"mkdir /var/lib/docker/devicemapper/mnt/c96d3bac59427d2b2d5c0cafd40cd5a8d1d31e380561adeb444598deec488bf8/rootfs/run/secrets/kubernetes.io: read-only file system\\\"\"
-
-
-The current workaround is to move or delete the /usr/share/rhel/secrets directory. To be on the safe side, it is recommended you just move it somewhere temporary, which can be done with the command:
-
-.. code-block:: bash 
-
-    mv /usr/share/rhel/secrets <desired destination>
-
-##############
 Swift Object Store
 ##############
 
