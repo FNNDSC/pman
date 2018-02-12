@@ -1721,7 +1721,7 @@ class Listener(threading.Thread):
                 pudb.set_trace()
 
             d_meta['cmdMgr']            = '%s %s' % (str_managerImage, str_cmdManager)
-            d_meta['cmdMrg_byte_str']   = byte_str
+            d_meta['cmdMrg_byte_str']   = str(byte_str, 'utf-8')
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
