@@ -7,7 +7,6 @@ matrix:
     - python: "3.5"
       env: TO_TEST=pman
     # case 2: build pman and test integration with CUBE
-    - dist: xenial
       env: TO_TEST=cube
       
 # command to install dependencies
