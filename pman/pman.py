@@ -1561,6 +1561,10 @@ class Listener(threading.Thread):
                 p.cd('/%s' % str_dir)
 
         p.touch('d_meta',       json.dumps(d_meta))
+        for detailKey in ['cmdMgr', 'cmdMgr_byte_str']:
+            if detailKey in d_meta.keys():
+                p.touch(detailKey,   json.dumps(d_meta[detailKey]))
+            
         p.touch('cmd',          str_cmd)
         if len(self.auid):
             p.touch('auid',     self.auid)
@@ -1703,6 +1707,7 @@ class Listener(threading.Thread):
             str_cmdLine     = str_cmd
             str_cmdManager  = '%s -s %s -m %s -i %s -p none -c "%s"' % \
                               (str_managerApp, str_serviceName, str_shareDir, str_targetImage, str_cmdLine)
+            # pudb.set_trace()
             try:
                 byte_str    = client.containers.run('%s' % str_managerImage,
                                              str_cmdManager,
@@ -1714,6 +1719,9 @@ class Listener(threading.Thread):
                 str_e   = '%s' % e
                 print(str_e)
                 pudb.set_trace()
+
+            d_meta['cmdMgr']            = '%s %s' % (str_managerImage, str_cmdManager)
+            d_meta['cmdMrg_byte_str']   = str(byte_str, 'utf-8')
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
