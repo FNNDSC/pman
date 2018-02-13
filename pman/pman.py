@@ -1623,7 +1623,7 @@ class Listener(threading.Thread):
         b_checkAgain    = True
         while b_checkAgain:
             b_exists    = os.path.exists(str_dir)
-            self.dp.qprint('Checking if %s exists...' % str_dir, comms = 'status')
+            self.dp.qprint('Checking if %s exists...' % str_dir, comms = 'rx')
             if b_exists:
                 b_checkAgain    = False
             else:
@@ -1702,7 +1702,7 @@ class Listener(threading.Thread):
                 str_managerApp              = d_manager['app']
 
                 d_env                       = d_manager['env']
-                pudb.set_trace()
+                # pudb.set_trace()
                 if 'shareDir' in d_env.keys():
                     str_shareDir            = d_env['shareDir']
                     # Remove trailing '/' if it exists in shareDir
