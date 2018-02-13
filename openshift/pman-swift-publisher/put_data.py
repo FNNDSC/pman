@@ -62,16 +62,18 @@ class SwiftStore():
         key = 'someDefault'
         for k,v in kwargs.items():
             if k == 'path': 	      key         = v
-        fileName      = '/share/'
-        ziphandler    = zipfile.ZipFile('/share/ziparchive.zip', 'w', zipfile.ZIP_DEFLATED)
+        # The plugin container is hardcoded to output data to /share/outgoing after processing.
+        # TODO:@ravig. Remove this hardcoding.
+        fileName      = '/share/outgoing'
+        ziphandler    = zipfile.ZipFile('/share/outgoing/ziparchive.zip', 'w', zipfile.ZIP_DEFLATED)
     
         self.zipdir(fileName, ziphandler, arcroot = fileName)
 
         try:
-            with open('/share/ziparchive.zip','rb') as f:
+            with open('/share/outgoing/ziparchive.zip','rb') as f:
                 zippedFileContent = f.read()
         finally:
-            os.remove('/share/ziparchive.zip')
+            os.remove('/share/outgoing/ziparchive.zip')
 
         swiftHandler = SwiftHandler()
         self.swiftConnection = swiftHandler._initiateSwiftConnection()            
