@@ -1604,6 +1604,37 @@ class Listener(threading.Thread):
         # Save DB state...
         self.within.DB_fileIO(cmd = 'save')
 
+    def FScomponent_pollExists(self, *args, **kwargs):
+        """
+        This method polls access to a file system component (a file or 
+        directory). Its purpose is to wait for possible transients when
+        an asynchronous process creates a file system component that some
+        method in pmans wants to access.
+        """
+        maxLoopTries    = 20
+        currentLoop     = 1
+        str_dir         = ''
+
+        for k, v in kwargs.items():
+            if k == 'maxLoopTries': maxLoopTries    = v
+            if k == 'dir':          str_dir         = v
+
+        b_exists        = False
+        b_checkAgain    = True
+        while b_checkAgain:
+            self.dp.qprint('Checking if %s exists...' % str_dir, comms = 'rx')
+            b_exists    = os.path.exists(str_dir)
+            if b_exists:
+                b_checkAgain    = False
+                self.dp.qprint('Dir exists!', comms = 'rx')
+            else:
+                self.dp.qprint('Dir does not exist! Sleeping...', comms = 'error')
+                time.sleep(2)
+            currentLoop += 1
+            if currentLoop == maxLoopTries:
+                b_checkAgain = False
+        return b_exists
+
     def t_run_process_container(self, *args, **kwargs):
         """
         A threaded run method specialized to handling containerized managers and targets.
@@ -1677,7 +1708,11 @@ class Listener(threading.Thread):
                 if 'shareDir' in d_env.keys():
                     str_shareDir            = d_env['shareDir']
                     # Remove trailing '/' if it exists in shareDir
-                    str_shareDir    = str_shareDir.rstrip('/')
+                    str_shareDir            = str_shareDir.rstrip('/')
+                    b_exists                = self.FScomponent_pollExists(dir = str_shareDir)
+                    if not b_exists:
+                        self.dp.qprint('Could not access volume mapped share dir: %s' % str_shareDir, comms = 'error')
+
                 if 'STOREBASE' in os.environ:
                     str_storeBase           = os.environ['STOREBASE']
                     (str_origBase, str_key) = os.path.split(str_shareDir)
