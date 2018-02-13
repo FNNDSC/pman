@@ -1622,11 +1622,13 @@ class Listener(threading.Thread):
         b_exists        = False
         b_checkAgain    = True
         while b_checkAgain:
-            b_exists    = os.path.exists(str_dir)
             self.dp.qprint('Checking if %s exists...' % str_dir, comms = 'rx')
+            b_exists    = os.path.exists(str_dir)
             if b_exists:
                 b_checkAgain    = False
+                self.dp.qprint('Dir exists!', comms = 'rx')
             else:
+                self.dp.qprint('Dir does not exist! Sleeping...', comms = 'error')
                 time.sleep(2)
             currentLoop += 1
             if currentLoop == maxLoopTries:
