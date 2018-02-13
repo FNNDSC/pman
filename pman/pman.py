@@ -1243,12 +1243,13 @@ class Listener(threading.Thread):
             d_serviceState  = json.loads(byte_str.decode())
             # Now, parse for the logs of the actual container run by the service:
             # NB: This has only really tested/used on swarm!!
+            b_containerIDFound = True
             try:
                 str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
                 b_containerIDFound  = True
             except:
                 b_containerIDFound  = False
-                pudb.set_trace()
+                # pudb.set_trace()
             if b_containerIDFound:
                 container   = client.containers.get(str_contID)
                 str_logs    = container.logs()
@@ -1622,7 +1623,7 @@ class Listener(threading.Thread):
         b_exists        = False
         b_checkAgain    = True
         while b_checkAgain:
-            self.dp.qprint('Checking if %s exists...' % str_dir, comms = 'rx')
+            self.dp.qprint('Checking if %s exists (currentLoop: %d)...' % (str_dir, currentLoop), comms = 'rx')
             b_exists    = os.path.exists(str_dir)
             if b_exists:
                 b_checkAgain    = False
@@ -1753,7 +1754,7 @@ class Listener(threading.Thread):
                 # Solution is to stop the service and retry.
                 str_e   = '%s' % e
                 print(str_e)
-                pudb.set_trace()
+                # pudb.set_trace()
 
             d_meta['cmdMgr']            = '%s %s' % (str_managerImage, str_cmdManager)
             d_meta['cmdMrg_byte_str']   = str(byte_str, 'utf-8')
