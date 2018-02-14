@@ -19,7 +19,8 @@ RUN apt-get update \
     && pip3 install python-swiftclient
 
 
-ARG APPROOT="/usr/src/pman-swift-publisher"  VERSION="0.1"
+ARG APPROOT="/usr/src/pman-swift-publisher"  
+ARG VERSION="0.1"
 COPY ["get_data.py", "put_data.py", "swift_handler.py", "status.py", "check-status.sh", "${APPROOT}/"]
 
 WORKDIR $APPROOT
