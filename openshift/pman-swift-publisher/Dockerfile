@@ -13,13 +13,14 @@
 FROM fnndsc/ubuntu-python3:latest
 MAINTAINER fnndsc "dev@babymri.org"
 
-RUN apt-get install -y curl \
-    && apt-get update \
+RUN apt-get update \
+    && apt-get install -y curl \
     && pip3 install keystoneauth1 \ 
     && pip3 install python-swiftclient
 
 
-ARG APPROOT="/usr/src/pman-swift-publisher"  VERSION="0.1"
+ARG APPROOT="/usr/src/pman-swift-publisher"  
+ARG VERSION="0.1"
 COPY ["get_data.py", "put_data.py", "swift_handler.py", "status.py", "check-status.sh", "${APPROOT}/"]
 
 WORKDIR $APPROOT

@@ -5,16 +5,11 @@ SWIFT_KEY enviornment variable to be passed by the template
 
 import os
 import zipfile
-import configparser
-from keystoneauth1.identity import v3
-from keystoneauth1 import session
-from swiftclient import client as swift_client
 from swift_handler import SwiftHandler
 
 
 class SwiftStore():
-
-    swiftConnection = None        
+    swiftConnection = None
 
     def _putObject(self, containerName, key, value):
         """
@@ -27,7 +22,6 @@ class SwiftStore():
 
         except Exception as exp:
             print('Exception = %s' %exp)
-
 
     def zipdir(self, path, ziph, **kwargs):
         """
@@ -49,34 +43,36 @@ class SwiftStore():
                 else:
                     str_arcname = str_arcfile
                 try:
-                    ziph.write(str_arcfile, arcname = str_arcname)
+                    ziph.write(str_arcfile, arcname=str_arcname)
                 except:
                     print("Skipping %s" % str_arcfile)
-
 
     def storeData(self, **kwargs):
         """
         Creates an object of the file and stores it into the container as key-value object 
         """
 
-        key = 'someDefault'
-        for k,v in kwargs.items():
-            if k == 'path': 	      key         = v
+        key = ''
+        for k, v in kwargs.items():
+            if k == 'path':
+                key = v
         # The plugin container is hardcoded to output data to /share/outgoing after processing.
         # TODO:@ravig. Remove this hardcoding.
-        fileName      = '/share/outgoing'
-        ziphandler    = zipfile.ZipFile('/share/outgoing/ziparchive.zip', 'w', zipfile.ZIP_DEFLATED)
-    
-        self.zipdir(fileName, ziphandler, arcroot = fileName)
+        fileName = '/share/outgoing'
+        # TODO: @ravig. The /tmp should be large enough to hold everything.
+        ziphandler = zipfile.ZipFile('/tmp/ziparchive.zip', 'w', zipfile.ZIP_DEFLATED)
+        self.zipdir(fileName, ziphandler, arcroot=fileName)
 
         try:
-            with open('/share/outgoing/ziparchive.zip','rb') as f:
+            with open('/tmp/ziparchive.zip','rb') as f:
+                #TODO: @ravig - Change this so that this is scalable.
                 zippedFileContent = f.read()
         finally:
-            os.remove('/share/outgoing/ziparchive.zip')
+            ziphandler.close()
+            os.remove('/tmp/ziparchive.zip')
 
         swiftHandler = SwiftHandler()
-        self.swiftConnection = swiftHandler._initiateSwiftConnection()            
+        self.swiftConnection = swiftHandler._initiateSwiftConnection()
        
         try:
             containerName = key
@@ -91,6 +87,5 @@ class SwiftStore():
 
 
 if __name__ == "__main__":
-
-    obj = SwiftStore()
-    obj.storeData(path= os.environ.get('SWIFT_KEY'))
+    swiftStore = SwiftStore()
+    swiftStore.storeData(path=os.environ.get('SWIFT_KEY'))
