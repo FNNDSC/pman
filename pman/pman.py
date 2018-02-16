@@ -1422,6 +1422,8 @@ class Listener(threading.Thread):
         d_jobState          = {}
         hitIndex            = 0
         str_logs            = ""
+        b_status            = False
+        str_currentState    = "undefined"
 
         for k,v in kwargs.items():
             if k == 'jobState':         d_jobState          = v
@@ -1437,6 +1439,7 @@ class Listener(threading.Thread):
         if str_state == 'running' and str_message == 'started':
             str_currentState    = 'started'
             debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+            b_status    = True
         else:
             self.DB_store(d_serviceState,   '/%s/container' % (str_jobRoot), 'state')
             self.DB_store(str_logs,         '/%s/container' % (str_jobRoot), 'logs')
@@ -1447,11 +1450,16 @@ class Listener(threading.Thread):
             elif str_state == 'complete'    and str_message == 'finished':
                 str_currentState    = 'finishedSuccessfully'
                 debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+            b_status = True
         self.DB_store(str_currentState, '/%s/container' % (str_jobRoot), 'currentState')
+        if str_currentState == 'undefined':
+            self.dp.qprint('The state of the job is undefined!', comms = 'error')
+            self.dp.qprint('This typically means that the scheduler rejected the job.', comms = 'error')
+            self.dp.qprint('jobRoot = %s' % str_jobRoot, comms = 'error')
         return {
                     'currentState':     str_currentState,
                     'removeJob':        b_removeJob,
-                    'status':           True
+                    'status':           b_status
                 }
     
     def t_hello_process(self, *args, **kwargs):
