@@ -1,25 +1,34 @@
-language: python
+sudo: required
 services:
   - docker
-matrix:
-  include:
-    # case 1: run pman unit tests
-    - python: "3.5"
-      env: TO_TEST=pman
-    # case 2: build pman and test integration with CUBE
-      env: TO_TEST=cube
+language: python
+python: 
+  - "3.5"
+env:
+  global:
+    - DOCKER_COMPOSE_VERSION=1.18.0
+    - DOCKER_VERSION=18.02.0~ce-0~ubuntu
+  matrix:
+    - TO_TEST=pman
+    - TO_TEST=cube
+
+before_install:
+  - if [ "$TO_TEST" = "cube" ]; then ./cube_before_install.sh; fi
       
 # command to install dependencies
 install: 
   - if [ "$TO_TEST" = "pman" ]; then pip install .; fi
 
 before_script:
-  - if [ "$TO_TEST" = "cube" ]; then mv pman/CUBE_CI.sh CUBE_CI.sh; ./CUBE_CI.sh; fi
+  - if [ "$TO_TEST" = "cube" ]; then ./cube_before_script.sh; fi
 
 # command to run tests
 script: 
-  - if [ "$TO_TEST" = "pman" ];then nosetests; fi
+  - if [ "$TO_TEST" = "pman" ]; then nosetests; fi
   - if [ "$TO_TEST" = "cube" ]; then cd ../ChRIS_ultron_backEnd/; docker-compose exec chris_dev python manage.py test --tag integration; fi
+
+after_script:
+  - if [ "$TO_TEST" = "cube" ]; docker swarm leave --force; fi
 
 notifications:
   slack: fnndsc:xcwPXeUGBBNRkwAlygS9gtCo
