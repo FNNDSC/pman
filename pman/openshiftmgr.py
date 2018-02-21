@@ -87,7 +87,7 @@ class OpenShiftManager(object):
             d_job['spec']['template']['spec']['initContainers'] = [
                 {
                     "name": "init-storage",
-                    "image": "adi95docker/pman-swift-publisher",
+                    "image": "fnndsc/pman-swift-publisher",
                     "env": [
                         {
                             "name": "SWIFT_KEY",
@@ -124,7 +124,7 @@ class OpenShiftManager(object):
 
             d_job['spec']['template']['spec']['containers'].append({
                 "name": "publish",
-                "image": "adi95docker/pman-swift-publisher",
+                "image": "fnndsc/pman-swift-publisher",
                 "env": [
                     {
                         "name": "SWIFT_KEY",
