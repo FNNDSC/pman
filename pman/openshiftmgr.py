@@ -35,7 +35,8 @@ class OpenShiftManager(object):
         self.kube_client = k_client.CoreV1Api()
         self.kube_v1_batch_client = k_client.BatchV1Api()
 
-    def schedule(self, image, command, name):
+    def schedule(self, image, command, name, number_of_workers='1', 
+                 cpu_limit="2000m", memory_limit="1024Mi"):
         """
         Schedule a new job and returns the job object.
         """
@@ -46,8 +47,8 @@ class OpenShiftManager(object):
                 "name": name
             },
             "spec": {
-                "parallelism": 1,
-                "completions": 1,
+                "parallelism": int(number_of_workers),
+                "completions": int(number_of_workers),
                 "activeDeadlineSeconds": 3600,
                 "template": {
                     "metadata": {
@@ -62,12 +63,12 @@ class OpenShiftManager(object):
                                 "command": command.split(" "),
                                 "resources": {
                                     "limits": {
-                                        "memory": "1024Mi",
-                                        "cpu": "2000m"
+                                        "memory": memory_limit,
+                                        "cpu": cpu_limit
                                     },
                                     "requests": {
-                                        "memory": "128Mi",
-                                        "cpu": "250m"
+                                        "memory": memory_limit,
+                                        "cpu": cpu_limit
                                     }
                                 },
                                 "volumeMounts": [
@@ -87,7 +88,7 @@ class OpenShiftManager(object):
             d_job['spec']['template']['spec']['initContainers'] = [
                 {
                     "name": "init-storage",
-                    "image": "adi95docker/pman-swift-publisher",
+                    "image": "fnndsc/pman-swift-publisher",
                     "env": [
                         {
                             "name": "SWIFT_KEY",
@@ -124,16 +125,24 @@ class OpenShiftManager(object):
 
             d_job['spec']['template']['spec']['containers'].append({
                 "name": "publish",
-                "image": "adi95docker/pman-swift-publisher",
+                "image": "fnndsc/pman-swift-publisher",
                 "env": [
                     {
                         "name": "SWIFT_KEY",
                         "value": name
+                    },
+                    {
+                        "name": "KUBECFG_PATH",
+                        "value": "/tmp/.kube/config"
+                    },
+                    {
+                        "name": "OPENSHIFTMGR_PROJECT",
+                        "value": self.project
                     }
                 ],
                 "command": [
-                    "sh",
-                    "check-status.sh"
+                    "python3",
+                    "watch.py"
                 ],
                 "resources": {
                     "limits": {
@@ -154,7 +163,12 @@ class OpenShiftManager(object):
                         "mountPath": "/etc/swift",
                         "name": "swift-credentials",
                         "readOnly": True
-                    }
+                    },
+                    {
+                        "name": "kubecfg-volume",
+                        "mountPath": "/tmp/.kube/",
+                        "readOnly": True
+                    },
                 ]
             })
             d_job['spec']['template']['spec']['volumes'] = [
@@ -167,6 +181,12 @@ class OpenShiftManager(object):
                     "name": "swift-credentials",
                     "secret": {
                         "secretName": "swift-credentials"
+                    }
+                },
+                {
+                    "name": "kubecfg-volume",
+                    "secret": {
+                        "secretName": "kubecfg"
                     }
                 }
             ]
