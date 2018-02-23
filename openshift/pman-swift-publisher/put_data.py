@@ -1,6 +1,6 @@
 """
 Takes the output data in the share directory and pushes it into Swift
-SWIFT_KEY enviornment variable to be passed by the template
+SWIFT_KEY environment variable to be passed by the template
 """
 
 import os
