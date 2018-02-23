@@ -86,6 +86,6 @@ class SwiftStore():
             swiftHandler._deleteEmptyDirectory(key)
 
 
-if __name__ == "__main__":
+def put_data_back():
     swiftStore = SwiftStore()
     swiftStore.storeData(path=os.environ.get('SWIFT_KEY'))
