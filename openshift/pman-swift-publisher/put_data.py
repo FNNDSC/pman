@@ -4,7 +4,7 @@ SWIFT_KEY environment variable to be passed by the template
 """
 
 import os
-import zipfile
+import shutil
 from swift_handler import SwiftHandler
 
 
@@ -23,30 +23,6 @@ class SwiftStore():
         except Exception as exp:
             print('Exception = %s' %exp)
 
-    def zipdir(self, path, ziph, **kwargs):
-        """
-        Zip up a directory.
-
-        :param path:
-        :param ziph:
-        :param kwargs:
-        :return:
-        """
-        str_arcroot = ""
-        for k, v in kwargs.items():
-            if k == 'arcroot':  str_arcroot = v
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                str_arcfile = os.path.join(root, file)
-                if len(str_arcroot):
-                    str_arcname = str_arcroot.split('/')[-1] + str_arcfile.split(str_arcroot)[1]
-                else:
-                    str_arcname = str_arcfile
-                try:
-                    ziph.write(str_arcfile, arcname=str_arcname)
-                except:
-                    print("Skipping %s" % str_arcfile)
-
     def storeData(self, **kwargs):
         """
         Creates an object of the file and stores it into the container as key-value object 
@@ -60,15 +36,12 @@ class SwiftStore():
         # TODO:@ravig. Remove this hardcoding.
         fileName = '/share/outgoing'
         # TODO: @ravig. The /tmp should be large enough to hold everything.
-        ziphandler = zipfile.ZipFile('/tmp/ziparchive.zip', 'w', zipfile.ZIP_DEFLATED)
-        self.zipdir(fileName, ziphandler, arcroot=fileName)
-
+        shutil.make_archive('/tmp/ziparchive', 'zip', fileName)
         try:
             with open('/tmp/ziparchive.zip','rb') as f:
                 #TODO: @ravig - Change this so that this is scalable.
                 zippedFileContent = f.read()
         finally:
-            ziphandler.close()
             os.remove('/tmp/ziparchive.zip')
 
         swiftHandler = SwiftHandler()
