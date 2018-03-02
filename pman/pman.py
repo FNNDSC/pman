@@ -774,6 +774,33 @@ class Listener(threading.Thread):
         return {'d_ret':    d_ret,
                 'status':   True}
 
+    def t_DBctl_process(self,, *args, **kwargs):
+        """
+        Entry point for internal DB control processing.
+        """
+        tree_DB     = self._ptree
+        d_request   = {}
+        d_ret       = {}
+        b_status    = False
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+        d_meta      = d_request['meta']
+
+        if 'do'         in d_meta:  str_do          = d_meta['do']
+        if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
+        if 'fileio'     in d_meta:  str_fileio      = d_meta['fileio']
+
+        self.DB_fileIO( cmd         = str_do,
+                        fileio      = str_fileio,
+                        dbpath      = str_DBpath,
+                        db          = tree_DB)
+
+        str_path    = '/api/v1' + d_meta['path']
+        d_ret       = self.DB_get(path  = str_path)
+        return {'d_ret':    d_ret,
+                'status':   True}
+        
+
     def t_fileiosetup_process(self, *args, **kwargs):
         """
         Setup a thread with a socket listener. Return listener address to client
@@ -2173,7 +2200,7 @@ class Listener(threading.Thread):
         if 'context'    in d_meta:  str_context     = d_meta['context']
         if 'operation'  in d_meta:  str_cmd         = d_meta['operation']
         if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
-        if 'fileio'     in d_meta:  str_type        = d_meta['fileio']
+        if 'fileio'     in d_meta:  str_fileio      = d_meta['fileio']
 
         if str_action.lower() == 'run' and str_context.lower() == 'db':
             self.within.DB_fileIO(  cmd         = str_cmd,
