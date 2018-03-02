@@ -1801,6 +1801,19 @@ class Listener(threading.Thread):
             self.auid           = d_meta['auid']
             str_cmd             = d_meta['cmd']
 
+            if 'number_of_workers' in d_meta:
+                number_of_workers = d_meta['number_of_workers']
+            else:
+                number_of_workers = '1'
+            if 'cpu_limit' in d_meta:
+                cpu_limit = d_meta['cpu_limit']
+            else:
+                cpu_limit = '2000m'
+            if 'memory_limit' in d_meta:
+                memory_limit = d_meta['memory_limit']
+            else:
+                memory_limit = '1024Mi'
+
             if 'container' in d_meta:
                 d_container                 = d_meta['container']
                 d_target                    = d_container['target']
@@ -1836,7 +1849,8 @@ class Listener(threading.Thread):
                     str_cmd = str_cmd.replace("$"+str_meta, d_cmdparse[str_meta])
 
             str_cmdLine = str_cmd
-            self.get_openshift_manager().schedule(str_targetImage, str_cmdLine, self.jid)
+            self.get_openshift_manager().schedule(str_targetImage, str_cmdLine, self.jid,
+                                                  number_of_workers, cpu_limit, memory_limit)
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
