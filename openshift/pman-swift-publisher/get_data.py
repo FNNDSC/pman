@@ -5,12 +5,8 @@ SWIFT_KEY enviornment variable to be passed by the template
 
 import os
 import zipfile
-import configparser
-from keystoneauth1.identity import v3
-from keystoneauth1 import session
-from swiftclient import client as swift_client
 from io import BytesIO
-from swift_handler import swiftHandler
+from swift_handler import SwiftHandler
 
 
 class SwiftStore():
@@ -60,7 +56,14 @@ class SwiftStore():
         fileBytes  = BytesIO(fileContent)
 
         zipfileObj = zipfile.ZipFile(fileBytes, 'r', compression = zipfile.ZIP_DEFLATED)
-        zipfileObj.extractall('/share')
+        # We are extracting to the file to /share/incoming in container as plugin container is hardcoded to read from
+        # /share/incoming.
+        # TODO: @ravig. Remove this hardcoding. Need to have named arguments in all plugins.
+        zipfileObj.extractall('/share/incoming')
+        # Create /share/outgoing directory
+        if not os.path.exists('/share/outgoing'):
+            os.makedirs('/share/outgoing')
+
         
 
 if __name__ == "__main__":

@@ -983,8 +983,13 @@ class Listener(threading.Thread):
         # thus the loop grouping is number of items / 3
         #
         if '0.start' in d_ret:
+            # pudb.set_trace()
             for i in range(0, int(len(d_keys)/3)):
-                b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
+                try:
+                    b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
+                except:
+                    # pudb.set_trace()
+                    b_startEvent    = False
                 try:
                     endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
                 except:
@@ -994,7 +999,10 @@ class Listener(threading.Thread):
                 # Was this a containerized job?
                 found_container = False
                 container_path = '%s.%s' % (str(i), 'container')
-                if container_path in d_state['d_ret'] and d_state['d_ret'][container_path]['tree']:
+                if container_path in d_state['d_ret']           and \
+                    d_state['d_ret'][container_path]['tree']    and \
+                    b_startEvent:
+                    
                     kwargs['d_state']   = d_state
                     kwargs['hitIndex']  = str(i)
 
@@ -1019,6 +1027,8 @@ class Listener(threading.Thread):
 
                 # The case for non-containerized jobs
                 if not found_container:
+                    if endcode is None and not b_startEvent:
+                        l_status.append('notstarted')
                     if endcode is None and b_startEvent:
                         l_status.append('started')
                     if not endcode and b_startEvent and type(endcode) is int:
@@ -1184,6 +1194,7 @@ class Listener(threading.Thread):
         d_state         = None
         str_jobRoot     = ''
         str_hitIndex    = "0"
+        str_logs        = ''
 
         for k,v in kwargs.items():
             if k == 'd_state':  d_state         = v
@@ -1232,10 +1243,17 @@ class Listener(threading.Thread):
             d_serviceState  = json.loads(byte_str.decode())
             # Now, parse for the logs of the actual container run by the service:
             # NB: This has only really tested/used on swarm!!
-            str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
-            container   = client.containers.get(str_contID)
-            str_logs    = container.logs()
-            str_logs    = str_logs.decode()
+            b_containerIDFound = True
+            try:
+                str_contID  = d_serviceState['Status']['ContainerStatus']['ContainerID']
+                b_containerIDFound  = True
+            except:
+                b_containerIDFound  = False
+                # pudb.set_trace()
+            if b_containerIDFound:
+                container   = client.containers.get(str_contID)
+                str_logs    = container.logs()
+                str_logs    = str_logs.decode()
 
         d_ret = self.t_status_process_container_stateObject( 
                                     hitIndex        = str_hitIndex,
@@ -1404,6 +1422,8 @@ class Listener(threading.Thread):
         d_jobState          = {}
         hitIndex            = 0
         str_logs            = ""
+        b_status            = False
+        str_currentState    = "undefined"
 
         for k,v in kwargs.items():
             if k == 'jobState':         d_jobState          = v
@@ -1419,6 +1439,7 @@ class Listener(threading.Thread):
         if str_state == 'running' and str_message == 'started':
             str_currentState    = 'started'
             debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+            b_status    = True
         else:
             self.DB_store(d_serviceState,   '/%s/container' % (str_jobRoot), 'state')
             self.DB_store(str_logs,         '/%s/container' % (str_jobRoot), 'logs')
@@ -1429,11 +1450,16 @@ class Listener(threading.Thread):
             elif str_state == 'complete'    and str_message == 'finished':
                 str_currentState    = 'finishedSuccessfully'
                 debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+            b_status = True
         self.DB_store(str_currentState, '/%s/container' % (str_jobRoot), 'currentState')
+        if str_currentState == 'undefined':
+            self.dp.qprint('The state of the job is undefined!', comms = 'error')
+            self.dp.qprint('This typically means that the scheduler rejected the job.', comms = 'error')
+            self.dp.qprint('jobRoot = %s' % str_jobRoot, comms = 'error')
         return {
                     'currentState':     str_currentState,
                     'removeJob':        b_removeJob,
-                    'status':           True
+                    'status':           b_status
                 }
     
     def t_hello_process(self, *args, **kwargs):
@@ -1544,6 +1570,10 @@ class Listener(threading.Thread):
                 p.cd('/%s' % str_dir)
 
         p.touch('d_meta',       json.dumps(d_meta))
+        for detailKey in ['cmdMgr', 'cmdMgr_byte_str']:
+            if detailKey in d_meta.keys():
+                p.touch(detailKey,   json.dumps(d_meta[detailKey]))
+            
         p.touch('cmd',          str_cmd)
         if len(self.auid):
             p.touch('auid',     self.auid)
@@ -1582,6 +1612,37 @@ class Listener(threading.Thread):
 
         # Save DB state...
         self.within.DB_fileIO(cmd = 'save')
+
+    def FScomponent_pollExists(self, *args, **kwargs):
+        """
+        This method polls access to a file system component (a file or 
+        directory). Its purpose is to wait for possible transients when
+        an asynchronous process creates a file system component that some
+        method in pmans wants to access.
+        """
+        maxLoopTries    = 20
+        currentLoop     = 1
+        str_dir         = ''
+
+        for k, v in kwargs.items():
+            if k == 'maxLoopTries': maxLoopTries    = v
+            if k == 'dir':          str_dir         = v
+
+        b_exists        = False
+        b_checkAgain    = True
+        while b_checkAgain:
+            self.dp.qprint('Checking if %s exists (currentLoop: %d)...' % (str_dir, currentLoop), comms = 'rx')
+            b_exists    = os.path.exists(str_dir)
+            if b_exists:
+                b_checkAgain    = False
+                self.dp.qprint('Dir exists!', comms = 'rx')
+            else:
+                self.dp.qprint('Dir does not exist! Sleeping...', comms = 'error')
+                time.sleep(2)
+            currentLoop += 1
+            if currentLoop == maxLoopTries:
+                b_checkAgain = False
+        return b_exists
 
     def t_run_process_container(self, *args, **kwargs):
         """
@@ -1655,6 +1716,12 @@ class Listener(threading.Thread):
                 # pudb.set_trace()
                 if 'shareDir' in d_env.keys():
                     str_shareDir            = d_env['shareDir']
+                    # Remove trailing '/' if it exists in shareDir
+                    str_shareDir            = str_shareDir.rstrip('/')
+                    b_exists                = self.FScomponent_pollExists(dir = str_shareDir)
+                    if not b_exists:
+                        self.dp.qprint('Could not access volume mapped share dir: %s' % str_shareDir, comms = 'error')
+
                 if 'STOREBASE' in os.environ:
                     str_storeBase           = os.environ['STOREBASE']
                     (str_origBase, str_key) = os.path.split(str_shareDir)
@@ -1684,6 +1751,7 @@ class Listener(threading.Thread):
             str_cmdLine     = str_cmd
             str_cmdManager  = '%s -s %s -m %s -i %s -p none -c "%s"' % \
                               (str_managerApp, str_serviceName, str_shareDir, str_targetImage, str_cmdLine)
+            # pudb.set_trace()
             try:
                 byte_str    = client.containers.run('%s' % str_managerImage,
                                              str_cmdManager,
@@ -1694,6 +1762,10 @@ class Listener(threading.Thread):
                 # Solution is to stop the service and retry.
                 str_e   = '%s' % e
                 print(str_e)
+                # pudb.set_trace()
+
+            d_meta['cmdMgr']            = '%s %s' % (str_managerImage, str_cmdManager)
+            d_meta['cmdMrg_byte_str']   = str(byte_str, 'utf-8')
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store

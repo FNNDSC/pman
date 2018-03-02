@@ -22,6 +22,7 @@
 #   docker run -ti -e HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}') --entrypoint /bin/bash local/pman
 #
 
+
 FROM fnndsc/ubuntu-python3:latest
 MAINTAINER fnndsc "dev@babymri.org"
 
@@ -44,7 +45,7 @@ RUN apt-get update                                                    \
   && pip3 install webob                                               \
   && pip3 install psutil                                              \
   && pip3 install /tmp/pman                                           \ 
-  && pip3 install pfmisc==1.0.1				                                \
+  && pip3 install pfmisc==1.2.2				                                \
   && pip3 install kubernetes                                          \
   && pip3 install openshift                                           \
   && pip3 install docker                                              \
