@@ -1311,8 +1311,14 @@ class Listener(threading.Thread):
                 # The job has actually completed and its logs are recorded in the data tree
                 str_logs = self._ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
+            # Get container logs instead of job status. We already get status from l_status field.
             d_json = self.get_openshift_manager().state(jid)
-            str_logs = d_json['Status']['Message']
+            if d_json['Status']['Message'] == 'finished':
+                pod_names = self.get_openshift_manager().get_pod_names_in_job(jid)
+                for _, pod_name in enumerate(pod_names):
+                    str_logs += self.get_openshift_manager().get_job_pod_logs(pod_name)
+            else:
+                str_logs = d_json['Status']['Message']
 
         d_ret = self.t_status_process_openshift_stateObject(hitIndex        = str_hitIndex,
                                                             jobState        = d_state,
