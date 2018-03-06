@@ -230,11 +230,14 @@ spec:
         log = self.kube_client.read_namespaced_pod_status(namespace=self.project, name=name)
         return log
 
-    def get_pod_log(self, name):
+    def get_pod_log(self, name, container_name=None):
         """
         Get a pod log
         """
-        log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
+        if container_name:
+            log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name, container=container_name)
+        else:
+            log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
         return log
 
     def get_job(self, name):
@@ -289,3 +292,32 @@ spec:
                                 'Succeeded': job.status.succeeded,
                                 'StartTime': str(job.status.start_time),
                                 'CompletionTime': str(job.status.completion_time)}}
+
+    def get_job_pod_logs(self, pod_name):
+        """
+        Returns the concatenated log of all 3 containers part of job template.
+        :param str pod_name: job-id of OpenShift job.  
+        :return: str log: Combined log of all the containers in pod.
+        """
+        # Assumption is pod is always going to have a init-storage, container with job-id, publish container.
+        # TODO: @ravig: Think of a better way to abstract out logs in case of multiple pods running parallelly.
+        init_container_log = self.get_pod_log(pod_name, 'init-storage')
+        # job-id is pod_name.split('-')[0]
+        plugin_container = pod_name.split('-')[0]
+        job_container_log = self.get_pod_log(pod_name, plugin_container)
+        publish_container_log = self.get_pod_log(pod_name, 'publish')
+        return pod_name + ":" + "init_container log:" + init_container_log + "plugin_container log:" +\
+               job_container_log + "publish_container log:" + publish_container_log
+
+    def get_pod_names_in_job(self, job_id):
+        """
+        Returns names of all the pods created as part of job
+        :param str job_id: job-id of OpenShift job
+        :return: 
+        """
+        pod_names = []
+        # job-name becomes selector based on which we can choose jobs that we created just now.
+        pods = self.kube_client.list_namespaced_pod(self.project, label_selector='job-name='+job_id)
+        for _, pod_item in enumerate(pods.items):
+            pod_names.append(pod_item.metadata.name)
+        return pod_names
