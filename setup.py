@@ -16,7 +16,7 @@ setup(
       long_description =   readme(),
       author           =   'Rudolph Pienaar',
       author_email     =   'rudolph.pienaar@gmail.com',
-      url              =   'https://github.com/FNNDSC/pman',
+      url              =   'https://github.com/Chris210634/pman',
       packages         =   ['pman'],
       install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc'],
       test_suite       =   'nose.collector',
