@@ -1804,7 +1804,7 @@ class Listener(threading.Thread):
             if 'number_of_workers' in d_meta:
                 number_of_workers = d_meta['number_of_workers']
             else:
-                number_of_workers = '1'
+                number_of_workers = 1
             if 'cpu_limit' in d_meta:
                 cpu_limit = d_meta['cpu_limit']
             else:

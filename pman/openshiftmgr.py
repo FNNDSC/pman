@@ -48,8 +48,8 @@ class OpenShiftManager(object):
                 "name": name
             },
             "spec": {
-                "parallelism": int(number_of_workers),
-                "completions": int(number_of_workers),
+                "parallelism": number_of_workers,
+                "completions": number_of_workers,
                 "activeDeadlineSeconds": 3600,
                 "template": {
                     "metadata": {
@@ -59,6 +59,16 @@ class OpenShiftManager(object):
                         "restartPolicy": "Never",
                         "containers": [
                             {
+                                "env": [
+                                    {
+                                        "name": "NUMBER_OF_WORKERS",
+                                        "value": number_of_workers
+                                    },
+                                    {
+                                        "name": "CPU_LIMIT",
+                                        "value": cpu_limit
+                                    }
+                                ],
                                 "name": name,
                                 "image": image,
                                 "command": command.split(" "),
