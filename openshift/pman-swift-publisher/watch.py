@@ -17,13 +17,16 @@ def main():
     v1_client = client.CoreV1Api()
     resrc_version = None
     namespace = os.getenv("OPENSHIFTMGR_PROJECT", "myproject")
+    # We are creating a container in swift with the job id as the key, which is the value of SWIFT_KEY
+    job_id = os.getenv("SWIFT_KEY")
     w = watch.Watch()
 
     while True:
         if resrc_version is None:
-            stream = w.stream(v1_client.list_namespaced_pod, namespace)
+            # using the label_selector to only watch the pods created by the job, which is defined by job_id
+            stream = w.stream(v1_client.list_namespaced_pod, namespace, label_selector='job-name='+job_id)
         else:
-            stream = w.stream(v1_client.list_namespaced_pod, namespace, resource_version=resrc_version)
+            stream = w.stream(v1_client.list_namespaced_pod, namespace, resource_version=resrc_version, label_selector='job-name='+job_id)
         for event in stream:
             resrc_version = event['raw_object']['metadata']['resourceVersion']
             if 'containerStatuses' in event['raw_object']['status']:
