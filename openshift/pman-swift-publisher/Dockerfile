@@ -17,7 +17,8 @@ RUN apt-get update \
     && apt-get install -y curl \
     && pip3 install keystoneauth1 \ 
     && pip3 install python-swiftclient \
-    && pip3 install kubernetes
+    && pip3 install kubernetes \
+    && pip3 install fasteners
 
 
 ARG APPROOT="/usr/src/pman-swift-publisher"  
