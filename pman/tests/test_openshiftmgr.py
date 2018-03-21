@@ -20,13 +20,14 @@ class OpenShiftManagerTests(unittest.TestCase):
         self.command = 'echo test'
         self.number_of_workers = 1
         self.cpu_limit = '2000m'
-        self.memory_limit = '200Mi'      
+        self.memory_limit = '200Mi'
+        self.gpu_limit = 1
 
     @patch('kubernetes.client.apis.batch_v1_api.BatchV1Api.create_namespaced_job')
     def test_schedule(self, mock_create):
         mock_create.return_value = kubernetes.client.models.v1_job.V1Job()
         job = self.manager.schedule(self.image, self.command, self.job_name,
-                                    self.number_of_workers, self.cpu_limit, self.memory_limit)
+                                    self.number_of_workers, self.cpu_limit, self.memory_limit, self.gpu_limit)
         self.assertIsInstance(job, kubernetes.client.models.v1_job.V1Job)
         #mock_create.assert_called_once() Available in 3.6
 
