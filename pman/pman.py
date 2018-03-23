@@ -774,7 +774,7 @@ class Listener(threading.Thread):
         return {'d_ret':    d_ret,
                 'status':   True}
 
-    def t_DBctl_process(self,, *args, **kwargs):
+    def t_DBctl_process(self, *args, **kwargs):
         """
         Entry point for internal DB control processing.
         """
