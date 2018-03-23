@@ -15,11 +15,11 @@
 #
 # To run an interactive shell inside this container, do:
 #
-#   docker run -ti --entrypoint /bin/bash local/pman
+#   docker run -ti --rm --entrypoint /bin/bash local/pman
 #
 # To pass an env var HOST_IP to container, do:
 #
-#   docker run -ti -e HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}') --entrypoint /bin/bash local/pman
+#   docker run -ti --rm -e HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}') --entrypoint /bin/bash local/pman
 #
 
 

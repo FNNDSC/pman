@@ -91,7 +91,7 @@ This docker has an entry point ``python3``. To enter the dock at a different ent
 
 .. code-block:: bash
 
-   docker run -ti --entrypoint /bin/bash fnndsc/ubuntu-python3
+   docker run -ti --rm --entrypoint /bin/bash fnndsc/ubuntu-python3
    
 Now, install ``pman`` and friends using ``pip``
 
