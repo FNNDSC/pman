@@ -45,7 +45,8 @@ RUN apt-get update                                                    \
   && pip3 install webob                                               \
   && pip3 install psutil                                              \
   && pip3 install /tmp/pman                                           \ 
-  && pip3 install pfmisc==1.2.2				                                \
+  && pip3 install pfmisc==1.2.2				              \
+  && pip3 install ipaddress>=1.0.22                                   \
   && pip3 install kubernetes                                          \
   && pip3 install openshift                                           \
   && pip3 install docker                                              \
