@@ -1820,6 +1820,11 @@ class Listener(threading.Thread):
             else:
                 memory_limit = '1024Mi'
 
+            if 'gpu_limit' in d_meta:
+                gpu_limit = d_meta['gpu_limit']
+            else:
+                gpu_limit = 0
+
             if 'container' in d_meta:
                 d_container                 = d_meta['container']
                 d_target                    = d_container['target']
@@ -1856,7 +1861,7 @@ class Listener(threading.Thread):
 
             str_cmdLine = str_cmd
             self.get_openshift_manager().schedule(str_targetImage, str_cmdLine, self.jid,
-                                                  number_of_workers, cpu_limit, memory_limit)
+                                                  number_of_workers, cpu_limit, memory_limit, gpu_limit)
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store
