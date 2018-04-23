@@ -6,15 +6,12 @@ manage their state in the cluster.
 import yaml
 import json
 import os
-from kubernetes import client as k_client
-from openshift import client as o_client
-from openshift import config
+from kubernetes import client as k_client, config
 
 
 class OpenShiftManager(object):
 
     def __init__(self, project=None):
-        self.openshift_client = None
         self.kube_client = None
         self.kube_v1_batch_client = None
         self.project = project or os.environ.get('OPENSHIFTMGR_PROJECT') or 'myproject'
@@ -31,7 +28,6 @@ class OpenShiftManager(object):
             config.load_kube_config()
         else:
             config.load_kube_config(config_file=kubecfg_path)
-        self.openshift_client = o_client.OapiApi()
         self.kube_client = k_client.CoreV1Api()
         self.kube_v1_batch_client = k_client.BatchV1Api()
 
