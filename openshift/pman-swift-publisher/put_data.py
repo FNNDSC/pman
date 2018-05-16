@@ -60,6 +60,5 @@ class SwiftStore():
 
 
 def put_data_back():
-    print('This is a dummy PR. Do not review!!')
     swiftStore = SwiftStore()
     swiftStore.storeData(path=os.environ.get('SWIFT_KEY'))
