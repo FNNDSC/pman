@@ -42,53 +42,49 @@ class SwiftStore():
         lockfile = '/share/putdatalockfile1'
         lock = LockFile(lockfile)
         am_i_worker=False
-        try:
-            if  not lock.is_locked():
-                lock.acquire()
-                time.sleep(5)
-                print ('Master acquired lock')
-                if self.watch():
-                    try:
-                        shutil.make_archive('/tmp/ziparchive', 'zip', '/share/outgoing')
-                        with open('/tmp/ziparchive.zip', 'rb') as f:
-                            zippedFileContent = f.read()
-                    except Exception as err:
-                        print('Some error so releasing lock')
-                        print(err)
-                        lock.release()
-                        shutil.rmtree('/share/outgoing', ignore_errors=True)
-                    finally:
-                        os.remove('/tmp/ziparchive.zip')
+        with lock:
+            try:
+                if  not lock.is_locked():
+                    lock.acquire()
+                    time.sleep(2)
+                    print ('Master acquired lock')
+                    if self.watch():
+                        try:
+                            shutil.make_archive('/tmp/ziparchive', 'zip', '/share/outgoing')
+                            with open('/tmp/ziparchive.zip', 'rb') as f:
+                                zippedFileContent = f.read()
+                        except Exception as err:
+                            print('Some error so releasing lock')
+                            print(err)
+                            lock.release()
+                            shutil.rmtree('/share/outgoing', ignore_errors=True)
+                        finally:
+                            os.remove('/tmp/ziparchive.zip')
 
-                    swiftHandler = SwiftHandler()
-                    self.swiftConnection = swiftHandler._initiateSwiftConnection()
+                        swiftHandler = SwiftHandler()
+                        self.swiftConnection = swiftHandler._initiateSwiftConnection()
 
-                    containerName = key
-                    key = os.path.join('output', 'data')
-                    self._putObject(containerName, key, zippedFileContent)
-                    swiftHandler._deleteEmptyDirectory(key)
+                        containerName = key
+                        key = os.path.join('output', 'data')
+                        self._putObject(containerName, key, zippedFileContent)
+                        swiftHandler._deleteEmptyDirectory(key)
 
                     
-            else:
-                print ("I am side kick. I should exit quitely.")
-                am_i_worker=True
-                exit()
+                else:
+                    print ("I am side kick. I should exit quitely.")
+                    am_i_worker=True
+                    exit()
                 
 
-        except Exception as err:
-            print (err)
-            '''
-            Lock acquiring failed meaning some other process is still using the lock file (or) 
-            file download failed. Wait for sometime and eventually exit after n hours/min
-            '''
-            print("Lock acquiring failed meaning some other process is still using the lock file (or) file download failed. Wait for sometime and eventually exit after n hours/min")
-            time.sleep(2)
-        finally:
-            if not am_i_worker and lock.is_locked():
-                print ("Inside put_data doing clean up")
-                lock.release()
-                shutil.rmtree('/share/outgoing', ignore_errors=True)
-                shutil.rmtree('/share/putdatalockfile1', ignore_errors=True)
+            except Exception as err:
+                print (err)
+                print("Lock acquiring failed meaning some other process is still using the lock file (or) file download failed. Wait for sometime and eventually exit after n hours/min")
+            finally:
+                if not am_i_worker and lock.is_locked():
+                    print ("Inside put_data doing clean up")
+                    lock.release()
+                    shutil.rmtree('/share/outgoing', ignore_errors=True)
+                    shutil.rmtree('/share/putdatalockfile1', ignore_errors=True)
     
     #There is a need to write generic watch function for both put_data.py and watch.py
     #https://stackoverflow.com/questions/35405968/how-could-i-pass-block-to-a-function-in-python-which-is-like-the-way-to-pass-blo
