@@ -28,19 +28,14 @@ import  pfmisc
 
 # pman local dependencies
 try:
-    from    ._colors        import Colors
-    from    .debug          import debug
-    from   .C_snode         import *
-    from   .debug           import debug
-    from   .openshiftmgr    import *
-    from   .crunner         import *
+    from    .openshiftmgr   import *
+    from    .crunner        import *
 except:
-    from    _colors         import Colors
-    from    debug           import debug
-    from    C_snode         import *
-    from    debug           import debug
     from    openshiftmgr    import *
     from    crunner         import *
+
+from pfmisc.C_snode         import  *
+from pfmisc._colors         import  Colors
 
 import  docker
 import  pudb
