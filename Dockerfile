@@ -33,23 +33,15 @@ ENV UID=$UID
 COPY . /tmp/pman
 COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
 
-RUN apt-get update                                                    \
+RUN pip install --upgrade pip                                         \                                         
+  && apt-get update                                                   \
   && apt-get install sudo                                             \
   && useradd -u $UID -ms /bin/bash localuser                          \
   && addgroup localuser sudo                                          \
   && echo "localuser:localuser" | chpasswd                            \
   && adduser localuser sudo                                           \
   && apt-get install -y libssl-dev libcurl4-openssl-dev bsdmainutils net-tools inetutils-ping \
-  && pip3 install pudb                                                \
-  && pip3 install pyzmq                                               \
-  && pip3 install webob                                               \
-  && pip3 install psutil                                              \
   && pip3 install /tmp/pman                                           \ 
-  && pip3 install pfmisc==1.2.2				              \
-  && pip3 install ipaddress>=1.0.22                                   \
-  && pip3 install kubernetes                                          \
-  && pip3 install openshift                                           \
-  && pip3 install docker                                              \
   && rm -rf /tmp/pman                                                 \
   && chmod 777 /dock                                                  \
   && chmod 777 /dock/docker-entrypoint.py                             \
