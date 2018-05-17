@@ -19,12 +19,7 @@ import  platform
 from    functools       import  partial
 
 import  pfmisc
-
-# pman local dependencies
-try:
-    from    .debug          import debug
-except:
-    from    debug           import debug
+from    pfmisc.debug    import  debug
 
 import  pudb
 
