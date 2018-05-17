@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from pman import C_stree
+from pfmisc.C_snode import C_stree
 
 import pudb
 
