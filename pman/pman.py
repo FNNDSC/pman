@@ -28,19 +28,14 @@ import  pfmisc
 
 # pman local dependencies
 try:
-    from    ._colors        import Colors
-    from    .debug          import debug
-    from   .C_snode         import *
-    from   .debug           import debug
-    from   .openshiftmgr    import *
-    from   .crunner         import *
+    from    .openshiftmgr   import *
+    from    .crunner        import *
 except:
-    from    _colors         import Colors
-    from    debug           import debug
-    from    C_snode         import *
-    from    debug           import debug
     from    openshiftmgr    import *
     from    crunner         import *
+
+from pfmisc.C_snode         import  *
+from pfmisc._colors         import  Colors
 
 import  docker
 import  pudb
@@ -773,6 +768,33 @@ class Listener(threading.Thread):
         d_ret       = self.DB_get(path  = str_path)
         return {'d_ret':    d_ret,
                 'status':   True}
+
+    def t_DBctl_process(self, *args, **kwargs):
+        """
+        Entry point for internal DB control processing.
+        """
+        tree_DB     = self._ptree
+        d_request   = {}
+        d_ret       = {}
+        b_status    = False
+        for k, v in kwargs.items():
+            if k == 'request':      d_request   = v
+        d_meta      = d_request['meta']
+
+        if 'do'         in d_meta:  str_do          = d_meta['do']
+        if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
+        if 'fileio'     in d_meta:  str_fileio      = d_meta['fileio']
+
+        self.DB_fileIO( cmd         = str_do,
+                        fileio      = str_fileio,
+                        dbpath      = str_DBpath,
+                        db          = tree_DB)
+
+        str_path    = '/api/v1' + d_meta['path']
+        d_ret       = self.DB_get(path  = str_path)
+        return {'d_ret':    d_ret,
+                'status':   True}
+        
 
     def t_fileiosetup_process(self, *args, **kwargs):
         """
@@ -1748,11 +1770,26 @@ class Listener(threading.Thread):
             # $exeshell, $selfpath, and/or $selfexec with the values provided
             # in the JSON representation.
             #
+            # pudb.set_trace()
             if d_target['cmdParse']:
-                byte_str    = client.containers.run(str_targetImage)
-                d_jsonRep   = json.loads(byte_str.decode())
-                for str_meta in ['execshell', 'selfexec', 'selfpath']:
-                    str_cmd = str_cmd.replace("$"+str_meta, d_jsonRep[str_meta])
+                if  'selfexec'  in d_target.keys() and \
+                    'selfpath'  in d_target.keys() and \
+                    'execshell' in d_target.keys():
+                    for str_meta in ['execshell', 'selfexec', 'selfpath']:
+                        str_cmd = str_cmd.replace("$"+str_meta, d_target[str_meta])
+                else:
+                    # This is a bit of a hack and added for legacy compatibility
+                    # with ChRIS plugins that honor the '--json' flag
+                    # NB: There are some implicit assumptions here:
+                    #   * plugin image name is of form '<dockerorg>/pl-<name>'
+                    #   * <name>.py corresponds to the python entry point in the 
+                    #     container.
+                    str_pythonMain  = '%s.py' % str_targetImage.split('/')[1][3:]
+                    str_runArgs     = '%s --json' % (str_pythonMain)
+                    byte_str    = client.containers.run(str_targetImage, str_runArgs)
+                    d_jsonRep   = json.loads(byte_str.decode())
+                    for str_meta in ['execshell', 'selfexec', 'selfpath']:
+                        str_cmd = str_cmd.replace("$"+str_meta, d_jsonRep[str_meta])
 
             str_cmdLine     = str_cmd
             str_cmdManager  = '%s -s %s -m %s -i %s -p none -c "%s"' % \
@@ -2173,7 +2210,7 @@ class Listener(threading.Thread):
         if 'context'    in d_meta:  str_context     = d_meta['context']
         if 'operation'  in d_meta:  str_cmd         = d_meta['operation']
         if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
-        if 'fileio'     in d_meta:  str_type        = d_meta['fileio']
+        if 'fileio'     in d_meta:  str_fileio      = d_meta['fileio']
 
         if str_action.lower() == 'run' and str_context.lower() == 'db':
             self.within.DB_fileIO(  cmd         = str_cmd,
