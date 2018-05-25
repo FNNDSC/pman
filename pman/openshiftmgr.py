@@ -221,7 +221,7 @@ class OpenShiftManager(object):
         job = self.kube_v1_batch_client.create_namespaced_job(namespace=self.project, body=d_job)
         return job
 
-    def create_pod(self, image, name):
+    def create_pod(self, image, name, command):
         """
         Create a pod
         """
@@ -235,8 +235,8 @@ spec:
     containers:
     - name: {name}
       image: {image}
-""".format(name=name, image=image)
-
+      command: {command}  
+""".format(name=name, image=image, command=command)
         pod_yaml = yaml.load(pod_str)
         pod = self.kube_client.create_namespaced_pod(namespace=self.project, body=pod_yaml)
         return pod

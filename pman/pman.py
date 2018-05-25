@@ -1874,8 +1874,10 @@ class Listener(threading.Thread):
             # in the JSON representation.
             #
             if d_target['cmdParse']:
+                str_pythonMain = 'python %s.py' % str_targetImage.split('/')[1][3:] # The assumption is all plugins are written in python.
+                str_runArgs = '%s --json' % (str_pythonMain)
                 cmdparse_pod_name = self.jid + '-cmdparse'
-                self.get_openshift_manager().create_pod(str_targetImage, cmdparse_pod_name)
+                self.get_openshift_manager().create_pod(str_targetImage, cmdparse_pod_name, str_runArgs.split(' '))
                 log = None
                 try:
                     count = 0
