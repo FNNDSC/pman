@@ -283,7 +283,7 @@ class pman(object):
         if str_cmd == 'clear':
             # This wipes the existing DB both in memory
             # and in disk storage.
-            pudb.set_trace()
+            # pudb.set_trace()
             self.dp.qprint('Clearing internal memory DB...')
             tree_DB = C_stree()
             self.dp.qprint('Removing DB from persistent storage...')
@@ -538,7 +538,7 @@ class Listener(threading.Thread):
             if key == 'context':        self.zmq_context    = val
             if key == 'listenerSleep':  self.listenerSleep  = float(val)
             if key == 'id':             self.worker_id      = val
-            if key == 'DB':             self.ptree          = val
+            # if key == 'DB':             self.ptree          = val
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'http':           self.b_http         = val
             if key == 'within':         self.within         = val
@@ -677,7 +677,7 @@ class Listener(threading.Thread):
         p               = self.within.ptree
         str_origDir     = p.cwd()
         str_pathOrig    = str_path
-        for r in self.ptree.lstr_lsnode('/'):
+        for r in self.within.ptree.lstr_lsnode('/'):
             if p.cd('/' + r)['status']:
                 str_val = p.cat(str_fileName)
                 if str_val == str_target:
@@ -722,7 +722,7 @@ class Listener(threading.Thread):
 
         d_search    = self.t_search_process(request = d_request)['d_ret']
 
-        p = self.ptree
+        p = self.within.ptree
         for j in d_search.keys():
             d_j = d_search[j]
             for job in d_j.keys():
@@ -792,7 +792,7 @@ class Listener(threading.Thread):
         """
         Entry point for internal DB control processing.
         """
-        tree_DB     = self.ptree
+        tree_DB     = self.within.ptree
         d_request   = {}
         d_ret       = {}
         b_status    = False
@@ -1107,8 +1107,8 @@ class Listener(threading.Thread):
         This method also triggers a DB save event.
 
         """
-        if not self.ptree.exists(str_file, path = str_path):
-            self.ptree.touch('%s/%s' % (str_path, str_file), data)
+        if not self.within.ptree.exists(str_file, path = str_path):
+            self.within.ptree.touch('%s/%s' % (str_path, str_file), data)
             # Save DB state...
             self.within.DB_fileIO(cmd = 'save')
 
@@ -1205,11 +1205,11 @@ class Listener(threading.Thread):
 
             if d_ret['removeJob']:
                 str_jobRoot = d_jobState['d_ret']['%s.container' % (str_hitIndex)]['jobRoot']
-                self.ptree.cd('/%s/container' % str_jobRoot)
+                self.within.ptree.cd('/%s/container' % str_jobRoot)
                 d_serviceInfo       = {
-                                        'serviceName':  self.ptree.cat('manager/env/serviceName'),
-                                        'managerImage': self.ptree.cat('manager/image'),
-                                        'managerApp':   self.ptree.cat('manager/app')
+                                        'serviceName':  self.within.ptree.cat('manager/env/serviceName'),
+                                        'managerImage': self.within.ptree.cat('manager/image'),
+                                        'managerApp':   self.within.ptree.cat('manager/app')
                                     }
                 if service_exists(d_serviceInfo['serviceName']):
                     service_shutDown(d_serviceInfo)
@@ -1250,22 +1250,22 @@ class Listener(threading.Thread):
 
         self.dp.qprint('checking on status using container...')
         str_jobRoot         = d_state['d_ret']['%s.container' % str_hitIndex]['jobRoot']
-        self.ptree.cd('/%s/container' % str_jobRoot)
-        str_serviceName     = self.ptree.cat('manager/env/serviceName')
-        str_managerImage    = self.ptree.cat('manager/image')
-        str_managerApp      = self.ptree.cat('manager/app')
+        self.within.ptree.cd('/%s/container' % str_jobRoot)
+        str_serviceName     = self.within.ptree.cat('manager/env/serviceName')
+        str_managerImage    = self.within.ptree.cat('manager/image')
+        str_managerApp      = self.within.ptree.cat('manager/app')
 
         # pudb.set_trace()
 
         # Check if the state of the container service has been recorded to the data tree
-        if self.ptree.exists('state', path = '/%s/container' % str_jobRoot):
+        if self.within.ptree.exists('state', path = '/%s/container' % str_jobRoot):
             # If this exists, then the job has actually completed and 
             # its state has been recorded in the data tree. We can simply 'cat'
             # the state from this memory dictionary
-            d_serviceState  = self.ptree.cat('/%s/container/state' % str_jobRoot)
-            if self.ptree.exists('logs', path = '/%s/container' % str_jobRoot):
+            d_serviceState  = self.within.ptree.cat('/%s/container/state' % str_jobRoot)
+            if self.within.ptree.exists('logs', path = '/%s/container' % str_jobRoot):
                 # The job has actually completed and its logs are recorded in the data tree
-                str_logs     = self.ptree.cat('/%s/container/logs' % str_jobRoot)
+                str_logs     = self.within.ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
             # Here, the manager has not been queried yet about the state of
             # the service. We need to ask the container service for this 
@@ -1348,16 +1348,16 @@ class Listener(threading.Thread):
         self.dp.qprint('checking on status using openshift...')
 
         str_jobRoot         = d_state['d_ret']['%s.container' % str_hitIndex]['jobRoot']
-        self.ptree.cd('/%s' % str_jobRoot)
-        jid = self.ptree.cat('jid')
+        self.within.ptree.cd('/%s' % str_jobRoot)
+        jid = self.within.ptree.cat('jid')
 
         # Check if the state of the openshift service has been recorded to the data tree
-        if self.ptree.exists('state', path = '/%s/container' % str_jobRoot):
+        if self.within.ptree.exists('state', path = '/%s/container' % str_jobRoot):
             # The job has actually completed and its state recorded in the data tree
-            d_json = self.ptree.cat('/%s/container/state' % str_jobRoot)
-            if self.ptree.exists('logs', path = '/%s/container' % str_jobRoot):
+            d_json = self.within.ptree.cat('/%s/container/state' % str_jobRoot)
+            if self.within.ptree.exists('logs', path = '/%s/container' % str_jobRoot):
                 # The job has actually completed and its logs are recorded in the data tree
-                str_logs = self.ptree.cat('/%s/container/logs' % str_jobRoot)
+                str_logs = self.within.ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
             # Get container logs instead of job status. We already get status from l_status field.
             d_json = self.get_openshift_manager().state(jid)
@@ -1426,8 +1426,8 @@ class Listener(threading.Thread):
             d_ret = self.t_status_process_state(**kwargs)
             if d_ret['removeJob']:
                 str_jobRoot = d_jobState['d_ret']['%s.container' % (str_hitIndex)]['jobRoot']
-                self.ptree.cd('/%s' % str_jobRoot)
-                jid = self.ptree.cat('jid')
+                self.within.ptree.cd('/%s' % str_jobRoot)
+                jid = self.within.ptree.cat('jid')
                 if job_exists(jid):
                     job_shutDown(jid)
         return {
