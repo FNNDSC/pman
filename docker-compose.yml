@@ -1,0 +1,38 @@
+# https://docs.docker.com/compose/yml/
+# Each service defined in docker-compose.yml must specify exactly one of
+# image or build. Other keys are optional, and are analogous to their
+# docker run command-line counterparts.
+#
+# As with docker run, options specified in the Dockerfile (e.g., CMD,
+# EXPOSE, VOLUME, ENV) are respected by default - you don't need to
+# specify them again in docker-compose.yml.
+#
+
+version: '3'
+
+services:
+  pman_service:
+    # pman also needs access to the pfioh storeBase folder (and hence the volume)
+    # mapping from the HOST file system space.
+    #
+    # There is however an extra twist. Since pman spins off containers of its
+    # own, it needs to mount this storeBase dir into the spawned container.
+    # However, it can't mount a dir inside itself to the spawned container,
+    # it has to mount an actaul existing directory. This directory is
+    # passed in the STOREBASE env variable, and will override the base
+    # mapping of SHAREDIR inside pman to the swarm manager. Note that the
+    # full path to the spawned container should be ${STOREBASE} + keyStore!
+    environment:
+      - STOREBASE
+    image:  ${CREPO}/pman${TAG}
+    command: ["--rawmode", "1", "--http", "--port", "5010", "--listeners", "12"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./FS/remote:/hostFS/storeBase
+      - ./pman/pman.py:/usr/local/lib/python3.5/dist-packages/pman/pman.py
+      - /tmp:/tmp
+    ports:
+      - "5010:5010"
+    labels:
+      name: "pman"
+      role: "pman service"
