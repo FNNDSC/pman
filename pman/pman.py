@@ -123,7 +123,7 @@ class pman(object):
         # DB
         self.b_clearDB          = False
         self.str_DBpath         = '/tmp/pman'
-        self._ptree             = C_stree()
+        self.ptree             = C_stree()
         self.str_fileio         = 'json'
         self.DBsavePeriod       = 60
 
@@ -183,6 +183,7 @@ class pman(object):
         print(self.str_desc)
 
         # pudb.set_trace()
+
         self.col2_print('Server is listening on',
                         '%s://%s:%s' % (self.str_protocol, self.str_IP, self.str_port))
         self.col2_print('Router raw mode',                  str(self.router_raw))
@@ -190,7 +191,7 @@ class pman(object):
         self.col2_print('listener sleep',                   str(self.listenerSleep))
 
         # Create the main internal DB data structure/abstraction
-        self._ptree             = C_stree()
+        self.ptree             = C_stree()
 
         # Read the DB from HDD
         self.DB_fileIO(cmd = 'load')
@@ -205,14 +206,14 @@ class pman(object):
         """
         if os.path.isdir(self.str_DBpath):
             self.dp.qprint("Reading pman DB from disk...\n")
-            self._ptree = C_stree.tree_load(
+            self.ptree = C_stree.tree_load(
                 pathDiskRoot    = self.str_DBpath,
                 loadJSON        = True,
                 loadPickle      = False)
             self.dp.qprint("pman DB read from disk...\n")
             self.col2_print('Reading pman DB from disk:', 'OK')
         else:
-            P = self._ptree
+            P = self.ptree
             # P.cd('/')
             # P.mkdir('proc')
             P.tree_save(
@@ -233,8 +234,42 @@ class pman(object):
         """
         str_cmd     = 'save'
         str_DBpath  = self.str_DBpath
-        tree_DB     = self._ptree
+        tree_DB     = self.ptree
 
+        def loadFromDiskAsJSON():
+            tree_DB = C_stree.tree_load(
+                startPath       = '/',
+                pathDiskRoot    = str_DBpath,
+                failOnDirExist  = False,
+                loadJSON        = True,
+                loadPickle      = False)
+            return tree_DB
+
+        def loadFromDiskAsPickle():
+            tree_DB = C_stree.tree_load(
+                startPath       = '/',
+                pathDiskRoot    = str_DBpath,
+                failOnDirExist  = False,
+                loadJSON        = False,
+                loadPickle      = True)
+            return tree_DB
+
+        def saveToDiskAsJSON(tree_DB):
+            tree_DB.tree_save(
+                startPath       = '/',
+                pathDiskRoot    = str_DBpath,
+                failOnDirExist  = False,
+                saveJSON        = True,
+                savePickle      = False)
+
+        def saveToDiskAsPickle(tree_DB):
+            tree_DB.tree_save(
+                startPath       = '/',
+                pathDiskRoot    = str_DBpath,
+                failOnDirExist  = False,
+                saveJSON        = False,
+                savePickle      = True)
+            
         for k,v in kwargs.items():
             if k == 'cmd':      str_cmd             = v
             if k == 'fileio':   self.str_fileio     = v
@@ -245,56 +280,40 @@ class pman(object):
         # self.dp.qprint('fileio   = %s' % self.str_fileio)
         # self.dp.qprint('dbpath   = %s' % str_DBpath)
 
+        if str_cmd == 'clear':
+            # This wipes the existing DB both in memory
+            # and in disk storage.
+            pudb.set_trace()
+            self.dp.qprint('Clearing internal memory DB...')
+            tree_DB = C_stree()
+            self.dp.qprint('Removing DB from persistent storage...')
+            if os.path.isdir(str_DBpath):
+                shutil.rmtree(str_DBpath, ignore_errors=True)     
+            self.dp.qprint('Saving empty DB to peristent storage')
+            saveToDiskAsJSON(tree_DB)       
+
         if str_cmd == 'save':
             if os.path.isdir(str_DBpath):
                 shutil.rmtree(str_DBpath, ignore_errors=True)
             #print(tree_DB)
-            if self.str_fileio   == 'json':
-                tree_DB.tree_save(
-                    startPath       = '/',
-                    pathDiskRoot    = str_DBpath,
-                    failOnDirExist  = False,
-                    saveJSON        = True,
-                    savePickle      = False)
-            if self.str_fileio   == 'pickle':
-                tree_DB.tree_save(
-                    startPath       = '/',
-                    pathDiskRoot    = str_DBpath,
-                    failOnDirExist  = False,
-                    saveJSON        = False,
-                    savePickle      = True)
+            if self.str_fileio   == 'json':     saveToDiskAsJSON(tree_DB)
+            if self.str_fileio   == 'pickle':   saveToDiskAsPickle(tree_DB)
 
         if str_cmd == 'load':
             if os.path.isdir(str_DBpath):
                 self.dp.qprint("Reading pman DB from disk...\n")
-                if self.str_fileio   == 'json':
-                    tree_DB = C_stree.tree_load(
-                        startPath       = '/',
-                        pathDiskRoot    = str_DBpath,
-                        failOnDirExist  = False,
-                        loadJSON        = True,
-                        loadPickle      = False)
-                if self.str_fileio   == 'pickle':
-                    tree_DB = C_stree.tree_load(
-                        startPath       = '/',
-                        pathDiskRoot    = str_DBpath,
-                        failOnDirExist  = False,
-                        loadJSON        = False,
-                        loadPickle      = True)
-                self.dp.qprint("pman DB read from disk...\n")
-                self.col2_print('Reading pman DB from disk:', 'OK')
-                self._ptree         = tree_DB
+                if self.str_fileio   == 'json':     tree_DB = loadFromDiskAsJSON()
+                if self.str_fileio   == 'pickle':   tree_DB = loadFromDiskAsPickle()
+                self.dp.qprint("Pre-existing DB found at %s..." % str_DBpath)
+                self.ptree         = tree_DB
+                self.ptree.cd('/')
+                self.dp.qprint('DB root nodes:\n%s' % self.ptree.str_lsnode())
             else:
-                tree_DB.tree_save(
-                    startPath       = '/',
-                    pathDiskRoot    = str_DBpath,
-                    failOnDirExist  = False,
-                    saveJSON        = True,
-                    savePickle      = False
-                )
+                saveToDiskAsJSON(tree_DB)
                 self.col2_print('Reading pman DB from disk:',
                                 'No DB found... creating empty default DB')
             self.dp.qprint(Colors.NO_COLOUR, end='')
+        self.ptree  = tree_DB
 
     def thread_serve(self):
         """
@@ -353,7 +372,7 @@ class pman(object):
                     are still running.
         """
 
-        self.col2_print('Starting Listener threads', self.listeners)
+        self.dp.qprint('Starting %d Listener threads' % self.listeners)
 
         # Front facing socket to accept client connections.
         self.socket_front = self.zmq_context.socket(zmq.ROUTER)
@@ -370,7 +389,8 @@ class pman(object):
         self.socket_back.bind('inproc://backend')
 
         # Start the 'fileIO' thread
-        self.fileIO      = FileIO(      timeout     = self.DBsavePeriod,
+        self.fileIO      = FileIO(      DB          = self.ptree,
+                                        timeout     = self.DBsavePeriod,
                                         within      = self,
                                         debugFile   = self.str_debugFile,
                                         debugToFile = self.b_debugToFile)
@@ -383,7 +403,7 @@ class pman(object):
             self.l_listener.append(Listener(
                                     id              = i,
                                     context         = self.zmq_context,
-                                    DB              = self._ptree,
+                                    DB              = self.ptree,
                                     DBpath          = self.str_DBpath,
                                     http            = self.b_http,
                                     containerEnv    = self.container_env,
@@ -407,7 +427,7 @@ class pman(object):
         self.dp.qprint("*******after zmq.device!!!")
 
     def __iter__(self):
-        yield('Feed', dict(self._stree.snode_root))
+        yield('Feed', dict(self.ptree.snode_root))
 
     # @abc.abstractmethod
     # def create(self, **kwargs):
@@ -418,17 +438,17 @@ class pman(object):
     def __str__(self):
         """Print
         """
-        return str(self.stree.snode_root)
+        return str(self.ptree.snode_root)
 
     @property
     def stree(self):
         """STree Getter"""
-        return self._stree
+        return self.ptree
 
     @stree.setter
     def stree(self, value):
         """STree Getter"""
-        self._stree = value
+        self.ptree = value
 
 class FileIO(threading.Thread):
     """
@@ -452,7 +472,7 @@ class FileIO(threading.Thread):
         self.pp                 = pprint.PrettyPrinter(indent=4)
 
         for key,val in kwargs.items():
-            if key == 'DB':             self._ptree         = val
+            if key == 'DB':             self.ptree          = val
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'timeout':        self.timeout        = val
             if key == 'within':         self.within         = val
@@ -470,7 +490,6 @@ class FileIO(threading.Thread):
 
     def run(self):
         """ Main execution. """
-        # pudb.set_trace()
         # Socket to communicate with front facing server.
         while not self.b_stopThread:
             # self.dp.qprint('Saving DB as type "%s" to "%s"...' % (
@@ -519,7 +538,7 @@ class Listener(threading.Thread):
             if key == 'context':        self.zmq_context    = val
             if key == 'listenerSleep':  self.listenerSleep  = float(val)
             if key == 'id':             self.worker_id      = val
-            if key == 'DB':             self._ptree         = val
+            if key == 'DB':             self.ptree          = val
             if key == 'DBpath':         self.str_DBpath     = val
             if key == 'http':           self.b_http         = val
             if key == 'within':         self.within         = val
@@ -655,10 +674,10 @@ class Listener(threading.Thread):
         self.dp.qprint(b_pathSpec)
         str_fileName    = d_meta['key']
         str_target      = d_meta['value']
-        p               = self._ptree
+        p               = self.within.ptree
         str_origDir     = p.cwd()
         str_pathOrig    = str_path
-        for r in self._ptree.lstr_lsnode('/'):
+        for r in self.ptree.lstr_lsnode('/'):
             if p.cd('/' + r)['status']:
                 str_val = p.cat(str_fileName)
                 if str_val == str_target:
@@ -703,7 +722,7 @@ class Listener(threading.Thread):
 
         d_search    = self.t_search_process(request = d_request)['d_ret']
 
-        p = self._ptree
+        p = self.ptree
         for j in d_search.keys():
             d_j = d_search[j]
             for job in d_j.keys():
@@ -773,25 +792,32 @@ class Listener(threading.Thread):
         """
         Entry point for internal DB control processing.
         """
-        tree_DB     = self._ptree
+        tree_DB     = self.ptree
         d_request   = {}
         d_ret       = {}
         b_status    = False
+        str_fileio  = self.within.str_fileio
+        str_DBpath  = self.within.str_DBpath
+
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
         d_meta      = d_request['meta']
+
+        # pudb.set_trace()
 
         if 'do'         in d_meta:  str_do          = d_meta['do']
         if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
         if 'fileio'     in d_meta:  str_fileio      = d_meta['fileio']
 
-        self.DB_fileIO( cmd         = str_do,
+        self.within.DB_fileIO( 
+                        cmd         = str_do,
                         fileio      = str_fileio,
                         dbpath      = str_DBpath,
-                        db          = tree_DB)
+                        db          = tree_DB
+                        )
 
-        str_path    = '/api/v1' + d_meta['path']
-        d_ret       = self.DB_get(path  = str_path)
+        # str_path    = '/api/v1' + str_DBpath
+        d_ret       = self.DB_get(path  = str_DBpath)
         return {'d_ret':    d_ret,
                 'status':   True}
         
@@ -856,7 +882,7 @@ class Listener(threading.Thread):
 
         d_search    = self.t_search_process(request = d_request)['d_ret']
 
-        p   = self._ptree
+        p   = self.within.ptree
         Ts  = C_stree()
         Te  = C_stree()
         for j in d_search.keys():
@@ -1081,8 +1107,8 @@ class Listener(threading.Thread):
         This method also triggers a DB save event.
 
         """
-        if not self._ptree.exists(str_file, path = str_path):
-            self._ptree.touch('%s/%s' % (str_path, str_file), data)
+        if not self.ptree.exists(str_file, path = str_path):
+            self.ptree.touch('%s/%s' % (str_path, str_file), data)
             # Save DB state...
             self.within.DB_fileIO(cmd = 'save')
 
@@ -1179,11 +1205,11 @@ class Listener(threading.Thread):
 
             if d_ret['removeJob']:
                 str_jobRoot = d_jobState['d_ret']['%s.container' % (str_hitIndex)]['jobRoot']
-                self._ptree.cd('/%s/container' % str_jobRoot)
+                self.ptree.cd('/%s/container' % str_jobRoot)
                 d_serviceInfo       = {
-                                        'serviceName':  self._ptree.cat('manager/env/serviceName'),
-                                        'managerImage': self._ptree.cat('manager/image'),
-                                        'managerApp':   self._ptree.cat('manager/app')
+                                        'serviceName':  self.ptree.cat('manager/env/serviceName'),
+                                        'managerImage': self.ptree.cat('manager/image'),
+                                        'managerApp':   self.ptree.cat('manager/app')
                                     }
                 if service_exists(d_serviceInfo['serviceName']):
                     service_shutDown(d_serviceInfo)
@@ -1224,22 +1250,22 @@ class Listener(threading.Thread):
 
         self.dp.qprint('checking on status using container...')
         str_jobRoot         = d_state['d_ret']['%s.container' % str_hitIndex]['jobRoot']
-        self._ptree.cd('/%s/container' % str_jobRoot)
-        str_serviceName     = self._ptree.cat('manager/env/serviceName')
-        str_managerImage    = self._ptree.cat('manager/image')
-        str_managerApp      = self._ptree.cat('manager/app')
+        self.ptree.cd('/%s/container' % str_jobRoot)
+        str_serviceName     = self.ptree.cat('manager/env/serviceName')
+        str_managerImage    = self.ptree.cat('manager/image')
+        str_managerApp      = self.ptree.cat('manager/app')
 
         # pudb.set_trace()
 
         # Check if the state of the container service has been recorded to the data tree
-        if self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
+        if self.ptree.exists('state', path = '/%s/container' % str_jobRoot):
             # If this exists, then the job has actually completed and 
             # its state has been recorded in the data tree. We can simply 'cat'
             # the state from this memory dictionary
-            d_serviceState  = self._ptree.cat('/%s/container/state' % str_jobRoot)
-            if self._ptree.exists('logs', path = '/%s/container' % str_jobRoot):
+            d_serviceState  = self.ptree.cat('/%s/container/state' % str_jobRoot)
+            if self.ptree.exists('logs', path = '/%s/container' % str_jobRoot):
                 # The job has actually completed and its logs are recorded in the data tree
-                str_logs     = self._ptree.cat('/%s/container/logs' % str_jobRoot)
+                str_logs     = self.ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
             # Here, the manager has not been queried yet about the state of
             # the service. We need to ask the container service for this 
@@ -1322,16 +1348,16 @@ class Listener(threading.Thread):
         self.dp.qprint('checking on status using openshift...')
 
         str_jobRoot         = d_state['d_ret']['%s.container' % str_hitIndex]['jobRoot']
-        self._ptree.cd('/%s' % str_jobRoot)
-        jid = self._ptree.cat('jid')
+        self.ptree.cd('/%s' % str_jobRoot)
+        jid = self.ptree.cat('jid')
 
         # Check if the state of the openshift service has been recorded to the data tree
-        if self._ptree.exists('state', path = '/%s/container' % str_jobRoot):
+        if self.ptree.exists('state', path = '/%s/container' % str_jobRoot):
             # The job has actually completed and its state recorded in the data tree
-            d_json = self._ptree.cat('/%s/container/state' % str_jobRoot)
-            if self._ptree.exists('logs', path = '/%s/container' % str_jobRoot):
+            d_json = self.ptree.cat('/%s/container/state' % str_jobRoot)
+            if self.ptree.exists('logs', path = '/%s/container' % str_jobRoot):
                 # The job has actually completed and its logs are recorded in the data tree
-                str_logs = self._ptree.cat('/%s/container/logs' % str_jobRoot)
+                str_logs = self.ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
             # Get container logs instead of job status. We already get status from l_status field.
             d_json = self.get_openshift_manager().state(jid)
@@ -1400,8 +1426,8 @@ class Listener(threading.Thread):
             d_ret = self.t_status_process_state(**kwargs)
             if d_ret['removeJob']:
                 str_jobRoot = d_jobState['d_ret']['%s.container' % (str_hitIndex)]['jobRoot']
-                self._ptree.cd('/%s' % str_jobRoot)
-                jid = self._ptree.cat('jid')
+                self.ptree.cd('/%s' % str_jobRoot)
+                jid = self.ptree.cat('jid')
                 if job_exists(jid):
                     job_shutDown(jid)
         return {
@@ -1585,7 +1611,7 @@ class Listener(threading.Thread):
         self.str_jobRootDir = str_dir
 
         b_jobsAllDone       = False
-        p                   = self._ptree
+        p                   = self.within.ptree
 
         p.cd('/')
         p.mkcd(str_dir)
@@ -1639,7 +1665,8 @@ class Listener(threading.Thread):
         self.dp.qprint('All jobs processed.')
 
         # Save DB state...
-        self.within.DB_fileIO(cmd = 'save')
+        self.within.ptree           = p
+        self.within.DB_fileIO(cmd   = 'save')
 
     def FScomponent_pollExists(self, *args, **kwargs):
         """
@@ -1926,7 +1953,7 @@ class Listener(threading.Thread):
         """
 
         r           = C_stree()
-        p           = self._ptree
+        p           = self.within.ptree
 
         pcwd        = p.cwd()
         str_URLpath = "/api/v1/"
@@ -2175,7 +2202,7 @@ class Listener(threading.Thread):
         str_cmd         = "save"
         str_DBpath      = self.str_DBpath
         str_fileio      = "json"
-        tree_DB         = self._ptree
+        tree_DB         = self.within.ptree
 
         for k,v in kwargs.items():
             if k == 'request':  d_request   = v
@@ -2189,7 +2216,6 @@ class Listener(threading.Thread):
         if 'key'        in d_meta:
             d_search    = self.t_search_process(request = d_request)['d_ret']
 
-            p           = self._ptree
             Tj          = C_stree()
             Tdb         = C_stree()
             for j in d_search.keys():
