@@ -1798,7 +1798,7 @@ class Listener(threading.Thread):
             # in the JSON representation.
             #
             # pudb.set_trace()
-            if d_target['cmdParse']:
+            if d_target['cmdParse'] and False:
                 if  'selfexec'  in d_target.keys() and \
                     'selfpath'  in d_target.keys() and \
                     'execshell' in d_target.keys():
@@ -1900,7 +1900,7 @@ class Listener(threading.Thread):
             # $exeshell, $selfpath, and/or $selfexec with the values provided
             # in the JSON representation.
             #
-            if d_target['cmdParse']:
+            if d_target['cmdParse'] and False:
                 str_pythonMain = 'python %s.py' % str_targetImage.split('/')[1][3:] # The assumption is all plugins are written in python.
                 str_runArgs = '%s --json' % (str_pythonMain)
                 cmdparse_pod_name = self.jid + '-cmdparse'
