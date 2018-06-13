@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import  abc
 import  time
 import  os
@@ -40,6 +39,7 @@ from pfmisc._colors         import  Colors
 import  docker
 import  pudb
 import  pprint
+from kubernetes.client.rest import ApiException
 
 str_devNotes = """
 
@@ -963,7 +963,6 @@ class Listener(threading.Thread):
         """
 
         Check if the job corresponding to the search pattern is "done".
-
         :param args:
         :param kwargs:
         :return:
@@ -1000,93 +999,113 @@ class Listener(threading.Thread):
         :param kwargs:
         :return: dictionary of components defining job state.
         """
-
         self.dp.qprint("In status process...")
+        status = logs = currentState = ''
+        if self.container_env == 'openshift':
+            self.dp.qprint('Processing openshift....')
+            try:
+                d_containerStatus       =   self.t_status_process_openshift(*args, **kwargs)
+                status                  =   d_containerStatus['status']
+                logs                    =   d_containerStatus['logs']
+                currentState            =   d_containerStatus['currentState']
+            except Exception as e:
+                if e.reason == 'Not Found':
+                    status = logs = currentState = e.reason
+                else:
+                    raise e
+            
+            d_ret = {
+                'status':   status,
+                'logs':     logs,         
+                'currentState': currentState
+            }
+            return {
+                    "d_ret":    str(d_ret),
+                    "status":   str(currentState)
+            }
+        
+        else:
 
-        # pudb.set_trace()
-        d_state     = self.job_state(*args, **kwargs)
-        # {
-        #     "hits":         hits,
-        #     "d_ret":        
-        #         [<index>+'.container']   = {
-        #             "jobRoot": job, "tree": dict(T_container.snode_root)
-        #         },
-        #     "status":       b_status
-        # }
-
-        d_ret       = d_state['d_ret']
-        b_status    = d_state['status']
-
-        d_keys      = d_ret.items()
-        l_status    = []
-        l_logs      = []
-
-        #
-        # The d_ret keys consist of groups of
-        #
-        #       *.start
-        #       *.end
-        #       *.container
-        #
-        # thus the loop grouping is number of items / 3
-        #
-        if '0.start' in d_ret:
             # pudb.set_trace()
-            for i in range(0, int(len(d_keys)/3)):
-                try:
-                    b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
-                except:
+            d_state     = self.job_state(*args, **kwargs)
+            # {
+            #     "hits":         hits,
+            #     "d_ret":        
+            #         [<index>+'.container']   = {
+            #             "jobRoot": job, "tree": dict(T_container.snode_root)
+            #         },
+            #     "status":       b_status
+            # }
+
+            d_ret       = d_state['d_ret']
+            b_status    = d_state['status']
+
+            d_keys      = d_ret.items()
+            l_status    = []
+            l_logs      = []
+
+            #
+            # The d_ret keys consist of groups of
+            #
+            #       *.start
+            #       *.end
+            #       *.container
+            #
+            # thus the loop grouping is number of items / 3
+            #
+            if '0.start' in d_ret:
+            # pudb.set_trace()
+                for i in range(0, int(len(d_keys)/3)):
+                    try:
+                        b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
+                    except:
+                        # pudb.set_trace()
+                        b_startEvent    = False
+                    try:
+                        endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
+                    except:
+                        endcode     = None
+
                     # pudb.set_trace()
-                    b_startEvent    = False
-                try:
-                    endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
-                except:
-                    endcode     = None
+                    # Was this a containerized job?
+                    found_container = False
+                    container_path = '%s.%s' % (str(i), 'container')
+                    if container_path in d_state['d_ret']           and \
+                        d_state['d_ret'][container_path]['tree']    and \
+                        b_startEvent:
 
-                # pudb.set_trace()
-                # Was this a containerized job?
-                found_container = False
-                container_path = '%s.%s' % (str(i), 'container')
-                if container_path in d_state['d_ret']           and \
-                    d_state['d_ret'][container_path]['tree']    and \
-                    b_startEvent:
-                    
-                    kwargs['d_state']   = d_state
-                    kwargs['hitIndex']  = str(i)
+                        kwargs['d_state']   = d_state
+                        kwargs['hitIndex']  = str(i)
 
-                    str_methodSuffix = None
-                    if self.container_env == 'openshift':
-                        # append suffix _openshift to redirect to openshift function
-                        str_methodSuffix    = 'openshift'
-                    elif self.container_env == 'swarm':
-                        # append suffix _container to redirect to container function
-                        str_methodSuffix    = 'container'
+                        str_methodSuffix = None
+                        if self.container_env == 'swarm':
+                            # append suffix _container to redirect to container function
+                            str_methodSuffix    = 'container'
+                        d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % str_methodSuffix)
+                        # d_ret {
+                        #     'status':         d_ret['status'],              # bool
+                        #     'logs':           str_logs,                     # logs from app in container
+                        #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
+                        # }
 
-                    d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % str_methodSuffix)
-                    # d_ret {
-                    #     'status':         d_ret['status'],              # bool
-                    #     'logs':           str_logs,                     # logs from app in container
-                    #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
-                    # }
+                        l_status.append(d_containerStatus['currentState'])
+                        l_logs.append(d_containerStatus['logs'])
+                        found_container = True
 
-                    l_status.append(d_containerStatus['currentState'])
-                    l_logs.append(d_containerStatus['logs'])
-                    found_container = True
+                    # The case for non-containerized jobs
+                    if not found_container:
+                        if endcode is None and not b_startEvent:
+                            l_status.append('notstarted')
+                        if endcode is None and b_startEvent:
+                            l_status.append('started')
+                        if not endcode and b_startEvent and type(endcode) is int:
+                            l_status.append('finishedSuccessfully')
+                        if endcode and b_startEvent:
+                            l_status.append('finishedWithError')
 
-                # The case for non-containerized jobs
-                if not found_container:
-                    if endcode is None and not b_startEvent:
-                        l_status.append('notstarted')
-                    if endcode is None and b_startEvent:
-                        l_status.append('started')
-                    if not endcode and b_startEvent and type(endcode) is int:
-                        l_status.append('finishedSuccessfully')
-                    if endcode and b_startEvent:
-                        l_status.append('finishedWithError')
-
-                self.dp.qprint('b_startEvent = %d' % b_startEvent)
-                self.dp.qprint(endcode)
-                self.dp.qprint('l_status = %s' % l_status)
+                    self.dp.qprint('b_startEvent = %d' % b_startEvent)
+                    self.dp.qprint(endcode)
+                    self.dp.qprint('l_status = %s' % l_status)
 
         d_ret['l_status']   = l_status
         d_ret['l_logs']     = l_logs
@@ -1327,6 +1346,7 @@ class Listener(threading.Thread):
     def t_status_process_openshift(self, *args, **kwargs):
         """
         Determine the status of a job scheduled using the openshift manager.
+        # TODO: @husky-parul: change these comments
 
         PRECONDITIONS:
         o   Only call this method if a container structure exists
@@ -1336,46 +1356,29 @@ class Listener(threading.Thread):
         o   If the job is completed, then shutdown the container cluster
             service.
         """
-        d_state         = None
-        str_jobRoot     = ''
-        str_hitIndex    = "0"
-        str_logs        = ''
-
+        self.dp.qprint('Processing job status within t_status_process_openshift ... ')
+        str_logs    = ''
+        # Get job-id from request
         for k,v in kwargs.items():
-            if k == 'd_state':  d_state         = v
-            if k == 'hitIndex': str_hitIndex    = v
+            if k == 'request' and v['action'] == 'status' :     jid = v['meta']['value']
+        
+        # Query OpenShift API to get job state and logs for all worker pods 
+        d_json  = self.get_openshift_manager().state(jid)
 
-        self.dp.qprint('checking on status using openshift...')
-
-        str_jobRoot         = d_state['d_ret']['%s.container' % str_hitIndex]['jobRoot']
-        self.within.ptree.cd('/%s' % str_jobRoot)
-        jid = self.within.ptree.cat('jid')
-
-        # Check if the state of the openshift service has been recorded to the data tree
-        if self.within.ptree.exists('state', path = '/%s/container' % str_jobRoot):
-            # The job has actually completed and its state recorded in the data tree
-            d_json = self.within.ptree.cat('/%s/container/state' % str_jobRoot)
-            if self.within.ptree.exists('logs', path = '/%s/container' % str_jobRoot):
-                # The job has actually completed and its logs are recorded in the data tree
-                str_logs = self.within.ptree.cat('/%s/container/logs' % str_jobRoot)
+        if d_json['Status']['Message'] == 'finished':
+            pod_names = self.get_openshift_manager().get_pod_names_in_job(jid)
+            for _, pod_name in enumerate(pod_names):
+                str_logs += self.get_openshift_manager().get_job_pod_logs(pod_name)
         else:
-            # Get container logs instead of job status. We already get status from l_status field.
-            d_json = self.get_openshift_manager().state(jid)
-            if d_json['Status']['Message'] == 'finished':
-                pod_names = self.get_openshift_manager().get_pod_names_in_job(jid)
-                for _, pod_name in enumerate(pod_names):
-                    str_logs += self.get_openshift_manager().get_job_pod_logs(pod_name)
-            else:
-                str_logs = d_json['Status']['Message']
+            str_logs = d_json['Status']['Message']
 
-        d_ret = self.t_status_process_openshift_stateObject(hitIndex        = str_hitIndex,
-                                                            jobState        = d_state,
-                                                            serviceState    = d_json,
-                                                            logs            = str_logs)
+        status  = str(d_json['Status'])
+        currentState =  d_json['Status']['Message']
+    
         return {
-            'status':           d_ret['status'],
+            'status':           status,
             'logs':             str_logs,
-            'currentState':     d_ret['d_process']['currentState']
+            'currentState':     currentState
         }
 
     def t_status_process_openshift_stateObject(self, *args, **kwargs):
@@ -1902,7 +1905,6 @@ class Listener(threading.Thread):
                 d_target                    = d_container['target']
                 str_targetImage             = d_target['image']
 
-       
             # Create the Persistent Volume Claim
             self.dp.qprint("Create PVC")
             try:
@@ -1915,15 +1917,6 @@ class Listener(threading.Thread):
                                                   number_of_workers, cpu_limit, memory_limit, gpu_limit,
                                                   incoming_dir, outgoing_dir)
 
-            # Call the "parent" method -- reset the cmdLine to an "echo"
-            # and create an stree off the 'container' dictionary to store
-            # in the pman DB entry.
-            d_meta['cmd']   = 'echo "%s"' % str_cmd
-            T_container     = C_stree()
-            T_container.initFromDict(d_container)
-            d_Tcontainer    = {'container': T_container}
-            self.t_run_process(request  = d_request,
-                               treeList = d_Tcontainer)
             self.dp.qprint('Returning from openshift job...')
 
     def json_filePart_get(self, **kwargs):
