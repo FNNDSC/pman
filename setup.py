@@ -18,7 +18,7 @@ setup(
       author_email     =   'rudolph.pienaar@gmail.com',
       url              =   'https://github.com/FNNDSC/pman',
       packages         =   ['pman'],
-      install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc', 'ipaddress', 'kubernetes'],
+      install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc', 'ipaddress', 'fasteners', 'kubernetes'],
       test_suite       =   'nose.collector',
       tests_require    =   ['nose'],
       scripts          =   ['bin/pman'],

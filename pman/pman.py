@@ -1409,7 +1409,11 @@ class Listener(threading.Thread):
             """
             Shut down a service
             """
-            return self.get_openshift_manager().remove_job(jid)
+            try:
+                self.get_openshift_manager().remove_pvc(jid)
+                self.get_openshift_manager().remove_job(jid)
+            except Exception as err:
+                self.dp.qprint("Error deleting pvc/job:", err)
 
         d_serviceState      = None
         d_jobState          = None
@@ -1871,6 +1875,10 @@ class Listener(threading.Thread):
             self.auid           = d_meta['auid']
             str_cmd             = d_meta['cmd']
 
+            str_arr = str_cmd.split()
+            incoming_dir = str_arr[len(str_arr)-2]
+            outgoing_dir = str_arr[len(str_arr)-1]
+
             if 'number_of_workers' in d_meta:
                 number_of_workers = d_meta['number_of_workers']
             else:
@@ -1925,9 +1933,17 @@ class Listener(threading.Thread):
                 for str_meta in ['execshell', 'selfexec', 'selfpath']:
                     str_cmd = str_cmd.replace("$"+str_meta, d_cmdparse[str_meta])
 
+            # Create the Persistent Volume Claim
+            self.dp.qprint("Create PVC")
+            try:
+                self.get_openshift_manager().create_pvc(self.jid)
+            except Exception as err:
+                self.dp.qprint("Failed to create PVC:", err)
+
             str_cmdLine = str_cmd
             self.get_openshift_manager().schedule(str_targetImage, str_cmdLine, self.jid,
-                                                  number_of_workers, cpu_limit, memory_limit, gpu_limit)
+                                                  number_of_workers, cpu_limit, memory_limit, gpu_limit,
+                                                  incoming_dir, outgoing_dir)
 
             # Call the "parent" method -- reset the cmdLine to an "echo"
             # and create an stree off the 'container' dictionary to store

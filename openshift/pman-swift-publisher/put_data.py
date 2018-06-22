@@ -32,11 +32,11 @@ class SwiftStore():
         for k, v in kwargs.items():
             if k == 'path':
                 key = v
-        # The plugin container is hardcoded to output data to /share/outgoing after processing.
-        # TODO:@ravig. Remove this hardcoding.
-        fileName = '/share/outgoing'
+            if k == 'out_dir':
+                outgoing_dir = v
+
         # TODO: @ravig. The /tmp should be large enough to hold everything.
-        shutil.make_archive('/tmp/ziparchive', 'zip', fileName)
+        shutil.make_archive('/tmp/ziparchive', 'zip', outgoing_dir)
         try:
             with open('/tmp/ziparchive.zip','rb') as f:
                 #TODO: @ravig - Change this so that this is scalable.
@@ -61,4 +61,4 @@ class SwiftStore():
 
 def put_data_back():
     swiftStore = SwiftStore()
-    swiftStore.storeData(path=os.environ.get('SWIFT_KEY'))
+    swiftStore.storeData(path=os.environ.get('SWIFT_KEY'), out_dir=os.environ.get('OUTGOING_DIR'))
