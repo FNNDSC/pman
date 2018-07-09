@@ -32,6 +32,7 @@ ENV UID=$UID
 
 COPY . /tmp/pman
 COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
+COPY pman/pman_config.cfg /etc/pman/auth/
 
 RUN pip install --upgrade pip                                         \                                         
   && apt-get update                                                   \
