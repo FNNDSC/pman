@@ -1902,37 +1902,7 @@ class Listener(threading.Thread):
                 d_target                    = d_container['target']
                 str_targetImage             = d_target['image']
 
-            #
-            # If 'container/cmdParse', get a JSON representation of the image and
-            # parse the cmd for substitutions -- this replaces any of
-            # $exeshell, $selfpath, and/or $selfexec with the values provided
-            # in the JSON representation.
-            #
-            if d_target['cmdParse'] and False:
-                str_pythonMain = 'python %s.py' % str_targetImage.split('/')[1][3:] # The assumption is all plugins are written in python.
-                str_runArgs = '%s --json' % (str_pythonMain)
-                cmdparse_pod_name = self.jid + '-cmdparse'
-                self.get_openshift_manager().create_pod(str_targetImage, cmdparse_pod_name, str_runArgs.split(' '))
-                log = None
-                try:
-                    count = 0
-                    while count < 10:
-                        try:
-                            pod = self.get_openshift_manager().get_pod_status(cmdparse_pod_name)
-                            if pod.status.container_statuses[0].state.terminated.exit_code == 0:
-                                log = self.get_openshift_manager().get_pod_log(cmdparse_pod_name)
-                                break
-                        except Exception as e:
-                            str_e   = '%s' % e
-                        count += 1
-                        time.sleep(1)
-                finally:
-                    self.get_openshift_manager().remove_pod(cmdparse_pod_name)
-
-                d_cmdparse = ast.literal_eval(log)
-                for str_meta in ['execshell', 'selfexec', 'selfpath']:
-                    str_cmd = str_cmd.replace("$"+str_meta, d_cmdparse[str_meta])
-
+       
             # Create the Persistent Volume Claim
             self.dp.qprint("Create PVC")
             try:
