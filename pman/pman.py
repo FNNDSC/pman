@@ -27,9 +27,18 @@ import  uuid
 import  pfmisc
 
 # pman local dependencies
-from    .openshiftmgr   import *
-from    .crunner        import *
-from    .Auth           import Auth
+try:
+    from    .openshiftmgr   import *
+except:
+    from    openshiftmgr    import *
+try:
+    from    .crunner        import *
+except:
+    from    crunner         import *
+try:
+    from    .Auth           import Auth
+except:
+    from    Auth            import Auth
 
 from pfmisc.C_snode         import  *
 from pfmisc._colors         import  Colors
@@ -540,7 +549,7 @@ class Listener(threading.Thread):
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
         self.pp                 = pprint.PrettyPrinter(indent=4)
-        
+
         for key,val in kwargs.items():
             if key == 'context':        self.zmq_context    = val
             if key == 'listenerSleep':  self.listenerSleep  = float(val)
