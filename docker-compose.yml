@@ -30,6 +30,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./FS/remote:/hostFS/storeBase
       - ./pman/pman.py:/usr/local/lib/python3.5/dist-packages/pman/pman.py
+      - ./pman/Auth.py:/usr/local/lib/python3.5/dist-packages/pman/Auth.py
       - /tmp:/tmp
     ports:
       - "5010:5010"
