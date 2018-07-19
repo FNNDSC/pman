@@ -36,13 +36,11 @@ class SwiftStore():
                 outgoing_dir = v
 
         # TODO: @ravig. The /tmp should be large enough to hold everything.
-        shutil.make_archive('/tmp/ziparchive', 'zip', outgoing_dir)
+        shutil.make_archive('/tmp/outgoingData', 'zip', outgoing_dir)
         try:
-            with open('/tmp/ziparchive.zip','rb') as f:
-                #TODO: @ravig - Change this so that this is scalable.
-                zippedFileContent = f.read()
-        finally:
-            os.remove('/tmp/ziparchive.zip')
+            f = open("/tmp/outgoingData.zip", "r")
+        except Exception as err:
+            print(err)
 
         swiftHandler = SwiftHandler()
         self.swiftConnection = swiftHandler._initiateSwiftConnection()
@@ -50,13 +48,14 @@ class SwiftStore():
         try:
             containerName = key
             key = os.path.join('output','data') 
-            self._putObject(containerName, key, zippedFileContent)
+            self._putObject(containerName, key, f)
         except Exception as err:
             print(err)
         
         finally:    
             #Delete temporary empty directory created by Swift
             swiftHandler._deleteEmptyDirectory(key)
+            os.remove('/tmp/outgoingData.zip')
 
 
 def put_data_back():
