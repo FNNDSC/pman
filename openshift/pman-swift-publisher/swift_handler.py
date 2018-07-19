@@ -7,63 +7,36 @@ import os
 import configparser
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
-from swiftclient import client as swift_client
+from swiftclient import service as swift_service
 
-class SwiftHandler():
+def _createSwiftService(configPath):
+    config = configparser.ConfigParser()
+    try:
+        f = open(configPath, 'r')
+        config.readfp(f)
+    finally:
+        f.close()
 
-    def _getScopedSession(self, osAuthUrl, username, password, osProjectDomain, osProjectName):
-        """
-        Uses keystone authentication to create and return a scoped session
-        """
+    options = {
+        'auth_version':         3,
+        'os_auth_url':          config['AUTHORIZATION']['osAuthUrl'],
+        'os_username':          config['AUTHORIZATION']['username'],
+        'os_password':          config['AUTHORIZATION']['password'],
+        'os_project_domain_name':    config['PROJECT']['osProjectDomain'],
+        'os_project_name':      config['PROJECT']['osProjectName']
+    }
 
-        passwordAuth = v3.Password(auth_url=osAuthUrl,
-                            user_domain_name='default',
-                            username=username, password=password,
-                            project_domain_name=osProjectDomain,
-                            project_name=osProjectName,
-                            unscoped=False)
+    service = swift_service.SwiftService(options)
+    return service
 
-        scopedSession = session.Session(auth= passwordAuth)
-        return scopedSession
+def _deleteEmptyDirectory(self, key):
+    """
+    Deletes the empty directory created by Swift in the parent directory
+    """
 
-
-    def _initiateSwiftConnection(self, **kwargs):
-        """
-        Initiates a Swift connection and returns a Swift connection object
-        Swift credentials should be stored as a cfg file at /etc 
-        """
-        
-        for k,v in kwargs:
-            if k == 'configPath': configPath= v
-
-        configPath = '/etc/swift/swift-credentials.cfg'
-
-        config = configparser.ConfigParser()
-        try:
-            f = open(configPath, 'r')
-            config.readfp(f)
-        finally:
-            f.close()
-        
-        osAuthUrl              = config['AUTHORIZATION']['osAuthUrl']
-        username               = config['AUTHORIZATION']['username']
-        password               = config['AUTHORIZATION']['password']
-        osProjectDomain        = config['PROJECT']['osProjectDomain']
-        osProjectName          = config['PROJECT']['osProjectName']
-        
-        scopedSession = self._getScopedSession(osAuthUrl, username, password, osProjectDomain, osProjectName)
-        swiftConnection = swift_client.Connection(session=scopedSession)
-        return swiftConnection
-
-
-    def _deleteEmptyDirectory(self, key):
-        """
-        Deletes the empty directory created by Swift in the parent directory
-        """
-
-        directoryPath = os.path.join(os.path.dirname(__file__), '../%s'%key)
-        try:
-            os.rmdir(directoryPath)
-            print("Temporary directory %s deleted"%key)
-        except:
-            print("No temporary directory found")
+    directoryPath = os.path.join(os.path.dirname(__file__), '../%s'%key)
+    try:
+        os.rmdir(directoryPath)
+        print("Temporary directory %s deleted"%key)
+    except:
+        print("No temporary directory found")
