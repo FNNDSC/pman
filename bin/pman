@@ -15,7 +15,7 @@ from    distutils.sysconfig import get_python_lib
 from    argparse            import RawTextHelpFormatter
 from    argparse            import ArgumentParser
 import  socket
-# import  pman
+import  pman
 import  threading
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../pman'))
@@ -155,6 +155,20 @@ parser.add_argument(
     action  = 'store',
     default = 'swarm'
 )
+parser.add_argument(
+    '--enableTokenAuth',
+    action  = 'store_true',
+    help    = 'Enables token based authorization and can be configured to look for a .ini file or an openshift secret',
+    dest    = 'b_tokenAuth',
+    default = False
+)
+parser.add_argument(
+    '--tokenPath',
+    action  = 'store',
+    help    = 'Specify the absolute path to the token in the file system.\nBy default, this looks for the pmanConfig.ini file in the current working directory',
+    dest    = 'str_tokenPath',
+    default = ''
+)
 
 args = parser.parse_args()
 
@@ -179,7 +193,9 @@ comm = pman.pman(
     containerEnv    = args.containerEnv,
     desc            = str_desc,
     name            = str_name,
-    version         = str_version
+    version         = str_version,
+    b_tokenAuth     = args.b_tokenAuth,
+    str_tokenPath   = args.str_tokenPath
 )
 
 # This starts the main thread and "detaches" execution from the main
