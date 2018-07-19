@@ -7,71 +7,71 @@ import os
 import zipfile
 import time
 import fasteners
+import pprint
 from io import BytesIO
-from swift_handler import SwiftHandler
+import swift_handler
+
+pp = pprint.PrettyPrinter(indent=4)
 
 
-class SwiftStore():
+def getData(**kwargs):
+    """
+    Gets the data from the Swift storage, zips and/or encodes it and sends it to the client
+    """
 
-    swiftConnection = None
+    b_delete = False
+    configPath = "/etc/swift/swift-credentials.cfg"
 
+    for k,v in kwargs.items():
+        if k == 'containerName':
+            containerName = v
+        if k == 'in_dir':
+            incoming_dir = v
+        if k == 'out_dir':
+            outgoing_dir = v
+        if k == 'delete':
+            b_delete = v
+        if k == 'config_path':
+            configPath = v
 
-    def _getObject(self, key, b_delete):
-        """
-        Returns an object associated with the specified key in the specified container
-        Deletes the object after returning if specified
-        """
+    swiftService = swift_handler._createSwiftService(configPath)
 
-        try:
-            containerName = key
-            key = os.path.join('input','data')
-            swiftDataObject = self.swiftConnection.get_object(containerName, key)
-            if b_delete:
-                self.swiftConnection.delete_object(containerName, key)
-                self.qrint('Deleted object with key %s' %key)
+    key = "input/data"
+    success = True
 
-        except Exception as exp:
-            print(exp)
+    if not os.path.exists('/local'):
+        os.mkdir('/local')
+    downloadResultsGenerator = swiftService.download(containerName, [key], {'out_file': '/local/incomingData.zip'})
+    for res in downloadResultsGenerator:
+        print("Download results generated")
+        if not res['success']:
+            success = False
+        pp.pprint(res)
+    if success:
+        print("Download successful")
+        if b_delete:
+            for res in swiftService.delete(containerName, [key]):
+                print("Delete results generated")
+                if not res['success']:
+                    success = False
+                pp.pprint(res)
+            if success:
+                print('Deleted object with key %s' %key)
+        else:
+            print("Deletion unsuccessful")
+    else:
+        print("Download unsuccessful")
 
-        return swiftDataObject
-
-
-    def getData(self, **kwargs):
-        """
-        Gets the data from the Swift storage, zips and/or encodes it and sends it to the client
-        """
-
-        for k,v in kwargs.items():
-            if k == 'path':
-                key = v
-            if k == 'in_dir':
-                incoming_dir = v
-            if k == 'out_dir':
-                outgoing_dir = v
-
-        try:
-            swiftHandler = SwiftHandler()
-            self.swiftConnection = swiftHandler._initiateSwiftConnection()
-            dataObject = self._getObject(key, False)
-        except Exception as err:
-            print(err)
-            
-        objectInformation= dataObject[0]
-        objectValue= dataObject[1]
-        fileContent= objectValue
-
-        fileBytes  = BytesIO(fileContent)
-
-        zipfileObj = zipfile.ZipFile(fileBytes, 'r', compression = zipfile.ZIP_DEFLATED)
-        # We are extracting to the file to incoming_dir in container
-        zipfileObj.extractall(incoming_dir)
-        # Create outgoing_dir directory as the plugin container will output data there after processing.
-        if not os.path.exists(outgoing_dir):
-            os.makedirs(outgoing_dir)
+    
+    zipfileObj = zipfile.ZipFile('/local/incomingData.zip', 'r', compression = zipfile.ZIP_DEFLATED)
+    # We are extracting to the file to incoming_dir in container
+    zipfileObj.extractall(incoming_dir)
+    # Create outgoing_dir directory as the plugin container will output data there after processing.
+    if not os.path.exists(outgoing_dir):
+        os.makedirs(outgoing_dir)
 
 if __name__ == "__main__":
     incoming_dir = os.environ.get("INCOMING_DIR")
-    obj = SwiftStore()
     # The init-storage container in all the pods should acquire the lock
     with fasteners.InterProcessLock("/share/.lockfile"):
         # If "/share/.download-failed" exists, exit with an error code immediately
@@ -87,7 +87,7 @@ if __name__ == "__main__":
         if not os.path.exists('/share/.download-succeeded'):
             try:
                 print("Lock acquired. Downloading data from Swift...")
-                obj.getData(path=os.environ.get('SWIFT_KEY'), in_dir=incoming_dir, out_dir=os.environ.get('OUTGOING_DIR'))
+                getData(containerName=os.environ.get('SWIFT_KEY'), in_dir=incoming_dir, out_dir=os.environ.get('OUTGOING_DIR'))
                 os.mknod('/local/.download-pod')
             except Exception as err:
                 print("Failed to download the data:", err)

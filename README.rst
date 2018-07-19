@@ -1,5 +1,5 @@
 #################
-pman - v2.0.0.6
+pman - v2.0.0.8
 #################
 
 .. image:: https://badge.fury.io/py/pman.svg
@@ -22,13 +22,17 @@ This repository proves ``pman`` -- a process manager.
 pman
 ====
 
-Most simply, ``pman`` manages processes, i.e. programs or applications that are run by an underlying system. Typically, these processes are command line applications (i.e. have no GUI) and usually do not interact really with a user at all. The primary purpose of ``pman`` is to provide other software agents the ability to execute processes via ``http``. In addition, ``pman`` keeps a record of the current and historical state of processes that it has executed and is thus able to respond to queries about the processes. Some of the queries that ``pman`` can address are
+Most simply, ``pman`` manages processes, i.e. programs or applications that are run by an underlying system. Typically, these processes are command line applications (i.e. have no GUI) and usually do not interact really with a user at all. The primary purpose of ``pman`` is to provide other software agents the ability to execute processes via ``http``.
+
+Originally, ``pman`` was designed to track simple processes executed on the local system. In addition, ``pman`` keeps a record of the current and historical state of processes that it has executed and is thus able to respond to queries about the processes. Some of the queries that ``pman`` can address are
 
 - *state*: Is job <XYZ> still running?
 - *result*: What is the stdout (or stderr) from job <XYZ>?
 - *control*: Kill job <XYZ>
 
 ``pman`` also maintains a persistent human-readable/friendly database-in-the-filesystem of jobs and states of jobs.
+
+Current versions of ``pman`` however can use container-based backends (swarm and openshift) to execute processes. In those cases, the internal database of tracking jobs becomes superfluous. Future versions of ``pman`` might depreciate the local/internal DB tracking.
 
 
 ************
@@ -151,6 +155,14 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
 
         [--DBsavePeriod <time>]
         The periodicity in seconds for the internal DB save.
+
+        [--enableTokenAuth]
+        Enables token based authorization and can be configured to look for a .ini
+        file or an openshift secret.
+
+        [--tokenPath <tokenPath>]
+        Specify the absolute path to the token in the file system.
+        By default, this looks for the pfiohConfig.ini file in the current working directory.
 
         [-x|--desc]                                     
         Provide an overview help page.
