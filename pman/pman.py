@@ -29,10 +29,16 @@ import  pfmisc
 # pman local dependencies
 try:
     from    .openshiftmgr   import *
-    from    .crunner        import *
 except:
     from    openshiftmgr    import *
+try:
+    from    .crunner        import *
+except:
     from    crunner         import *
+try:
+    from    .Auth           import Auth
+except:
+    from    Auth            import Auth
 
 from pfmisc.C_snode         import  *
 from pfmisc._colors         import  Colors
@@ -147,6 +153,10 @@ class pman(object):
         self.b_debugToFile      = True
         self.pp                 = pprint.PrettyPrinter(indent=4)
 
+        # Authentication parameters
+        self.b_tokenAuth        = False
+        self.authModule         = None
+
         for key,val in kwargs.items():
             if key == 'protocol':       self.str_protocol   = val
             if key == 'IP':             self.str_IP         = val
@@ -165,6 +175,11 @@ class pman(object):
             if key == 'name':           self.str_name       = val
             if key == 'version':        self.str_version    = val
             if key == 'containerEnv':   self.container_env  = val.lower()
+            if key == 'b_tokenAuth':
+                self.b_tokenAuth    = True
+            if key == 'str_tokenPath':
+                if self.b_tokenAuth:
+                    self.authModule = Auth('socket', val)
         # pudb.set_trace()
 
         # Screen formatting
@@ -180,7 +195,6 @@ class pman(object):
         if self.b_clearDB and os.path.isdir(self.str_DBpath):
             shutil.rmtree(self.str_DBpath)
 
-        print(self.str_desc)
 
         # pudb.set_trace()
 
@@ -320,7 +334,7 @@ class pman(object):
         Serve the 'start' method in a thread.
         :return:
         """
-        self.threaded_server  = StoppableThread(target=self.start)
+        self.threaded_server = StoppableThread(target=self.start)
         self.threaded_server.start()
 
         while not self.threaded_server.stopped():
@@ -371,7 +385,6 @@ class pman(object):
                     queries the system process table, tracking if jobs
                     are still running.
         """
-
         self.dp.qprint('Starting %d Listener threads' % self.listeners)
 
         # Front facing socket to accept client connections.
@@ -396,6 +409,7 @@ class pman(object):
                                         debugToFile = self.b_debugToFile)
         self.fileIO.start()
 
+
         # Start the 'listener' workers... keep track of each
         # listener instance so that we can selectively stop
         # them later.
@@ -410,7 +424,9 @@ class pman(object):
                                     within          = self,
                                     listenerSleep   = self.listenerSleep,
                                     debugToFile     = self.b_debugToFile,
-                                    debugFile       = self.str_debugFile))
+                                    debugFile       = self.str_debugFile,
+                                    b_tokenAuth     = self.b_tokenAuth,
+                                    authModule      = self.authModule))
             self.l_listener[i].start()
 
         # Use built in queue device to distribute requests among workers.
@@ -545,6 +561,8 @@ class Listener(threading.Thread):
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
             if key == 'containerEnv':   self.container_env  = val
+            if key == 'b_tokenAuth':    self.b_tokenAuth    = val
+            if key == 'authModule':     self.authModule     = val
 
         self.dp                 = pfmisc.debug(
                                         verbosity   = 0,
@@ -2029,9 +2047,7 @@ class Listener(threading.Thread):
         REST-like API of its own.
 
         """
-
         if len(request):
-
             REST_header     = ""
             REST_verb       = ""
             str_path        = ""
@@ -2070,33 +2086,37 @@ class Listener(threading.Thread):
                                        'path': str_path,
                                        'receivedByServer': l_raw}
 
-            if REST_verb == 'GET':
-                d_ret['GET']    = self.DB_get(path = str_path)
-                d_ret['status'] = True
-            self.dp.qprint('json_payload = %s' % self.pp.pformat(json_payload).strip())
-            d_ret['client_json_payload']    = json_payload
-            d_ret['client_json_len']        = len(json_payload)
-            if len(json_payload):
-                d_payload           = json.loads(json_payload)
-                d_request           = d_payload['payload']
-                payload_verb        = d_request['action']
-                if 'meta' in d_request.keys():
-                    d_meta          = d_request['meta']
-                d_ret['payloadsize']= len(json_payload)
-
-                if payload_verb == 'quit':
-                    self.dp.qprint('Shutting down server...')
+            self.dp.qprint("Using token authentication: %s" % self.b_tokenAuth)
+            if (not self.b_tokenAuth) or self.authModule.authorizeClientRequest(request.decode())[0]:
+                self.dp.qprint("Request authorized")
+                if REST_verb == 'GET':
+                    d_ret['GET']    = self.DB_get(path = str_path)
                     d_ret['status'] = True
+                self.dp.qprint('json_payload = %s' % self.pp.pformat(json_payload).strip())
+                d_ret['client_json_payload']    = json_payload
+                d_ret['client_json_len']        = len(json_payload)
+                if len(json_payload):
+                    d_payload           = json.loads(json_payload)
+                    d_request           = d_payload['payload']
+                    payload_verb        = d_request['action']
+                    if 'meta' in d_request.keys():
+                        d_meta          = d_request['meta']
+                    d_ret['payloadsize']= len(json_payload)
 
-                if payload_verb == 'run' and REST_verb == 'PUT':
-                    d_ret['action']     = payload_verb
-                    self.processPUT(    request     = d_request)
-                    d_ret['status'] = True
+                    if payload_verb == 'quit':
+                        self.dp.qprint('Shutting down server...')
+                        d_ret['status'] = True
 
-                if REST_verb == 'POST':
-                    self.processPOST(   request = d_request,
-                                        ret     = d_ret)
+                    if payload_verb == 'run' and REST_verb == 'PUT':
+                        d_ret['action']     = payload_verb
+                        self.processPUT(    request     = d_request)
+                        d_ret['status'] = True
 
+                    if REST_verb == 'POST':
+                        self.processPOST(   request = d_request,
+                                            ret     = d_ret)
+            else:
+                self.dp.qprint("Request unauthorized")
             return d_ret
         else:
             return False

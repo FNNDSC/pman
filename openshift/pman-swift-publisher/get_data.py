@@ -7,34 +7,39 @@ import os
 import zipfile
 import time
 import fasteners
+import pprint
 from io import BytesIO
 from swift_handler import SwiftHandler
 
+pp = pprint.PrettyPrinter(indent=4)
 
 class SwiftStore():
 
     swiftConnection = None
 
 
-    def _getObject(self, key, b_delete):
+    def _downloadObject(self, key, b_delete):
         """
-        Returns an object associated with the specified key in the specified container
+        Downloads the specified key in the specified container
         Deletes the object after returning if specified
         """
 
         try:
             containerName = key
             key = os.path.join('input','data')
-            swiftDataObject = self.swiftConnection.get_object(containerName, key)
+            downloadResultsGenerator = self.swiftConnection.download(containerName, [key], {'out_file': '/tmp/incomingData.zip'})
             if b_delete:
                 self.swiftConnection.delete_object(containerName, key)
-                self.qrint('Deleted object with key %s' %key)
+                print('Deleted object with key %s' %key)
+            downloadResults = next(downloadResultsGenerator)
+            if downloadResults["success"]:
+                print("Download successful")
+            else:
+                print("Download unsuccessful")
+                pp.pprint(downloadResults)
 
         except Exception as exp:
             print(exp)
-
-        return swiftDataObject
-
 
     def getData(self, **kwargs):
         """
@@ -52,17 +57,11 @@ class SwiftStore():
         try:
             swiftHandler = SwiftHandler()
             self.swiftConnection = swiftHandler._initiateSwiftConnection()
-            dataObject = self._getObject(key, False)
+            self._downloadObject(key, False)
         except Exception as err:
             print(err)
-            
-        objectInformation= dataObject[0]
-        objectValue= dataObject[1]
-        fileContent= objectValue
 
-        fileBytes  = BytesIO(fileContent)
-
-        zipfileObj = zipfile.ZipFile(fileBytes, 'r', compression = zipfile.ZIP_DEFLATED)
+        zipfileObj = zipfile.ZipFile('/tmp/incomingData.zip', 'r', compression = zipfile.ZIP_DEFLATED)
         # We are extracting to the file to incoming_dir in container
         zipfileObj.extractall(incoming_dir)
         # Create outgoing_dir directory as the plugin container will output data there after processing.
