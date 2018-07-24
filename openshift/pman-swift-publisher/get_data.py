@@ -88,6 +88,7 @@ if __name__ == "__main__":
             try:
                 print("Lock acquired. Downloading data from Swift...")
                 obj.getData(path=os.environ.get('SWIFT_KEY'), in_dir=incoming_dir, out_dir=os.environ.get('OUTGOING_DIR'))
+                os.mknod('/local/.download-pod')
             except Exception as err:
                 print("Failed to download the data:", err)
                 # Create a failed file, if download failed to complete
