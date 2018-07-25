@@ -23,6 +23,6 @@ RUN apt-get update \
 
 ARG APPROOT="/usr/src/pman-swift-publisher"  
 ARG VERSION="0.1"
-COPY ["get_data.py", "put_data.py", "swift_handler.py", "watch.py", "${APPROOT}/"]
+COPY ["get_data.py", "put_data.py", "swift_handler.py", "${APPROOT}/"]
 
 WORKDIR $APPROOT
