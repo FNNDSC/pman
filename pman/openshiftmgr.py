@@ -332,13 +332,14 @@ spec:
                 state = 'inactive'
 
         return {'Status': {'Message': message,
-                                'State': state,
-                                'Reason': reason,
-                                'Active': job.status.active,
-                                'Failed': job.status.failed,
-                                'Succeeded': job.status.succeeded,
-                                'StartTime': str(job.status.start_time),
-                                'CompletionTime': str(job.status.completion_time)}}
+                                    'State': state,
+                                    'Reason': reason,
+                                    'Active': job.status.active,
+                                    'Failed': job.status.failed,
+                                    'Succeeded': job.status.succeeded,
+                                    'StartTime': str(job.status.start_time),
+                                    'CompletionTime': str(job.status.completion_time)}}
+   
 
     def get_job_pod_logs(self, pod_name):
         """
