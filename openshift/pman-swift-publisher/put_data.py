@@ -112,7 +112,7 @@ def watch_containers():
                         elif status['state']['terminated']['reason'] == 'Completed':
                             completed_image_plugins += 1
                             if completed_image_plugins == requested_image_plugins:
-                                print('All image processing conmtainers are done!')
+                                print('All image processing containers are done!')
                                 w.stop()
                                 return True
 

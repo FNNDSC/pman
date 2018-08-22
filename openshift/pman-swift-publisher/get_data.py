@@ -1,6 +1,6 @@
 """
 Pulls the data from Swift and places it into the empty directory
-SWIFT_KEY enviornment variable to be passed by the template
+SWIFT_KEY environment variable to be passed by the template
 """
 
 import os
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         # If there is some data in incoming_dir but "/share/.download-succeeded" doesn't exist, it is a failure case
         # Exit with error code immediately
         if os.path.exists(incoming_dir) and len(os.listdir(incoming_dir)) > 0 and not os.path.exists('/share/.download-succeeded'):
-            print("Some data was downloaded, but '/share/.download-succeeded' file doen't exist. Exiting with failure...")
+            print("Some data was downloaded, but '/share/.download-succeeded' file doesn't exist. Exiting with failure...")
             exit(1)
         # Download the data if "/share/.download-succeeded" does not exist
         if not os.path.exists('/share/.download-succeeded'):
