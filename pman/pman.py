@@ -1723,8 +1723,7 @@ class Listener(threading.Thread):
                 "threaded": true,
                 "container":   {
                         "target": {
-                            "image":        "fnndsc/pl-simpledsapp",
-                            "cmdParse":     true
+                            "image":        "fnndsc/pl-simpledsapp"
                         },
                         "manager": {
                             "image":        "fnndsc/swarm",
@@ -1797,33 +1796,6 @@ class Listener(threading.Thread):
 
             # First, attach to the docker daemon...
             client = docker.from_env()
-
-            #
-            # If 'container/cmdParse', get a JSON representation of the image and
-            # parse the cmd for substitutions -- this replaces any of
-            # $exeshell, $selfpath, and/or $selfexec with the values provided
-            # in the JSON representation.
-            #
-            # pudb.set_trace()
-            if d_target['cmdParse'] and False:
-                if  'selfexec'  in d_target.keys() and \
-                    'selfpath'  in d_target.keys() and \
-                    'execshell' in d_target.keys():
-                    for str_meta in ['execshell', 'selfexec', 'selfpath']:
-                        str_cmd = str_cmd.replace("$"+str_meta, d_target[str_meta])
-                else:
-                    # This is a bit of a hack and added for legacy compatibility
-                    # with ChRIS plugins that honor the '--json' flag
-                    # NB: There are some implicit assumptions here:
-                    #   * plugin image name is of form '<dockerorg>/pl-<name>'
-                    #   * <name>.py corresponds to the python entry point in the 
-                    #     container.
-                    str_pythonMain  = '%s.py' % str_targetImage.split('/')[1][3:]
-                    str_runArgs     = '%s --json' % (str_pythonMain)
-                    byte_str    = client.containers.run(str_targetImage, str_runArgs)
-                    d_jsonRep   = json.loads(byte_str.decode())
-                    for str_meta in ['execshell', 'selfexec', 'selfpath']:
-                        str_cmd = str_cmd.replace("$"+str_meta, d_jsonRep[str_meta])
 
             str_cmdLine     = str_cmd
             str_cmdManager  = '%s -s %s -m %s -i %s -p none -c "%s"' % \
