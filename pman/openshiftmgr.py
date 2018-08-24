@@ -49,6 +49,9 @@ class OpenShiftManager(object):
                 "activeDeadlineSeconds": 3600,
                 "template": {
                     "metadata": {
+                         "labels":{
+                            "job-origin":"pman"
+                        },
                         "name": name
                     },
                     "spec": {
