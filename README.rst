@@ -109,7 +109,7 @@ Usage
 
 For ``pman`` detailed information, see the `pman wiki page <https://github.com/FNNDSC/pman/wiki/pman-overview>`_.
 
-.. code-block: html
+.. code-block:: html
 
     ARGS
 
