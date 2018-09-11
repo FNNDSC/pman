@@ -1,5 +1,5 @@
 #################
-pman - v2.0.0.0
+pman - v2.0.0.4
 #################
 
 .. image:: https://badge.fury.io/py/pman.svg
@@ -77,37 +77,6 @@ To deactivate virtual env:
 .. code-block:: bash
 
     deactivate
-
-Using the ``fnndsc/ubuntu-python3`` dock
-========================================
-
-We provide a slim docker image with python3 based off Ubuntu. If you want to play inside this dock and install ``pman`` manually, do
-
-.. code-block:: bash
-
-    docker pull fnndsc/ubuntu-python3
-
-This docker has an entry point ``python3``. To enter the dock at a different entry and install your own stuff:
-
-.. code-block:: bash
-
-   docker run -ti --rm --entrypoint /bin/bash fnndsc/ubuntu-python3
-   
-Now, install ``pman`` and friends using ``pip``
-
-.. code-block:: bash
-
-   apt update && \
-   apt install -y libssl-dev libcurl4-openssl-dev librtmp-dev && \
-   pip install pman
-   
-**If you do the above, remember to** ``commit`` **your changes to the docker image otherwise they'll be lost when you remove the dock instance!**
-
-.. code-block:: bash
-
-  docker commit <container-ID> local/ubuntu-python3-pman
-  
- where ``<container-ID>`` is the ID of the above container.
   
 
 Using the ``fnndsc/pman`` dock
@@ -123,7 +92,13 @@ and then run
 
 .. code-block:: bash
 
-    docker run --name pman -v /home:/Users --rm -ti fnndsc/pman --rawmode 1 --http --port 5010 --listeners 12
+    docker run  --name pman         \
+                -v /home:/Users     \
+                --rm -ti            \
+                fnndsc/pman         \
+                --rawmode 1 --http  \
+                --port 5010         \
+                --listeners 12
 
 *****
 Usage
@@ -134,3 +109,72 @@ Usage
 
 For ``pman`` detailed information, see the `pman wiki page <https://github.com/FNNDSC/pman/wiki/pman-overview>`_.
 
+.. code-block:: html
+
+    ARGS
+
+        [--ip <IP>]                            
+
+        The IP interface on which to listen.
+
+        [--port <port>]
+        The port on which to listen. Defaults to '5010'.
+
+        [--protocol <protcol>]
+        The protocol to interpret. Defaults to 'tcp'.
+
+        [--rawmode]
+        Internal zmq socket server mode. A value of '1' is usually used
+        here.
+
+        [--listeners <numberOfListenerThreads>]
+        The number of internal threads to which requests are dispatched.
+
+        [--http]
+        Send return strings as HTTP formatted replies with content-type html.
+
+        [--debugToFile]
+        If specified, send debugging results to file.
+
+        [--debugToFile <file>]
+        In conjunction with --debugToFile, file which will receive debugging info.
+
+        [--listenerSleep <time>]
+        A small delay in the listener loop to prevent busy-wait.
+        Default is 0.1 seconds.
+
+        [--DBsavePeriod <time>]
+        The periodicity in seconds for the internal DB save.
+
+        [-x|--desc]                                     
+        Provide an overview help page.
+
+        [-y|--synopsis]
+        Provide a synopsis help summary.
+
+        [--version]
+        Print internal version number and exit.
+
+        [-v|--verbosity <level>]
+        Set the verbosity level. "0" typically means no/minimal output. Allows for
+        more fine tuned output control as opposed to '--quiet' that effectively
+        silences everything.
+
+        --container-env <env>
+        The container env within which to run.
+
+********    
+EXAMPLES
+********
+
+Start ``pman`` with 12 listeners:
+
+.. code-block:: bash
+
+        pman                                                        \\
+                --ip 127.0.0.1                                      \\
+                --port 5010                                         \\
+                --rawmode 1                                         \\
+                --http                                              \\
+                --listeners 12                                      \\
+                --verbosity 1

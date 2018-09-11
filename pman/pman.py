@@ -91,11 +91,16 @@ class pman(object):
     """
     __metaclass__   = abc.ABCMeta
 
-    def col2_print(self, str_left, str_right):
+    def col2_print(self, str_left, str_right, level = 1):
         self.dp.qprint(Colors.WHITE +
-              ('%*s' % (self.LC, str_left)), end='')
-        self.dp.qprint(Colors.LIGHT_BLUE +
-              ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR)
+              ('%*s' % (self.LC, str_left)), 
+              end       = '', 
+              level     = level,
+              syslog    = False)
+        self.dp.qprint(Colors.CYAN +
+              ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR, 
+              level     = level,
+              syslog    = False)
 
     def __init__(self, **kwargs):
         """
@@ -146,6 +151,7 @@ class pman(object):
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
         self.pp                 = pprint.PrettyPrinter(indent=4)
+        self.verbosity          = 0
 
         for key,val in kwargs.items():
             if key == 'protocol':       self.str_protocol   = val
@@ -165,14 +171,14 @@ class pman(object):
             if key == 'name':           self.str_name       = val
             if key == 'version':        self.str_version    = val
             if key == 'containerEnv':   self.container_env  = val.lower()
+            if key == 'verbosity':      self.verbosity      = int(val)
         # pudb.set_trace()
 
         # Screen formatting
         self.LC                 = 30
-        self.RC                 = 50
+        self.RC                 = 40
         self.dp                 = pfmisc.debug(    
-                                            verbosity   = 0,
-                                            level       = -1,
+                                            verbosity   = self.verbosity,
                                             debugFile   = self.str_debugFile,
                                             debugToFile = self.b_debugToFile,
                                             within      = self.__name__)
@@ -180,7 +186,7 @@ class pman(object):
         if self.b_clearDB and os.path.isdir(self.str_DBpath):
             shutil.rmtree(self.str_DBpath)
 
-        print(self.str_desc)
+        self.dp.qprint(self.str_desc, level = 1)
 
         # pudb.set_trace()
 
@@ -393,6 +399,7 @@ class pman(object):
                                         timeout     = self.DBsavePeriod,
                                         within      = self,
                                         debugFile   = self.str_debugFile,
+                                        verbosity   = self.verbosity,
                                         debugToFile = self.b_debugToFile)
         self.fileIO.start()
 
@@ -410,6 +417,7 @@ class pman(object):
                                     within          = self,
                                     listenerSleep   = self.listenerSleep,
                                     debugToFile     = self.b_debugToFile,
+                                    verbosity       = self.verbosity,
                                     debugFile       = self.str_debugFile))
             self.l_listener[i].start()
 
@@ -465,6 +473,7 @@ class FileIO(threading.Thread):
         self.within             = None
 
         self.b_stopThread       = False
+        self.verbosity          = 0
 
         # Debug parameters
         self.str_debugFile      = '/dev/null'
@@ -478,10 +487,10 @@ class FileIO(threading.Thread):
             if key == 'within':         self.within         = val
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
+            if key == 'verbosity':      self.verbosity      = int(val)
 
         self.dp                 = pfmisc.debug(
-                                        verbosity   = 0,
-                                        level       = -1,
+                                        verbosity   = self.verbosity,
                                         debugFile   = self.str_debugFile,
                                         debugToFile = self.b_debugToFile,
                                         within      = self.__name)
@@ -520,6 +529,7 @@ class Listener(threading.Thread):
         self.str_jobRootDir     = ''
 
         self.listenerSleep      = 0.1
+        self.verbosity          = 0
 
         self.jid                = ''
         self.auid               = ''
@@ -545,10 +555,10 @@ class Listener(threading.Thread):
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
             if key == 'containerEnv':   self.container_env  = val
+            if key == 'verbosity':      self.verbosity      = int(val)
 
         self.dp                 = pfmisc.debug(
-                                        verbosity   = 0,
-                                        level       = -1,
+                                        verbosity   = self.verbosity,
                                         debugFile   = self.str_debugFile,
                                         debugToFile = self.b_debugToFile,
                                         within      = self.__name)
@@ -573,7 +583,7 @@ class Listener(threading.Thread):
         resultFromProcessing    = False
         request                 = ""
         client_id               = -1
-        self.dp.qprint(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id)
+        self.dp.qprint(Colors.BROWN + "Listener ID - %s: run() - Ready to serve..." % self.worker_id, level = 1)
         while not self.b_stopThread:
 
             # wait (non blocking) for input on socket
@@ -1609,6 +1619,7 @@ class Listener(threading.Thread):
         # Start the 'poller' worker
         self.poller  = Poller(cmd           = str_cmd,
                               debugToFile   = self.b_debugToFile,
+                              verbosity     = self.verbosity,
                               debugFile     = self.str_debugFile)
         self.poller.start()
 
@@ -2219,16 +2230,17 @@ class Poller(threading.Thread):
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
+        self.verbosity          = 0
 
         for key,val in kwargs.items():
             if key == 'pollTime':       self.pollTime       = val
             if key == 'cmd':            self.str_cmd        = val
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
+            if key == 'verbosity':      self.verbosity      = int(val)
 
         self.dp                 = pfmisc.debug(
-                                        verbosity   = 0,
-                                        level       = -1,
+                                        verbosity   = self.verbosity,
                                         debugFile   = self.str_debugFile,
                                         debugToFile = self.b_debugToFile,
                                         within      = self.__name__)
@@ -2246,6 +2258,7 @@ class Poller(threading.Thread):
         # Spawn the crunner object container
         self.crunner  = Crunner(cmd         = self.str_cmd,
                                 debugToFile = self.b_debugToFile,
+                                verbosity   = self.verbosity,
                                 debugFile   = self.str_debugFile)
         self.crunner.start()
 
@@ -2282,20 +2295,20 @@ class Crunner(threading.Thread):
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
+        self.verbosity          = 0
 
         for k,v in kwargs.items():
             if k == 'cmd':          self.str_cmd        = v
             if k == 'debugFile':    self.str_debugFile  = v
             if k == 'debugToFile':  self.b_debugToFile  = v
+            if k == 'verbosity':    self.verbosity      = int(v)
 
-        self.shell              = crunner(  verbosity   = 0,
-                                            level       = -1,
+        self.shell              = crunner(  verbosity   = self.verbosity,
                                             debugToFile = self.b_debugToFile,
                                             debugFile   = self.str_debugFile)
 
         self.dp                 = pfmisc.debug(    
-                                            verbosity   = 0,
-                                            level       = -1,
+                                            verbosity   = self.verbosity,
                                             debugFile   = self.str_debugFile,
                                             debugToFile = self.b_debugToFile,
                                             within      = self.__name)
