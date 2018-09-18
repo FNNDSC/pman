@@ -94,12 +94,13 @@ def synopsis(ab_shortOnly = False):
     BRIEF EXAMPLE
 
             pman                                                    \\
-                --ip %s                                     \\
                 --port 5010                                         \\
                 --rawmode 1                                         \\
                 --http                                              \\
                 --listeners 12                                      \\
-                --verbosity 1
+                --verbosity 1                                       \\
+                --ip %s
+
     ''' % str_defIP
 
     description =  '''
@@ -168,12 +169,12 @@ def synopsis(ab_shortOnly = False):
     Start ``pman`` with 12 listeners:
 
         pman                                                        \\
-                --ip %s                                     \\
                 --port 5010                                         \\
                 --rawmode 1                                         \\
                 --http                                              \\
                 --listeners 12                                      \\
-                --verbosity 1
+                --verbosity 1                                       \\
+                --ip %s  
 
     ''' % str_defIP
     if ab_shortOnly:
