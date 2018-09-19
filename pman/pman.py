@@ -28,11 +28,14 @@ import  pfmisc
 # pman local dependencies
 try:
     from    .openshiftmgr   import *
-    from    .crunner        import *
 except:
     from    openshiftmgr    import *
+try:
+    from    .crunner        import *
+except:
     from    crunner         import *
 
+from pfmisc.Auth            import Auth
 from pfmisc.C_snode         import  *
 from pfmisc._colors         import  Colors
 
@@ -153,6 +156,10 @@ class pman(object):
         self.pp                 = pprint.PrettyPrinter(indent=4)
         self.verbosity          = 0
 
+        # Authentication parameters
+        self.b_tokenAuth        = False
+        self.authModule         = None
+
         for key,val in kwargs.items():
             if key == 'protocol':       self.str_protocol   = val
             if key == 'IP':             self.str_IP         = val
@@ -172,8 +179,10 @@ class pman(object):
             if key == 'version':        self.str_version    = val
             if key == 'containerEnv':   self.container_env  = val.lower()
             if key == 'verbosity':      self.verbosity      = int(val)
-        # pudb.set_trace()
-
+            if key == 'b_tokenAuth':    self.b_tokenAuth    = val
+            if key == 'str_tokenPath':
+                if self.b_tokenAuth:
+                    self.authModule = Auth('socket', val)
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 40
@@ -187,8 +196,6 @@ class pman(object):
             shutil.rmtree(self.str_DBpath)
 
         self.dp.qprint(self.str_desc, level = 1)
-
-        # pudb.set_trace()
 
         self.col2_print('Server is listening on',
                         '%s://%s:%s' % (self.str_protocol, self.str_IP, self.str_port))
@@ -289,7 +296,6 @@ class pman(object):
         if str_cmd == 'clear':
             # This wipes the existing DB both in memory
             # and in disk storage.
-            # pudb.set_trace()
             self.dp.qprint('Clearing internal memory DB...')
             tree_DB = C_stree()
             self.dp.qprint('Removing DB from persistent storage...')
@@ -326,7 +332,7 @@ class pman(object):
         Serve the 'start' method in a thread.
         :return:
         """
-        self.threaded_server  = StoppableThread(target=self.start)
+        self.threaded_server = StoppableThread(target=self.start)
         self.threaded_server.start()
 
         while not self.threaded_server.stopped():
@@ -377,7 +383,6 @@ class pman(object):
                     queries the system process table, tracking if jobs
                     are still running.
         """
-
         self.dp.qprint('Starting %d Listener threads' % self.listeners)
 
         # Front facing socket to accept client connections.
@@ -403,6 +408,7 @@ class pman(object):
                                         debugToFile = self.b_debugToFile)
         self.fileIO.start()
 
+
         # Start the 'listener' workers... keep track of each
         # listener instance so that we can selectively stop
         # them later.
@@ -416,9 +422,11 @@ class pman(object):
                                     containerEnv    = self.container_env,
                                     within          = self,
                                     listenerSleep   = self.listenerSleep,
-                                    debugToFile     = self.b_debugToFile,
                                     verbosity       = self.verbosity,
-                                    debugFile       = self.str_debugFile))
+                                    debugToFile     = self.b_debugToFile,
+                                    debugFile       = self.str_debugFile,
+                                    b_tokenAuth     = self.b_tokenAuth,
+                                    authModule      = self.authModule))
             self.l_listener[i].start()
 
         # Use built in queue device to distribute requests among workers.
@@ -556,6 +564,8 @@ class Listener(threading.Thread):
             if key == 'debugToFile':    self.b_debugToFile  = val
             if key == 'containerEnv':   self.container_env  = val
             if key == 'verbosity':      self.verbosity      = int(val)
+            if key == 'b_tokenAuth':    self.b_tokenAuth    = val
+            if key == 'authModule':     self.authModule     = val
 
         self.dp                 = pfmisc.debug(
                                         verbosity   = self.verbosity,
@@ -602,7 +612,6 @@ class Listener(threading.Thread):
                 self.dp.qprint(Colors.BROWN + 'Client sends: %s' % (request))
 
                 resultFromProcessing    = self.process(request)
-                # pudb.set_trace()
                 if resultFromProcessing:
                     self.dp.qprint(Colors.BROWN + 'Listener ID - %s: run() - Sending response to client.' %
                                    (self.worker_id))
@@ -812,8 +821,6 @@ class Listener(threading.Thread):
         for k, v in kwargs.items():
             if k == 'request':      d_request   = v
         d_meta      = d_request['meta']
-
-        # pudb.set_trace()
 
         if 'do'         in d_meta:  str_do          = d_meta['do']
         if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
@@ -1036,7 +1043,6 @@ class Listener(threading.Thread):
         
         else:
 
-            # pudb.set_trace()
             d_state     = self.job_state(*args, **kwargs)
             # {
             #     "hits":         hits,
@@ -1064,19 +1070,16 @@ class Listener(threading.Thread):
             # thus the loop grouping is number of items / 3
             #
             if '0.start' in d_ret:
-            # pudb.set_trace()
                 for i in range(0, int(len(d_keys)/3)):
                     try:
                         b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
                     except:
-                        # pudb.set_trace()
                         b_startEvent    = False
                     try:
                         endcode     = d_ret['%s.end'    % str(i)]['returncode'][0]
                     except:
                         endcode     = None
 
-                    # pudb.set_trace()
                     # Was this a containerized job?
                     found_container = False
                     container_path = '%s.%s' % (str(i), 'container')
@@ -1212,7 +1215,6 @@ class Listener(threading.Thread):
                                     remove=True)
             return byte_str
 
-        # pudb.set_trace()
         d_serviceState      = None
         d_jobState          = None
         str_hitIndex        = "0"
@@ -1284,8 +1286,6 @@ class Listener(threading.Thread):
         str_managerImage    = self.within.ptree.cat('manager/image')
         str_managerApp      = self.within.ptree.cat('manager/app')
 
-        # pudb.set_trace()
-
         # Check if the state of the container service has been recorded to the data tree
         if self.within.ptree.exists('state', path = '/%s/container' % str_jobRoot):
             # If this exists, then the job has actually completed and 
@@ -1301,7 +1301,6 @@ class Listener(threading.Thread):
             # state, and then record the state (and logs) in the memory
             # tree, and then "shut down" the service.
             client = docker.from_env()
-            # pudb.set_trace()
 
             # Get the state of the service...
             str_cmdManager  = '%s --state %s' % \
@@ -1326,7 +1325,6 @@ class Listener(threading.Thread):
                 b_containerIDFound  = True
             except:
                 b_containerIDFound  = False
-                # pudb.set_trace()
             if b_containerIDFound:
                 container   = client.containers.get(str_contID)
                 str_logs    = container.logs()
@@ -1502,7 +1500,6 @@ class Listener(threading.Thread):
             if k == 'hitIndex':         str_hitIndex        = v
             if k == 'logs':             str_logs            = v
 
-        # pudb.set_trace()
         b_removeJob = False
         str_jobRoot = d_jobState['d_ret']['%s.container' % (hitIndex)]['jobRoot']
         str_state   = d_serviceState['Status']['State']
@@ -1767,7 +1764,6 @@ class Listener(threading.Thread):
             if k == 'request': d_request    = v
 
         d_meta          = d_request['meta']
-        # pudb.set_trace()
 
         if d_meta:
             self.jid            = d_meta['jid']
@@ -1785,7 +1781,6 @@ class Listener(threading.Thread):
                 str_managerApp              = d_manager['app']
 
                 d_env                       = d_manager['env']
-                # pudb.set_trace()
                 if 'shareDir' in d_env.keys():
                     str_shareDir            = d_env['shareDir']
                     # Remove trailing '/' if it exists in shareDir
@@ -1811,7 +1806,6 @@ class Listener(threading.Thread):
             str_cmdLine     = str_cmd
             str_cmdManager  = '%s -s %s -m %s -i %s -p none -c "%s"' % \
                               (str_managerApp, str_serviceName, str_shareDir, str_targetImage, str_cmdLine)
-            # pudb.set_trace()
             try:
                 byte_str    = client.containers.run('%s' % str_managerImage,
                                              str_cmdManager,
@@ -1822,7 +1816,6 @@ class Listener(threading.Thread):
                 # Solution is to stop the service and retry.
                 str_e   = '%s' % e
                 print(str_e)
-                # pudb.set_trace()
 
             d_meta['cmdMgr']            = '%s %s' % (str_managerImage, str_cmdManager)
             d_meta['cmdMrg_byte_str']   = str(byte_str, 'utf-8')
@@ -1956,7 +1949,6 @@ class Listener(threading.Thread):
             r.cd(str_path)
             r.cd('../')
             # if not r.graft(p, str_path):
-            # pudb.set_trace()
             if not p.copy(startPath = str_path, destination = r)['status']:
                 # We are probably trying to access a file...
                 # First, remove the erroneous path in the return DB
@@ -2005,9 +1997,7 @@ class Listener(threading.Thread):
         REST-like API of its own.
 
         """
-
         if len(request):
-
             REST_header     = ""
             REST_verb       = ""
             str_path        = ""
@@ -2046,33 +2036,37 @@ class Listener(threading.Thread):
                                        'path': str_path,
                                        'receivedByServer': l_raw}
 
-            if REST_verb == 'GET':
-                d_ret['GET']    = self.DB_get(path = str_path)
-                d_ret['status'] = True
-            self.dp.qprint('json_payload = %s' % self.pp.pformat(json_payload).strip())
-            d_ret['client_json_payload']    = json_payload
-            d_ret['client_json_len']        = len(json_payload)
-            if len(json_payload):
-                d_payload           = json.loads(json_payload)
-                d_request           = d_payload['payload']
-                payload_verb        = d_request['action']
-                if 'meta' in d_request.keys():
-                    d_meta          = d_request['meta']
-                d_ret['payloadsize']= len(json_payload)
-
-                if payload_verb == 'quit':
-                    self.dp.qprint('Shutting down server...')
+            self.dp.qprint("Using token authentication: %s" % self.b_tokenAuth)
+            if (not self.b_tokenAuth) or self.authModule.authorizeClientRequest(request.decode())[0]:
+                self.dp.qprint("Request authorized")
+                if REST_verb == 'GET':
+                    d_ret['GET']    = self.DB_get(path = str_path)
                     d_ret['status'] = True
+                self.dp.qprint('json_payload = %s' % self.pp.pformat(json_payload).strip())
+                d_ret['client_json_payload']    = json_payload
+                d_ret['client_json_len']        = len(json_payload)
+                if len(json_payload):
+                    d_payload           = json.loads(json_payload)
+                    d_request           = d_payload['payload']
+                    payload_verb        = d_request['action']
+                    if 'meta' in d_request.keys():
+                        d_meta          = d_request['meta']
+                    d_ret['payloadsize']= len(json_payload)
 
-                if payload_verb == 'run' and REST_verb == 'PUT':
-                    d_ret['action']     = payload_verb
-                    self.processPUT(    request     = d_request)
-                    d_ret['status'] = True
+                    if payload_verb == 'quit':
+                        self.dp.qprint('Shutting down server...')
+                        d_ret['status'] = True
 
-                if REST_verb == 'POST':
-                    self.processPOST(   request = d_request,
-                                        ret     = d_ret)
+                    if payload_verb == 'run' and REST_verb == 'PUT':
+                        d_ret['action']     = payload_verb
+                        self.processPUT(    request     = d_request)
+                        d_ret['status'] = True
 
+                    if REST_verb == 'POST':
+                        self.processPOST(   request = d_request,
+                                            ret     = d_ret)
+            else:
+                self.dp.qprint("Request unauthorized")
             return d_ret
         else:
             return False
@@ -2127,7 +2121,6 @@ class Listener(threading.Thread):
         if b_threaded:
             self.dp.qprint("Will process request in new thread.")
             pf_method   = None
-            # pudb.set_trace()
             str_method  = self.methodName_parse(request = d_request)
             # str_method  = 't_%s_process' % payload_verb
             try:

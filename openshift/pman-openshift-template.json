@@ -51,7 +51,9 @@
                 "--http",
                 "--port=5010",
                 "--listeners=12",
-                "--container-env=openshift"
+                "--container-env=openshift",
+                "--enableTokenAuth",
+                "--tokenPath=/etc/pman/auth/pman_config.cfg"
               ],
               "volumeMounts": [{
                   "name": "kubecfg-volume",
@@ -61,6 +63,11 @@
                 {
                   "name": "swift-credentials",
                   "mountPath": "/etc/swift/",
+                  "readOnly": true
+                },
+                {
+                  "name": "pman-config",
+                  "mountPath": "/etc/pman/auth",
                   "readOnly": true
                 }
               ],
@@ -106,6 +113,12 @@
                 "name": "swift-credentials",
                 "secret": {
                   "secretName": "swift-credentials"
+                }
+              },
+              {
+                "name": "pman-config",
+                "secret": {
+                  "secretName": "pman-config"
                 }
               }
             ],

@@ -51,7 +51,9 @@
                 "--http",
                 "--port=5010",
                 "--listeners=12",
-                "--container-env=openshift"
+                "--container-env=openshift",
+                "--enableTokenAuth",
+                "--tokenPath=/etc/pman/auth/pman_config.cfg"
               ],
               "volumeMounts": [{
                   "name": "kubecfg-volume",
@@ -61,6 +63,11 @@
                 {
                   "name": "localvol",
                   "mountPath": "/shareDir"
+                },
+                {
+                  "name": "pman-config",
+                  "mountPath": "/etc/pman/auth",
+                  "read-only": "true"
                 }
               ],
               "image": "fnndsc/pman",
@@ -105,6 +112,12 @@
                 "name": "localvol",
                 "hostPath": {
                   "path": "/tmp/share"
+                }
+              },
+              {
+                "name": "pman-config",
+                "secret": {
+                  "secretName": "pman-config"
                 }
               }
             ],

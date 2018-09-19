@@ -23,11 +23,43 @@ Assuming oc cluster up has been run.
     oc login --token=<token from describe secret call above>    # Note: Use 172.30.0.1:443 if running with oc cluster up
     oc project myproject
     oc create secret generic kubecfg --from-file=$HOME/.kube/config -n myproject
+    # To set the passwords, follow the instructions in the "Setting up authorization" section. Simply editing example-config.cfg DOES NOT DO ANYTHING.
+    oc create -f example-secret.yml # Uses the default password ("password")
     rm -f ~/.kube/config
     oc login # As developer
     # Ignore this step, if you are using swift as backend storage.
     oc new-app openshift/pman-openshift-template-without-swift.json
     oc set env dc/pman OPENSHIFTMGR_PROJECT=myproject
+
+**************
+Setting up authorization
+**************
+1) Edit the configuration file:
+
+.. code-block:: bash
+    
+    #example-config.cfg
+    [AUTH TOKENS]
+    examplekey1 = examplepassword1
+    examplekey2 = examplepassword2
+
+2) Convert the configuration to base64:
+
+.. code-block:: bash
+  
+    cat example-config.cfg | base64
+
+3) Place the output in a new file:
+
+.. code-block:: bash
+  
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: pman-config
+    type: Opaque
+    data:
+      pman_config.cfg: <base64 encoded configuration>
 
 ##############
 Swift Object Store
@@ -40,6 +72,14 @@ To enable Swift Object store option for pfioh, start pfioh with --swift-storage 
 .. code-block:: bash
 
     pfioh --forever --httpResponse --swift-storage --createDirsAsNeeded
+
+
+To use the default password, simply run
+
+.. code-block:: bash
+    
+    oc create -f example-secret.yml
+
 
 The pushPath and pullPath operations are same as mentioned for mounting directories method.
 
