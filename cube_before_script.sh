@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -ev
 cd ..
 git clone https://github.com/FNNDSC/ChRIS_ultron_backEnd.git
