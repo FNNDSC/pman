@@ -758,7 +758,7 @@ class Listener(threading.Thread):
 
     def t_quit_process(self, *args, **kwargs):
         """
-        Process the 'quit' POST directive. This might appear counter-inuitive
+        Process the 'quit' POST directive. This might appear counter-intuitive
         at first glance since the 'get' is the result of a REST POST, but is
         logically consistent within the semantics of this system.
         """
@@ -782,7 +782,7 @@ class Listener(threading.Thread):
 
     def t_get_process(self, *args, **kwargs):
         """
-        Process the 'get' POST directive. This might appear counter-inuitive
+        Process the 'get' POST directive. This might appear counter-intuitive
         at first glance since the 'get' is the result of a REST POST, but is
         logically consistent within the semantics of this system.
         """
