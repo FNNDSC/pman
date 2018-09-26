@@ -190,14 +190,40 @@
           "schedule": "*/30 * * * ?",    
           "jobTemplate":{
               "spec":{
+                "activeDeadlineSeconds" : 1200,
                   "template":{
+                    "metadata":{
+                      "labels":{
+                        "job-origin": "pman-reaper"
+                      },
+                      "name": "pman-reaper"
+                    },
                       "spec":{
                           "containers":[{
                                   "name": "pman-reaper",
                                   "image": "fnndsc/pman-reaper",
-                                  "command": ["python3", "reaper.py"]
-                              }
-                          ],
+                                  "imagePullPolicy": "Always",
+                                  "command": ["python3", "reaper.py"],
+                                  "env": [{
+                                    "name": "KUBECFG_PATH",
+                                    "value": "/tmp/.kube/config"
+                                  },
+                                  {
+                                    "name": "OPENSHIFTMGR_PROJECT",
+                                    "value": "radiology"
+                                  }],
+                                  "volumeMounts": [{
+                                    "name": "kubecfg-volume",
+                                    "mountPath": "/tmp/.kube/",
+                                    "readOnly": true
+                                  }]
+                              }],
+                          "volumes": [{
+                            "name": "kubecfg-volume",
+                            "secret": {
+                              "secretName": "kubecfg"
+                            }
+                          }],
                           "restartPolicy": "Never"
                       }
                   }
@@ -205,8 +231,7 @@
           }             
       }
   }
-
-  ],
+],
   "labels": {
     "template": "application-template-pman-openshift"
   }
