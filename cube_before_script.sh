@@ -5,8 +5,8 @@ git clone https://github.com/FNNDSC/ChRIS_ultron_backEnd.git
 pushd pman/
 docker build -t fnndsc/pman:latest .
 # add ravig's pfcon for testing with pman & pfioh from openshift hosted on moc
-docker pull ravig/pfcon:latest
-docker tag ravig/pfcon fnndsc/pfcon:latest
+#docker pull ravig/pfcon:latest
+#docker tag ravig/pfcon fnndsc/pfcon:latest
 popd
 pushd ChRIS_ultron_backEnd/
 docker build -t fnndsc/chris_dev_backend .
