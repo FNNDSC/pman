@@ -7,7 +7,7 @@ import yaml
 import json
 import os
 from kubernetes import client as k_client, config
-
+from kubernetes.client.rest import ApiException
 
 class OpenShiftManager(object):
 
@@ -350,12 +350,17 @@ spec:
         :param str pod_name: job-id of OpenShift job.  
         :return: str log: Combined log of all the containers in pod.
         """
-        # Assumption is pod is always going to have a init-storage, container with job-id, publish container.
+        # Assumption is pod is always going to have a init-storage, container with job-id, publish container, if not we just return log for job container.
         # TODO: @ravig: Think of a better way to abstract out logs in case of multiple pods running parallelly.
-        init_container_log = self.get_pod_log(pod_name, 'init-storage')
+        
         # job-id is pod_name.split('-')[0]
         plugin_container = pod_name.split('-')[0]
         job_container_log = self.get_pod_log(pod_name, plugin_container)
+        try: 
+            init_container_log = self.get_pod_log(pod_name, 'init-storage')
+        except ApiException:
+            # We don't have init container, we assume init-storage and publish containers are not available.
+            return pod_name + ":" + job_container_log
         publish_container_log = self.get_pod_log(pod_name, 'publish')
         return pod_name + ":" + "init_container log:" + init_container_log + "plugin_container log:" +\
                job_container_log + "publish_container log:" + publish_container_log
