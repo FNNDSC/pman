@@ -51,6 +51,7 @@
                 "--http",
                 "--port=5010",
                 "--listeners=12",
+		  "--verbosity=1",
                 "--container-env=openshift",
                 "--enableTokenAuth",
                 "--tokenPath=/etc/pman/auth/pman_config.cfg"
