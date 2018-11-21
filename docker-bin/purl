@@ -25,7 +25,7 @@ str_desc = """
         [--pman || --pfioh]
         Dockerized destination services. If either a dockerized 'pman' or 'pfioh'
         service has been started on the local docker-LAN, then the actual IP and
-        port of the dokcerized service can be self-discovered using either of
+        port of the dockerized service can be self-discovered using either of
         these optional flags. This saves the caller from explicitly being aware
         of the service IP:port.
 

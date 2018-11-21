@@ -33,7 +33,7 @@ class Reaper(object):
     def get_jobs(self, age=1):
         """
         Get all previously scheduled jobs for the namespace that are older than specified age, default is 1, for reaper to terminate
-        age : <int> Time elaspsed from start of job in days
+        age : <int> Time elapsed from start of job in days
         """
         jobs_for_reaper = []
         try: 
