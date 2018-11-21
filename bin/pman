@@ -120,7 +120,7 @@ def synopsis(ab_shortOnly = False):
         [--port <port>]
         The port on which to listen. Defaults to '5010'.
 
-        [--protocol <protcol>]
+        [--protocol <protocol>]
         The protocol to interpret. Defaults to 'tcp'.
 
         [--rawmode]
