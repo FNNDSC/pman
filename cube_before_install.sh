@@ -57,4 +57,3 @@ if [ $TIMEOUT -eq $TIMEOUT_COUNT ]; then
   echo "Failed to start openshift"
   exit 1
 fi
-

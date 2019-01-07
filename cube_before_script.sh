@@ -31,6 +31,7 @@ sed -i 's/127.0.0.1:5055/${pfioh_route}/g' pfcon/pfcon.py
 docker build -t fnndsc/pfcon:latest .
 
 popd
+
 pushd ChRIS_ultron_backEnd/
 docker build -t fnndsc/chris_dev_backend .
 export STOREBASE=$(pwd)/FS/remote

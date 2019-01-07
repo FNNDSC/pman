@@ -60,5 +60,3 @@ fi
 
 echo "openshift is deployed and reachable"
 oc describe nodes
-
-
