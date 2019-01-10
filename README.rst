@@ -44,7 +44,7 @@ On Ubuntu, install the Python virtual environment creator
 
 .. code-block:: bash
 
-  sudo apt install virtualenv
+  sudo apt install virtualenv virtualenvwrapper
 
 Then, create a directory for your virtual environments e.g.:
 
