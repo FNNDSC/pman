@@ -59,6 +59,12 @@ You might want to add to your .bashrc file these two lines:
     export WORKON_HOME=~/python-envs
     source /usr/local/bin/virtualenvwrapper.sh
 
+(Note depending on distro, the <tt>virtualenvwrapper.sh</tt> path might be
+
+.. code-block:: bash
+    
+    /usr/share/virtualenvwrapper/virtualenvwrapper.sh
+
 Then you can source your .bashrc and create a new Python3 virtual environment:
 
 .. code-block:: bash
