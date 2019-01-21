@@ -28,8 +28,7 @@ sed -i 's/127.0.0.1:5010/${pman_route}/g' pfcon/pfcon.py
 sed -i 's/%PMAN_IP:5010/${pman_route}/g' pfcon/pfcon.py
 sed -i 's/%PFIOH_IP:5055/${pfioh_route}/g' pfcon/pfcon.py
 sed -i 's/127.0.0.1:5055/${pfioh_route}/g' pfcon/pfcon.py
-
-
+docker build -t fnndsc/pfioh:latest .
 
 popd
 pushd ChRIS_ultron_backEnd/
