@@ -1,12 +1,34 @@
-#!/usr/bin/env bash
-set -ev
 cd ..
 git clone https://github.com/FNNDSC/ChRIS_ultron_backEnd.git
 pushd pman/
 docker build -t fnndsc/pman:latest .
-# add ravig's pfcon for testing with pman & pfioh from openshift hosted on moc
-docker pull ravig/pfcon:latest
-docker tag ravig/pfcon fnndsc/pfcon:latest
+oc new-app openshift/pman-openshift-template-without-swift.json
+
+# Deploy pfioh to OpenShift. We can directly pull the container but just for sake of being in sync with other repos and
+# making our debugging easier.
+cd ..
+git clone https://github.com/FNNDSC/pfioh.git
+cd pfioh
+docker build -t fnndsc/pfioh:latest .
+oc new-app openshift/pman-openshift-template-without-swift.json
+
+sleep(10) # Wait for deployments to run.
+
+# Deploy pfcon. 
+# TODO: Change this to deploying on OpenShift using environment variables
+cd ..
+git clone https://github.com/FNNDSC/pfcon.git
+cd pfcon
+# Update pman and pfioh from routes
+export pman_route=`oc get routes | awk '{print $2}'| grep pman`
+export pfioh_route=`oc get routes | awk '{print $2}'| grep pfioh`
+sed -i 's/127.0.0.1:5010/${pman_route}/g' pfcon/pfcon.py
+sed -i 's/%PMAN_IP:5010/${pman_route}/g' pfcon/pfcon.py
+sed -i 's/%PFIOH_IP:5055/${pfioh_route}/g' pfcon/pfcon.py
+sed -i 's/127.0.0.1:5055/${pfioh_route}/g' pfcon/pfcon.py
+
+
+
 popd
 pushd ChRIS_ultron_backEnd/
 docker build -t fnndsc/chris_dev_backend .
@@ -16,3 +38,4 @@ docker-compose exec chris_dev_db sh -c 'while ! mysqladmin -uroot -prootp status
 docker-compose exec chris_dev_db mysql -uroot -prootp -e 'GRANT ALL PRIVILEGES ON *.* TO "chris"@"%"'
 docker-compose exec chris_dev python manage.py migrate
 docker swarm init --advertise-addr 127.0.0.1
+
