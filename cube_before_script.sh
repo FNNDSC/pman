@@ -12,7 +12,7 @@ cd ..
 git clone https://github.com/FNNDSC/pfioh.git
 cd pfioh
 docker build -t fnndsc/pfioh:latest .
-oc new-app openshift/pman-openshift-template-without-swift.json
+oc new-app openshift/pfioh-openshift-template-without-swift.json
 
 sleep(10) # Wait for deployments to run.
 
