@@ -14,7 +14,7 @@ cd pfioh
 docker build -t fnndsc/pfioh:latest .
 oc new-app openshift/pfioh-openshift-template-without-swift.json
 
-sleep(10) # Wait for deployments to run.
+sleep 10 # Wait for deployments to run.
 
 # Deploy pfcon. 
 # TODO: Change this to deploying on OpenShift using environment variables
