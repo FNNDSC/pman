@@ -169,7 +169,7 @@ class crunner(object):
         self.b_echoCmd          = False
 
         # Debugging
-        self.verbosity          = 0
+        self.verbosity          = 1
 
         # Toggle special handling of "compound" jobs
         self.l_cmd              = []

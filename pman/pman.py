@@ -154,7 +154,7 @@ class pman(object):
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
         self.pp                 = pprint.PrettyPrinter(indent=4)
-        self.verbosity          = 0
+        self.verbosity          = 1
 
         # Authentication parameters
         self.b_tokenAuth        = False
@@ -481,7 +481,7 @@ class FileIO(threading.Thread):
         self.within             = None
 
         self.b_stopThread       = False
-        self.verbosity          = 0
+        self.verbosity          = 1
 
         # Debug parameters
         self.str_debugFile      = '/dev/null'
@@ -537,7 +537,7 @@ class Listener(threading.Thread):
         self.str_jobRootDir     = ''
 
         self.listenerSleep      = 0.1
-        self.verbosity          = 0
+        self.verbosity          = 1
 
         self.jid                = ''
         self.auid               = ''
@@ -2223,7 +2223,7 @@ class Poller(threading.Thread):
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
-        self.verbosity          = 0
+        self.verbosity          = 1
 
         for key,val in kwargs.items():
             if key == 'pollTime':       self.pollTime       = val
@@ -2288,7 +2288,7 @@ class Crunner(threading.Thread):
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
-        self.verbosity          = 0
+        self.verbosity          = 1
 
         for k,v in kwargs.items():
             if k == 'cmd':          self.str_cmd        = v
