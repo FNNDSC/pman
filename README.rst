@@ -59,7 +59,7 @@ You might want to add to your .bashrc file these two lines:
     export WORKON_HOME=~/python-envs
     source /usr/local/bin/virtualenvwrapper.sh
 
-(Note depending on distro, the <tt>virtualenvwrapper.sh</tt> path might be
+(Note depending on distro, the ``virtualenvwrapper.sh`` path might be
 
 .. code-block:: bash
     
