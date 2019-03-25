@@ -62,9 +62,13 @@ class Reaper(object):
         jobs : <List> list of jobs to be deleted
         """
         jobs = self.get_jobs(self.age)
+        print('Jobs queued for delete: ', jobs)
         for job in jobs:
             try: 
-                self.kube_v1_batch_client.delete_namespaced_job(job, body={}, namespace=self.project, propagation_policy='Forward')
+                body = k_client.V1DeleteOptions(propagation_policy='Background')
+                self.kube_v1_batch_client.delete_namespaced_job(job, body=body, namespace=self.project)
+                self.kube_client.delete_namespaced_persistent_volume_claim(job+"-storage-claim", self.project, {})
+                print('Deleted job: ', job)
             except ApiException as e:
                 print("Exception when calling BatchV1Api -> delete_namespaced_job: %s\n" % e)
                 exit(1)
@@ -72,3 +76,4 @@ class Reaper(object):
 if __name__ == '__main__':
     reaper = Reaper()
     reaper.delete_jobs()
+    exit(0)

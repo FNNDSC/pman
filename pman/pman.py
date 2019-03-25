@@ -1350,11 +1350,58 @@ class Listener(threading.Thread):
             'logs':             str_logs,
             'currentState':     d_ret['d_process']['currentState']
         }
+    
+    def t_delete_process(self,*args, **kwargs):
+        """
+        Deletes existing jobs. Checks if container environment is OpenShift.
+        If yes, call t_delete_process_openshift to delete the job.
+        Pending implementation for other container environment.
+        """
+        status = jid = ''
+        if self.container_env == 'openshift':
+            self.dp.qprint('Processing openshift....')
+            try:
+                d_containerStatus    =   self.t_delete_process_openshift(*args, **kwargs)
+                status               =   d_containerStatus['status']
+                jid                  =   d_containerStatus['jid']
+            except Exception as e:
+                if e.reason and e.reason == 'Not Found':
+                    status = logs = currentState = e.reason
+                else:
+                    raise e
+            d_ret = {
+                'action' : 'Delete Job',
+                'job_id' : jid,
+                'status' : status
+            }
+            return {
+                "d_ret":    d_ret,
+                "status":   status
+            }
+
+        
+    def t_delete_process_openshift(self,*args, **kwargs):
+        """
+        Delete job and related resources (pods & pvc) from OpenShift
+        """
+        jid =  status = None
+        for k,v in kwargs.items():
+            if k == 'request' and v['action'] == 'delete' :     jid = v['meta']['value']
+        d_json  = self.get_openshift_manager().state(jid)
+        if d_json['Status'] == 'Not Found':
+            status = d_json['Status']
+        else:
+            self.get_openshift_manager().remove_job(jid)
+            self.get_openshift_manager().remove_pvc(jid)
+            status = 'Job deleted successfully'
+        return {
+            "jid" : jid,
+            "status" : status
+        } 
 
     def t_status_process_openshift(self, *args, **kwargs):
         """
         Determine the status of a job scheduled using the openshift manager.
-        # TODO: @husky-parul: change these comments
 
         PRECONDITIONS:
         o   Only call this method if a container structure exists
@@ -1365,12 +1412,12 @@ class Listener(threading.Thread):
             service.
         """
         self.dp.qprint('Processing job status within t_status_process_openshift ... ')
-        str_logs    = ''
+        str_logs = ''
         # Get job-id from request
         for k,v in kwargs.items():
             if k == 'request' and v['action'] == 'status' :     jid = v['meta']['value']
         
-        # Query OpenShift API to get job state and logs for all worker pods 
+        # Query OpenShift API to get job state 
         d_json  = self.get_openshift_manager().state(jid)
 
         if d_json['Status']['Message'] == 'finished':
@@ -1380,7 +1427,7 @@ class Listener(threading.Thread):
         else:
             str_logs = d_json['Status']['Message']
 
-        status  = str(d_json['Status'])
+        status  = d_json['Status']
         currentState =  d_json['Status']['Message']
     
         return {

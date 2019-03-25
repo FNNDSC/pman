@@ -44,6 +44,7 @@ class OpenShiftManager(object):
                 "name": name
             },
             "spec": {
+                "ttlSecondsAfterFinished": 20,
                 "parallelism": number_of_workers,
                 "completions": number_of_workers,
                 "activeDeadlineSeconds": 3600,
@@ -300,7 +301,8 @@ spec:
         """
         Remove a previously scheduled job
         """
-        self.kube_v1_batch_client.delete_namespaced_job(name, self.project, {})
+        body = k_client.V1DeleteOptions(propagation_policy='Background')
+        self.kube_v1_batch_client.delete_namespaced_job(name, body=body, namespace=self.project)
 
     def remove_pod(self, name):
         """
@@ -340,8 +342,8 @@ spec:
                                     'Active': job.status.active,
                                     'Failed': job.status.failed,
                                     'Succeeded': job.status.succeeded,
-                                    'StartTime': str(job.status.start_time),
-                                    'CompletionTime': str(job.status.completion_time)}}
+                                    'StartTime': job.status.start_time,
+                                    'CompletionTime': job.status.completion_time}}
    
 
     def get_job_pod_logs(self, pod_name):
