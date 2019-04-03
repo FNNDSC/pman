@@ -5,61 +5,50 @@ SWIFT_KEY environment variable to be passed by the template
 
 import os
 import shutil
-from swift_handler import SwiftHandler
+import pprint
+import swift_handler
 from kubernetes import client, config, watch
+from swiftclient import service as swift_service
 
-class SwiftStore():
-    swiftConnection = None
+pp = pprint.PrettyPrinter(indent=4)
 
-    def _putObject(self, containerName, key, value):
-        """
-        Creates an object with the given key and value and puts the object in the specified container
-        """
+def storeData(**kwargs):
+    """
+    Creates an object of the file and stores it into the container as key-value object 
+    """
 
-        try:
-            self.swiftConnection.put_object(containerName, key , contents=value, content_type='text/plain')
-            print('Object added with key %s' %key)
+    configPath = "/etc/swift/swift-credentials.cfg"
+    
+    for k, v in kwargs.items():
+        if k == 'containerName':
+            containerName = v
+        if k == 'out_dir':
+            outgoing_dir = v
+        if k == 'configPath':
+            configPath = v
 
-        except Exception as exp:
-            print('Exception = %s' %exp)
+    swiftService = swift_handler._createSwiftService(configPath)
 
-    def storeData(self, **kwargs):
-        """
-        Creates an object of the file and stores it into the container as key-value object 
-        """
-
-        key = ''
-        for k, v in kwargs.items():
-            if k == 'path':
-                key = v
-            if k == 'out_dir':
-                outgoing_dir = v
-
-        # TODO: @ravig. The /tmp should be large enough to hold everything.
-        shutil.make_archive('/tmp/ziparchive', 'zip', outgoing_dir)
-        try:
-            with open('/tmp/ziparchive.zip','rb') as f:
-                #TODO: @ravig - Change this so that this is scalable.
-                zippedFileContent = f.read()
-        finally:
-            os.remove('/tmp/ziparchive.zip')
-
-        swiftHandler = SwiftHandler()
-        self.swiftConnection = swiftHandler._initiateSwiftConnection()
-       
-        try:
-            containerName = key
-            key = os.path.join('output','data') 
-            self._putObject(containerName, key, zippedFileContent)
-        except Exception as err:
-            print(err)
-        
-        finally:    
-            #Delete temporary empty directory created by Swift
-            swiftHandler._deleteEmptyDirectory(key)
-
-
-
+    shutil.make_archive('/local/outgoingData', 'zip', outgoing_dir)
+    try:
+        success = True
+        uploadObject = swift_service.SwiftUploadObject('/local/outgoingData.zip', "output/data")
+        uploadResultsGenerator = swiftService.upload(containerName, [uploadObject])
+        for res in uploadResultsGenerator:
+            print("Upload results generated")
+            if not res["success"]:
+                success = False
+            pp.pprint(res)
+    except Exception as err:
+        print(err)
+        success = False
+    if success:
+        print("Upload successful")
+    else:
+        print("Upload unsuccessful")
+    #Delete temporary empty directory created by Swift
+    swift_handler._deleteEmptyDirectory(key)
+    os.remove('/local/outgoingData.zip')
 
 class KubeClient():
     def __init__(self):
@@ -130,8 +119,7 @@ class KubeClient():
     def put_data_back(self):
         # Pod that downloaded should upload objects to swift.
         if self.check_before_upload():
-            swiftStore = SwiftStore()
-            swiftStore.storeData(path=os.environ.get('SWIFT_KEY'), out_dir=os.environ.get('OUTGOING_DIR'))
+            storeData(containerName=os.environ.get('SWIFT_KEY'), out_dir=os.environ.get('OUTGOING_DIR'))
             shutil.rmtree('/share/outgoing', ignore_errors=True)
             shutil.rmtree('/share/outgoing/lockfile', ignore_errors=True)
         else:
