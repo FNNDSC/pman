@@ -1929,11 +1929,9 @@ class Listener(threading.Thread):
                 str_targetImage             = d_target['image']
 
             # Create the Persistent Volume Claim
-            self.dp.qprint("Create PVC")
-            try:
+            if os.environ.get('STORAGE_TYPE') == 'swift':
+                self.dp.qprint("Creating shared PVC")
                 self.get_openshift_manager().create_pvc(self.jid)
-            except Exception as err:
-                self.dp.qprint("Failed to create PVC:", err)
 
             str_cmdLine = str_cmd
             self.get_openshift_manager().schedule(str_targetImage, str_cmdLine, self.jid,
