@@ -346,7 +346,7 @@ spec:
                                     'CompletionTime': job.status.completion_time}}
    
 
-    def get_job_pod_logs(self, pod_name):
+    def get_job_pod_logs(self, pod_name, jid):
         """
         Returns the concatenated log of all 3 containers part of job template.
         :param str pod_name: job-id of OpenShift job.  
@@ -354,10 +354,8 @@ spec:
         """
         # Assumption is pod is always going to have a init-storage, container with job-id, publish container, if not we just return log for job container.
         # TODO: @ravig: Think of a better way to abstract out logs in case of multiple pods running parallelly.
-        
-        # job-id is pod_name.split('-')[0]
-        plugin_container = pod_name.split('-')[0]
-        job_container_log = self.get_pod_log(pod_name, plugin_container)
+
+        job_container_log = self.get_pod_log(pod_name, jid)
         try: 
             init_container_log = self.get_pod_log(pod_name, 'init-storage')
         except ApiException:
@@ -409,4 +407,6 @@ spec:
         """
         Remove pvc created
         """
-        self.kube_client.delete_namespaced_persistent_volume_claim(job_id+"-storage-claim", self.project, {})
+        pvc_name = job_id+"-storage-claim"
+        body = k_client.V1DeleteOptions()
+        self.kube_client.delete_namespaced_persistent_volume_claim(pvc_name, self.project, body=body)
