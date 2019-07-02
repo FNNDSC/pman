@@ -1,0 +1,20 @@
+pfurl --verb POST --raw --httpResponseBodyParse --http http://pfioh-radiology.k-apps.osh.massopen.cloud/api/v1/cmd --msg \
+"{  \"action\": \"pullPath\",
+    \"meta\": {
+        \"remote\": {
+            \"key\":         \"$1\"
+        },
+        \"local\": {
+            \"path\":         \"/tmp/$2\",
+            \"createDir\":    true
+        },
+        \"transport\": {
+            \"mechanism\":    \"compress\",
+            \"compress\": {
+                \"archive\":  \"zip\",
+                \"unpack\":   true,
+                \"cleanup\":  true
+            }
+        }
+    }
+}" --quiet --jsonpprintindent 4

@@ -1,0 +1,7 @@
+pfurl --verb POST --raw --http http://pman-radiology.k-apps.osh.massopen.cloud/api/v1/cmd --jsonwrapper 'payload' --msg \
+        "{   \"action\": \"status\",
+            \"meta\":  {
+                \"key\":\"jid\",
+                \"value\": \"$1\"
+            }
+        }" --quiet --jsonpprintindent 4

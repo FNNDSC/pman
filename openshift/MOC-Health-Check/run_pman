@@ -1,0 +1,15 @@
+pfurl --verb POST --raw --http http://pman-radiology.k-apps.osh.massopen.cloud/api/v1/cmd --jsonwrapper 'payload' --msg \
+          '{   "action": "run",                                                                                                                                         
+               "meta":  {                                                                                                                                               
+                    "cmd":      "python3 /usr/src/simpledsapp/simpledsapp.py --prefix test- --sleepLength 0 /share/incoming /share/outgoing",                           
+                    "auid": "rudolphpienaar",                                                                                                                           
+                    "jid":      "'$1'",                                                                                                                             
+                    "threaded": true,                                                                                                                                   
+                    "container": {                                                                                                                                      
+                         "target": {                                                                                                                                    
+                              "image": "'${IMAGE:-fnndsc/pl-simpledsapp}'"                                                                                                                       
+                              }                                                                                                                                         
+                          },                                                                                                                                            
+                    "number_of_workers": "1"                                                                                                                            
+                }                                                                                                                                                       
+           }' --quiet --jsonpprintindent 4
