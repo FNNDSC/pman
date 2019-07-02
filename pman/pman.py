@@ -1423,7 +1423,7 @@ class Listener(threading.Thread):
         if d_json['Status']['Message'] == 'finished':
             pod_names = self.get_openshift_manager().get_pod_names_in_job(jid)
             for _, pod_name in enumerate(pod_names):
-                str_logs += self.get_openshift_manager().get_job_pod_logs(pod_name)
+                str_logs += self.get_openshift_manager().get_job_pod_logs(pod_name, jid)
         else:
             str_logs = d_json['Status']['Message']
 
@@ -1806,7 +1806,6 @@ class Listener(threading.Thread):
         d_env               = {}
 
         self.dp.qprint('Processing swarm-type job...')
-
         for k,v in kwargs.items():
             if k == 'request': d_request    = v
 
