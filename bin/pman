@@ -29,7 +29,7 @@ from pfmisc._colors         import Colors
 
 str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
 
-str_version = "2.0.0.6"
+str_version = "2.0.0.8"
 str_name    = 'pman'
 str_desc    = Colors.CYAN + """
 
@@ -53,18 +53,23 @@ http://patorjk.com/software/taag/#p=display&f=Doom&t=pman
            Colors.YELLOW + str_version + Colors.CYAN + """ --
            
     'pman' is a server that spawns and tracks processes executed on an underlying
-    shell/system.
+    shell/system. Internally, 'pman' provides services using Zero MQ and not
+    http-based services.
     
     'pman' listens for REST comms and provides facilities for running, stopping,
     querying, and managing command-line processes.
+
+    'pman' is also container-aware and can run containerized compute
+    using either swarm or openshift (assuming suitable installed underlying
+    infrastructure).
     
 """ + \
            Colors.BLINK_RED +  """
 
-              +---------------------------------------------------+
-              | NOTE THAT 'pman' DOES NOT CURRENTLY AUTHENTICATE  |
-              | AND WILL HONOR *ALL* PROCESS MANAGEMENT REQUESTS! |
-              +---------------------------------------------------+
+              +---------------------------------------------------------+
+              | Use '--enableTokenAuth' and '--tokenPath <tokenPath>'   |
+              |         arguments for secure communication.             |
+              +---------------------------------------------------------+
               
 """ + Colors.NO_COLOUR
 
@@ -87,7 +92,13 @@ def synopsis(ab_shortOnly = False):
                 [--listeners <numberOfListeners>]                   \\
                 [--http]                                            \\
                 [--debugToFile <fileName>]                          \\
+                [--DBSavePeriod <seconds>]                          \\
                 [--listenerSleep <amount>]                          \\
+                [--container-env openshift|swarm]                   \\
+                [--enableTokenAuth]                                 \\
+                [--tokenPath <tokenPath>]                           \\
+                [--synopsis]                                        \\
+                [--desc]                                            \\
                 [--verbosity <level>]
 
     BRIEF EXAMPLE
@@ -146,6 +157,14 @@ def synopsis(ab_shortOnly = False):
         [--DBsavePeriod <time>]
         The periodicity in seconds for the internal DB save.
 
+        [--enableTokenAuth]
+        Enables token based authorization and can be configured to look for a .ini
+        file or an openshift secret.
+
+        [--tokenPath <tokenPath>]
+        Specify the absolute path to the token in the file system.
+        By default, this looks for the pfiohConfig.ini file in the current working directory.
+
         [-x|--desc]                                     
         Provide an overview help page.
 
@@ -188,42 +207,43 @@ parser.add_argument(
     action  = 'store',
     dest    = 'ip',
     default = str_defIP,
-    help    = 'IP to connect.'
+    help    = 'Set the IP to expose.'
 )
 parser.add_argument(
     '--port',
     action  = 'store',
     dest    = 'port',
     default = '5010',
-    help    = 'Port to use.'
+    help    = 'Set the port to use.'
 )
 parser.add_argument(
     '--protocol',
     action  = 'store',
     dest    = 'protocol',
     default = 'tcp',
-    help    = 'Protocol to use.'
+    help    = 'Set the protocol to use.'
 )
 parser.add_argument(
     '--rawmode',
     action  = 'store',
     dest    = 'raw',
     default = '1',
-    help    = 'Router raw mode.'
+    help    = 'Set the router raw mode.'
 )
 parser.add_argument(
     '--listeners',
     action  = 'store',
     dest    = 'listeners',
     default = '1',
-    help    = 'Number of listeners.'
+    help    = 'Set the number of listeners.'
 )
 parser.add_argument(
     '--http',
     action  = 'store_true',
     dest    = 'http',
     default = False,
-    help    = 'Send HTTP formatted replies with content-type html; otherwise content-type json.'
+    help    = """If specified, send HTTP formatted replies with content-type 'html';
+    otherwise content-type 'json'."""
 )
 parser.add_argument(
     '--debugToFile',
@@ -244,7 +264,7 @@ parser.add_argument(
     action  = 'store',
     dest    = 'listenerSleep',
     default = '0.1',
-    help    = 'A delay in each listener loop to prevent busy-wait.'
+    help    = 'Set the delay in each listener loop to prevent busy-wait.'
 )
 parser.add_argument(
     '--DBsavePeriod',
