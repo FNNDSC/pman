@@ -1017,7 +1017,7 @@ class Listener(threading.Thread):
         :return: dictionary of components defining job state.
         """
         self.dp.qprint("In status process...")
-        status = logs = currentState = ''
+        description = logs = currentState = ''
         if self.container_env == 'openshift':
             self.dp.qprint('Processing openshift....')
             try:
@@ -1027,17 +1027,17 @@ class Listener(threading.Thread):
                 currentState            =   d_containerStatus['currentState']
             except Exception as e:
                 if e.reason == 'Not Found':
-                    status = logs = currentState = e.reason
+                    description = logs = currentState = e.reason
                 else:
                     raise e
             
             d_ret = {
-                'status':   status,
-                'logs':     logs,         
-                'currentState': currentState
+                'description':   str(status),
+                'l_logs':     str(logs),         
+                'l_status': currentState
             }
             return {
-                    "d_ret":    str(d_ret),
+                    "d_ret":    d_ret,
                     "status":   str(currentState)
             }
         
@@ -1433,7 +1433,7 @@ class Listener(threading.Thread):
         return {
             'status':           status,
             'logs':             str_logs,
-            'currentState':     currentState
+            'currentState':     [currentState]
         }
 
     def t_status_process_openshift_stateObject(self, *args, **kwargs):
