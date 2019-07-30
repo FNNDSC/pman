@@ -15,7 +15,8 @@ MAINTAINER fnndsc "dev@babymri.org"
 
 RUN apt-get update \
     && apt-get install -y curl \
-    && pip3 install keystoneauth1 \ 
+    && pip3 install --upgrade pip \
+    && pip3 install python-keystoneclient \ 
     && pip3 install python-swiftclient \
     && pip3 install kubernetes \
     && pip3 install fasteners
