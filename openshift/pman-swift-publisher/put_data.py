@@ -47,7 +47,7 @@ def storeData(**kwargs):
     else:
         print("Upload unsuccessful")
     #Delete temporary empty directory created by Swift
-    swift_handler._deleteEmptyDirectory(key)
+    swift_handler._deleteEmptyDirectory(containerName)
     os.remove('/local/outgoingData.zip')
 
 class KubeClient():

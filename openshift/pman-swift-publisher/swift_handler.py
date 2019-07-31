@@ -29,7 +29,7 @@ def _createSwiftService(configPath):
     service = swift_service.SwiftService(options)
     return service
 
-def _deleteEmptyDirectory(self, key):
+def _deleteEmptyDirectory(key):
     """
     Deletes the empty directory created by Swift in the parent directory
     """
