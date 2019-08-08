@@ -1016,18 +1016,18 @@ class Listener(threading.Thread):
         :param kwargs:
         :return: dictionary of components defining job state.
         """
-        self.dp.qprint("In status process...")
-        description = logs = currentState = ''
+        self.dp.qprint("------- In status process ------------")
+        status = logs = currentState = ''
         if self.container_env == 'openshift':
-            self.dp.qprint('Processing openshift....')
+            self.dp.qprint('------- Processing openshift status request -----------')
             try:
                 d_containerStatus       =   self.t_status_process_openshift(*args, **kwargs)
                 status                  =   d_containerStatus['status']
                 logs                    =   d_containerStatus['logs']
                 currentState            =   d_containerStatus['currentState']
             except Exception as e:
-                if e.reason == 'Not Found':
-                    description = logs = currentState = e.reason
+                if isinstance(e, ApiException) and e.reason == 'Not Found':
+                    status = logs = currentState = e.reason
                 else:
                     raise e
             
@@ -1411,7 +1411,7 @@ class Listener(threading.Thread):
         o   If the job is completed, then shutdown the container cluster
             service.
         """
-        self.dp.qprint('Processing job status within t_status_process_openshift ... ')
+        self.dp.qprint('------- Processing job status within t_status_process_openshift ----------- ')
         str_logs = ''
         # Get job-id from request
         for k,v in kwargs.items():
@@ -1900,6 +1900,9 @@ class Listener(threading.Thread):
             self.auid           = d_meta['auid']
             str_cmd             = d_meta['cmd']
 
+            # TODO: Currently it is assumed that incoming and outgoing dir will always be the last two arg
+            # It holds true for 'ds' plugins but not for 'fs' plugins.
+            # Implementation to support both fs ad ds plugins should be incorporated.
             str_arr = str_cmd.split()
             incoming_dir = str_arr[len(str_arr)-2]
             outgoing_dir = str_arr[len(str_arr)-1]
