@@ -108,7 +108,9 @@ and then run
                 fnndsc/pman         \
                 --rawmode 1 --http  \
                 --port 5010         \
-                --listeners 12
+                --listeners 12      \
+                --storeBase=/tmp                                    
+
 
 *****
 Usage
@@ -153,6 +155,10 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
         A small delay in the listener loop to prevent busy-wait.
         Default is 0.1 seconds.
 
+        [--storeBase <storagePath>]
+        A file system location in the network space accessible to pman
+        that is used to unpack received files and also store results of processing.
+
         [--DBsavePeriod <time>]
         The periodicity in seconds for the internal DB save.
 
@@ -195,4 +201,5 @@ Start ``pman`` with 12 listeners:
                 --rawmode 1                                         \\
                 --http                                              \\
                 --listeners 12                                      \\
+                --storeBase=/tmp                                    \\
                 --verbosity 1

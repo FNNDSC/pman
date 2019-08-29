@@ -42,6 +42,7 @@ RUN pip install --upgrade pip                                         \
   && adduser localuser sudo                                           \
   && apt-get install -y libssl-dev libcurl4-openssl-dev bsdmainutils net-tools inetutils-ping \
   && pip install --upgrade pip                                        \
+  && pip3 install pfstorage1                                          \
   && pip3 install /tmp/pman                                           \ 
   && rm -rf /tmp/pman                                                 \
   && chmod 777 /dock                                                  \

@@ -44,6 +44,9 @@ import  pudb
 import  pprint
 from kubernetes.client.rest import ApiException
 
+# pfstorage modules
+from pfstorage import PfStorage
+
 str_devNotes = """
 
     08 June 2017
@@ -71,6 +74,14 @@ str_devNotes = """
         Would a functor type approach be useful at all?
 
 """
+
+# Global var
+Gd_internalvar = {
+    'name':                 "pman",
+    'version':              "",
+    'verbosity':            1,
+    'storeBase':            "/tmp",
+}
 
 class StoppableThread(threading.Thread):
     """Thread class with a stop() method. The thread itself has to check
@@ -144,6 +155,7 @@ class pman(object):
         self.b_http             = False
         self.socket_front       = None
         self.socket_back        = None
+        self.str_storeBase      = ''
 
         # Job info
         self.auid               = ''
@@ -169,6 +181,7 @@ class pman(object):
             if key == 'listenerSleep':  self.listenerSleep  = float(val)
             if key == 'DBsavePeriod':   self.DBsavePeriod   = int(val)
             if key == 'http':           self.b_http         = int(val)
+            if key == 'storeBase':      self.str_storeBase  = val
             if key == 'within':         self.within         = val
             if key == 'debugFile':      self.str_debugFile  = val
             if key == 'debugToFile':    self.b_debugToFile  = val
@@ -202,6 +215,9 @@ class pman(object):
         self.col2_print('Router raw mode',                  str(self.router_raw))
         self.col2_print('HTTP response back mode',          str(self.b_http))
         self.col2_print('listener sleep',                   str(self.listenerSleep))
+        
+        # Storing original storeBase in global variable
+        Gd_internalvar['storeBase'] = self.str_storeBase
 
         # Create the main internal DB data structure/abstraction
         self.ptree             = C_stree()
@@ -1827,8 +1843,9 @@ class Listener(threading.Thread):
                 str_managerApp              = d_manager['app']
 
                 d_env                       = d_manager['env']
-                if 'shareDir' in d_env.keys():
-                    str_shareDir            = d_env['shareDir']
+                if 'serviceType' in d_env.keys():
+                    global Gd_internalvar
+                    str_shareDir            = PfStorage.getStoragePath(self.jid, Gd_internalvar['storeBase'])
                     # Remove trailing '/' if it exists in shareDir
                     str_shareDir            = str_shareDir.rstrip('/')
                     b_exists                = self.FScomponent_pollExists(dir = str_shareDir)
