@@ -12,26 +12,26 @@ env:
     - OPENSHIFT_COMMIT=191fece
   matrix:
     - TO_TEST=pman
-    - TO_TEST=cube
+    # - TO_TEST=cube
 
 before_install:
   - sudo apt-get install libcurl4-openssl-dev libssl-dev
-  - if [ "$TO_TEST" = "cube" ]; then ./cube_before_install.sh; fi
+  - ./cube_before_install.sh
       
 # command to install dependencies
 install: 
-  - if [ "$TO_TEST" = "pman" ]; then pip install .; fi
+  - if [ "$TO_TEST" = "pman" ]; then pip install . &&  pip install python-swiftclient; fi
 
 before_script:
-  - if [ "$TO_TEST" = "cube" ]; then ./cube_before_script.sh; fi
+  - ./cube_before_script.sh;
 
 # command to run tests
 script: 
-  - if [ "$TO_TEST" = "pman" ]; then nosetests; fi
-  - if [ "$TO_TEST" = "cube" ]; then cd ../ChRIS_ultron_backEnd/; docker-compose exec chris_dev python manage.py test --tag integration --exclude-tag error-pman; fi
+  - if [ "$TO_TEST" = "pman" ]; then ./openshift_tests.sh; fi
+  # - if [ "$TO_TEST" = "cube" ]; then cd ../ChRIS_ultron_backEnd/; docker-compose exec chris_dev python manage.py test --tag integration --exclude-tag error-pman; fi
 
 after_script:
-  - if [ "$TO_TEST" = "cube" ]; docker swarm leave --force; fi
+  # - if [ "$TO_TEST" = "cube" ]; docker swarm leave --force; fi
 
 notifications:
   slack: fnndsc:xcwPXeUGBBNRkwAlygS9gtCo

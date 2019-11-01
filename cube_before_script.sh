@@ -15,7 +15,7 @@ docker build -t fnndsc/pfioh:latest .
 oc new-app openshift/pfioh-openshift-template-without-swift.json
 
 sleep 10 # Wait for deployments to run.
-
+docker ps -a
 # Deploy pfcon. 
 # TODO: Change this to deploying on OpenShift using environment variables
 popd
@@ -34,8 +34,28 @@ popd
 pushd ChRIS_ultron_backEnd/
 docker build -t fnndsc/chris_dev_backend .
 export STOREBASE=$(pwd)/FS/remote
-docker-compose up -d
-docker-compose exec chris_dev_db sh -c 'while ! mysqladmin -uroot -prootp status 2> /dev/null; do sleep 5; done;'
-docker-compose exec chris_dev_db mysql -uroot -prootp -e 'GRANT ALL PRIVILEGES ON *.* TO "chris"@"%"'
-docker swarm init --advertise-addr 127.0.0.1
+popd
 
+pwd
+ls -la
+
+# docker-compose up -d
+# docker-compose exec chris_dev_db sh -c 'while ! mysqladmin -uroot -prootp status 2> /dev/null; do sleep 5; done;'
+# docker-compose exec chris_dev_db mysql -uroot -prootp -e 'GRANT ALL PRIVILEGES ON *.* TO "chris"@"%"'
+# docker swarm init --advertise-addr 127.0.0.1
+
+# Pull a sample data set
+git clone https://github.com/FNNDSC/SAG-anon
+
+# Setting environment variable
+export HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}')
+export HOST_PORT=8000
+export DICOMDIR=$(pwd)/SAG-anon
+
+# Instantiate pfcon services
+ls -la
+cd pfcon
+./unmake
+sudo rm -fr FS
+rm -fr FS
+./make
