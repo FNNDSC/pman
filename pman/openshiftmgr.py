@@ -37,6 +37,8 @@ class OpenShiftManager(object):
         """
         Schedule a new job and returns the job object.
         """
+        incoming_dir = '/share/incoming'
+        outgoing_dir = '/share/outgoing'
         d_job = {
             "apiVersion": "batch/v1",
             "kind": "Job",
@@ -132,7 +134,7 @@ class OpenShiftManager(object):
             d_job['spec']['template']['spec']['initContainers'] = [
                 {
                     "name": "init-storage",
-                    "image": "fnndsc/pman-swift-publisher",
+                    "image": "singhp11/pman-swift-publisher:fixes",
                     "env": [
                         {
                             "name": "SWIFT_KEY",
@@ -181,7 +183,7 @@ class OpenShiftManager(object):
 
             d_job['spec']['template']['spec']['containers'].append({
                 "name": "publish",
-                "image": "fnndsc/pman-swift-publisher",
+                "image": "singhp11/pman-swift-publisher:fixes",
                 "env": [
                     {
                         "name": "SWIFT_KEY",
@@ -351,7 +353,7 @@ spec:
             if job.status.completion_time and job.status.succeeded > 0:
                 message = 'finished'
                 state = 'complete'
-            elif job.status.active > 0:
+            elif job.status.active and job.status.active > 0:
                 message = 'started'
                 state = 'running'
             else:

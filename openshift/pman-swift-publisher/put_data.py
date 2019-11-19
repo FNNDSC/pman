@@ -107,7 +107,7 @@ class KubeClient():
                                 # It is possible for the image processing container to error out when that happens, kill the job and exit.
                                 print('Some pod failed so terminate job')
                                 # Patch job to terminate. No re run required.
-                                self.terminate_job()
+                                # self.terminate_job()
                                 exit(1)
                             elif status['state']['terminated']['reason'] == 'Completed':
                                 completed_image_plugins += 1

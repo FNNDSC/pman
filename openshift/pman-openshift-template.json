@@ -71,7 +71,7 @@
                   "readOnly": true
                 }
               ],
-              "image": "fnndsc/pman",
+              "image": "singhp11/pman:fixes",
               "imagePullPolicy": "Always",
               "name": "pman",
               "ports": [{
