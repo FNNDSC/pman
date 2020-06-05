@@ -9,9 +9,10 @@
 #
 #   docker build -t local/pman .
 #
-# In the case of a proxy (located at 192.168.13.14:3128), do:
+# In the case of a proxy (located at say 10.41.13.4:3128), do:
 #
-#    docker build --build-arg http_proxy=http://192.168.13.14:3128 --build-arg UID=$UID -t local/pman .
+#    export PROXY="http://10.41.13.4:3128"
+#    docker build --build-arg http_proxy=${PROXY} --build-arg UID=$UID -t local/pman .
 #
 # To run an interactive shell inside this container, do:
 #
@@ -24,17 +25,20 @@
 
 
 FROM fnndsc/ubuntu-python3:latest
-MAINTAINER fnndsc "dev@babymri.org"
+LABEL maintainer="dev@babymri.org"
 
 # Pass a UID on build command line (see above) to set internal UID
 ARG UID=1001
-ENV UID=$UID
+ENV UID=$UID DEBIAN_FRONTEND=noninteractive
 
 COPY . /tmp/pman
 COPY ./docker-entrypoint.py /dock/docker-entrypoint.py
 
-RUN pip install --upgrade pip                                         \                                         
+RUN export LC_ALL=en_US.UTF-8                                         \
+  && export LANG=en_US.UTF-8                                          \
+  && pip install --upgrade pip                                        \
   && apt-get update                                                   \
+  && apt-get install locales && locale-gen en_US.UTF-8                \
   && apt-get install sudo                                             \
   && useradd -u $UID -ms /bin/bash localuser                          \
   && addgroup localuser sudo                                          \
@@ -42,7 +46,7 @@ RUN pip install --upgrade pip                                         \
   && adduser localuser sudo                                           \
   && apt-get install -y libssl-dev libcurl4-openssl-dev bsdmainutils net-tools inetutils-ping \
   && pip install --upgrade pip                                        \
-  && pip3 install /tmp/pman                                           \ 
+  && pip3 install /tmp/pman                                           \
   && rm -rf /tmp/pman                                                 \
   && chmod 777 /dock                                                  \
   && chmod 777 /dock/docker-entrypoint.py                             \

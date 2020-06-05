@@ -24,12 +24,12 @@ services:
     # full path to the spawned container should be ${STOREBASE} + keyStore!
     environment:
       - STOREBASE
-    image:  ${CREPO}/pman${TAG}
+    image:  ${PMANREPO}/pman${TAG}
     command: ["--rawmode", "1", "--http", "--port", "5010", "--listeners", "12"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./FS/remote:/hostFS/storeBase
-      - ./pman/pman.py:/usr/local/lib/python3.5/dist-packages/pman/pman.py
+      - ./pman/pman.py:/usr/local/lib/python3.8/dist-packages/pman/pman.py
       - /tmp:/tmp
     ports:
       - "5010:5010"
