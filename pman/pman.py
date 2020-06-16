@@ -52,22 +52,22 @@ str_devNotes = """
             *NOT* parse this with --httpResponseBodyParse!
 
     10 May 2017
-    *   Should methods in the listener be functors? Certain methods, such as 
-        'run' and 'status' need specialized implementations based on a run 
-        environment. This run environment is not known by the listener when 
-        it starts, but can be specified at payload parsing by the process() 
+    *   Should methods in the listener be functors? Certain methods, such as
+        'run' and 'status' need specialized implementations based on a run
+        environment. This run environment is not known by the listener when
+        it starts, but can be specified at payload parsing by the process()
         method. This, a method such as
-        
+
             t_run_process()
-            
-        might need at arbitrary call time to be specialized to some external 
-        condition set (say by running as a container). Naively, this can be 
+
+        might need at arbitrary call time to be specialized to some external
+        condition set (say by running as a container). Naively, this can be
         parsed in the message and thread redirected to
-        
+
             t_run_process_swarm()
-            
+
         for example.
-        
+
         Would a functor type approach be useful at all?
 
 """
@@ -96,12 +96,12 @@ class pman(object):
 
     def col2_print(self, str_left, str_right, level = 1):
         self.dp.qprint(Colors.WHITE +
-              ('%*s' % (self.LC, str_left)), 
-              end       = '', 
+              ('%*s' % (self.LC, str_left)),
+              end       = '',
               level     = level,
               syslog    = False)
         self.dp.qprint(Colors.CYAN +
-              ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR, 
+              ('%*s' % (self.RC, str_right)) + Colors.NO_COLOUR,
               level     = level,
               syslog    = False)
 
@@ -109,7 +109,8 @@ class pman(object):
         """
         Constructor
         """
-        self.within             = None                      # An encapsulating object
+        # An encapsulating object
+        self.within             = None
 
         # Description
         self.str_desc           = ""
@@ -120,8 +121,8 @@ class pman(object):
         # The main server function
         self.threaded_server    = None
 
-        # The listener thread array -- each element of this array is threaded listener
-        # object
+        # The listener thread array -- each element of this array is a
+        # threaded listener object
         self.l_listener         = []
         self.listenerSleep      = 0.1
 
@@ -131,6 +132,7 @@ class pman(object):
         # DB
         self.b_clearDB          = False
         self.str_DBpath         = '/tmp/pman'
+        self.str_directiveFile  = '/tmp/d_msg.json'
         self.ptree             = C_stree()
         self.str_fileio         = 'json'
         self.DBsavePeriod       = 60
@@ -161,32 +163,33 @@ class pman(object):
         self.authModule         = None
 
         for key,val in kwargs.items():
-            if key == 'protocol':       self.str_protocol   = val
-            if key == 'IP':             self.str_IP         = val
-            if key == 'port':           self.str_port       = val
-            if key == 'raw':            self.router_raw     = int(val)
-            if key == 'listeners':      self.listeners      = int(val)
-            if key == 'listenerSleep':  self.listenerSleep  = float(val)
-            if key == 'DBsavePeriod':   self.DBsavePeriod   = int(val)
-            if key == 'http':           self.b_http         = int(val)
-            if key == 'within':         self.within         = val
-            if key == 'debugFile':      self.str_debugFile  = val
-            if key == 'debugToFile':    self.b_debugToFile  = val
-            if key == 'DBpath':         self.str_DBpath     = val
-            if key == 'clearDB':        self.b_clearDB      = val
-            if key == 'desc':           self.str_desc       = val
-            if key == 'name':           self.str_name       = val
-            if key == 'version':        self.str_version    = val
-            if key == 'containerEnv':   self.container_env  = val.lower()
-            if key == 'verbosity':      self.verbosity      = int(val)
-            if key == 'b_tokenAuth':    self.b_tokenAuth    = val
+            if key == 'protocol':       self.str_protocol       = val
+            if key == 'IP':             self.str_IP             = val
+            if key == 'port':           self.str_port           = val
+            if key == 'raw':            self.router_raw         = int(val)
+            if key == 'listeners':      self.listeners          = int(val)
+            if key == 'listenerSleep':  self.listenerSleep      = float(val)
+            if key == 'DBsavePeriod':   self.DBsavePeriod       = int(val)
+            if key == 'http':           self.b_http             = int(val)
+            if key == 'within':         self.within             = val
+            if key == 'debugFile':      self.str_debugFile      = val
+            if key == 'debugToFile':    self.b_debugToFile      = val
+            if key == 'directiveFile':  self.str_directiveFile  = val
+            if key == 'DBpath':         self.str_DBpath         = val
+            if key == 'clearDB':        self.b_clearDB          = val
+            if key == 'desc':           self.str_desc           = val
+            if key == 'name':           self.str_name           = val
+            if key == 'version':        self.str_version        = val
+            if key == 'containerEnv':   self.container_env      = val.lower()
+            if key == 'verbosity':      self.verbosity          = int(val)
+            if key == 'b_tokenAuth':    self.b_tokenAuth        = val
             if key == 'str_tokenPath':
                 if self.b_tokenAuth:
                     self.authModule = Auth('socket', val)
         # Screen formatting
         self.LC                 = 30
         self.RC                 = 40
-        self.dp                 = pfmisc.debug(    
+        self.dp                 = pfmisc.debug(
                                             verbosity   = self.verbosity,
                                             debugFile   = self.str_debugFile,
                                             debugToFile = self.b_debugToFile,
@@ -282,7 +285,7 @@ class pman(object):
                 failOnDirExist  = False,
                 saveJSON        = False,
                 savePickle      = True)
-            
+
         for k,v in kwargs.items():
             if k == 'cmd':      str_cmd             = v
             if k == 'fileio':   self.str_fileio     = v
@@ -300,9 +303,9 @@ class pman(object):
             tree_DB = C_stree()
             self.dp.qprint('Removing DB from persistent storage...')
             if os.path.isdir(str_DBpath):
-                shutil.rmtree(str_DBpath, ignore_errors=True)     
+                shutil.rmtree(str_DBpath, ignore_errors=True)
             self.dp.qprint('Saving empty DB to peristent storage')
-            saveToDiskAsJSON(tree_DB)       
+            saveToDiskAsJSON(tree_DB)
 
         if str_cmd == 'save':
             if os.path.isdir(str_DBpath):
@@ -400,12 +403,13 @@ class pman(object):
         self.socket_back.bind('inproc://backend')
 
         # Start the 'fileIO' thread
-        self.fileIO      = FileIO(      DB          = self.ptree,
-                                        timeout     = self.DBsavePeriod,
-                                        within      = self,
-                                        debugFile   = self.str_debugFile,
-                                        verbosity   = self.verbosity,
-                                        debugToFile = self.b_debugToFile)
+        self.fileIO      = FileIO(  DB              = self.ptree,
+                                    directiveFile   = self.str_directiveFile,
+                                    timeout         = self.DBsavePeriod,
+                                    within          = self,
+                                    debugFile       = self.str_debugFile,
+                                    verbosity       = self.verbosity,
+                                    debugToFile     = self.b_debugToFile)
         self.fileIO.start()
 
 
@@ -445,12 +449,6 @@ class pman(object):
     def __iter__(self):
         yield('Feed', dict(self.ptree.snode_root))
 
-    # @abc.abstractmethod
-    # def create(self, **kwargs):
-    #     """Create a new tree
-    #
-    #     """
-
     def __str__(self):
         """Print
         """
@@ -468,7 +466,11 @@ class pman(object):
 
 class FileIO(threading.Thread):
     """
-    A class that periodically saves the database from memory out to disk.
+    A class that periodically performs several file system based
+    operations, including:
+
+        * saving the database from memory out to disk.
+        * checking for a directive file to interpret.
     """
 
     def __init__(self, **kwargs):
@@ -479,6 +481,7 @@ class FileIO(threading.Thread):
 
         self.timeout            = 60
         self.within             = None
+        self.str_directiveFile  = "/tmp/d_msg.json"
 
         self.b_stopThread       = False
         self.verbosity          = 1
@@ -489,13 +492,14 @@ class FileIO(threading.Thread):
         self.pp                 = pprint.PrettyPrinter(indent=4)
 
         for key,val in kwargs.items():
-            if key == 'DB':             self.ptree          = val
-            if key == 'DBpath':         self.str_DBpath     = val
-            if key == 'timeout':        self.timeout        = val
-            if key == 'within':         self.within         = val
-            if key == 'debugFile':      self.str_debugFile  = val
-            if key == 'debugToFile':    self.b_debugToFile  = val
-            if key == 'verbosity':      self.verbosity      = int(val)
+            if key == 'directiveFile':  self.str_directiveFile  = val
+            if key == 'DB':             self.ptree              = val
+            if key == 'DBpath':         self.str_DBpath         = val
+            if key == 'timeout':        self.timeout            = val
+            if key == 'within':         self.within             = val
+            if key == 'debugFile':      self.str_debugFile      = val
+            if key == 'debugToFile':    self.b_debugToFile      = val
+            if key == 'verbosity':      self.verbosity          = int(val)
 
         self.dp                 = pfmisc.debug(
                                         verbosity   = self.verbosity,
@@ -505,24 +509,74 @@ class FileIO(threading.Thread):
 
         threading.Thread.__init__(self)
 
+    def directiveFile_process(self):
+        """
+        If a new directive file exists:
+
+            - read the file
+            - process the JSON message through the ProcessPOST() 
+              method
+            - delete the file.
+
+        """
+        b_jsonRead  = False
+        d_request   = {}
+        try:
+            with open(self.str_directiveFile) as fdirective:
+                try:
+                    d_request   = json.load(fdirective)
+                    b_jsonRead  = True
+                    fdirective.close()
+                except:
+                    b_jsonRead  = False
+        except FileNotFoundError:
+            pass
+
+        if b_jsonRead:
+            os.remove(self.str_directiveFile)
+        return {
+            'status':       b_jsonRead,
+            'd_request':    d_request
+        }
+
+    def directiveCmd_process(self, d_request):
+        """
+
+            Call the relevant method to process the directive.
+
+        """
+        b_status    = False
+        d_process   = {}
+
+        # Call the first listener to process this directive
+        d_process   = self.within.l_listener[0].processPOST(
+                                request = d_request,
+                                ret     = d_request
+        )
+
+        return {
+            'status':       b_status,
+            'd_process':    d_process
+        }
+
+
     def run(self):
         """ Main execution. """
-        # Socket to communicate with front facing server.
         while not self.b_stopThread:
-            # self.dp.qprint('Saving DB as type "%s" to "%s"...' % (
-            #     self.within.str_fileio,
-            #     self.within.str_DBpath
-            # ))
+            # Once per timeout loop we save the internal DB
             self.within.DB_fileIO(cmd = 'save')
-            # self.dp.qprint('DB saved...')
             for second in range(0, self.timeout):
                 if not self.b_stopThread:
+                    # After each 1 second sleep, we check for 
+                    # the presence of a new directive file and
+                    # process it.
                     time.sleep(1)
+                    d_directive = self.directiveFile_process()
+                    if d_directive['status']:
+                        self.directiveCmd_process(d_directive['d_request'])
                 else:
                     break
-
         self.dp.qprint('returning from FileIO run method...')
-        # raise ValueError('FileIO thread terminated.')
 
 class Listener(threading.Thread):
     """ Listeners accept communication requests from front facing server.
@@ -574,7 +628,6 @@ class Listener(threading.Thread):
                                         within      = self.__name)
 
         threading.Thread.__init__(self)
-        # logging.debug('leaving __init__')
 
     def df_print(self, adict):
         """
@@ -826,7 +879,7 @@ class Listener(threading.Thread):
         if 'dbpath'     in d_meta:  str_DBpath      = d_meta['dbpath']
         if 'fileio'     in d_meta:  str_fileio      = d_meta['fileio']
 
-        self.within.DB_fileIO( 
+        self.within.DB_fileIO(
                         cmd         = str_do,
                         fileio      = str_fileio,
                         dbpath      = str_DBpath,
@@ -837,7 +890,6 @@ class Listener(threading.Thread):
         d_ret       = self.DB_get(path  = str_DBpath)
         return {'d_ret':    d_ret,
                 'status':   True}
-        
 
     def t_fileiosetup_process(self, *args, **kwargs):
         """
@@ -996,16 +1048,16 @@ class Listener(threading.Thread):
         information on the status of jobs (both active and historical)
         that have been (or are currently) managed by pman.
 
-        Originally, the concept of "job" only extended to a command 
+        Originally, the concept of "job" only extended to a command
         line process spawned off on the underlying shell. With time,
         however, this concept expanded to encompass processes that
         are containerized.
 
-        While most (if not all) of the use of pman currently is to 
+        While most (if not all) of the use of pman currently is to
         handle containerized compute, the status determination logic
         still retains the ability to query simple spawned jobs.
 
-        The determination about whether or not a job has been 
+        The determination about whether or not a job has been
         containerized is quite simple -- a token in the internal
         job "state" memory structure (the main pman stree "DB")
         is checked -- this initial chunk of data is returned by a
@@ -1030,23 +1082,23 @@ class Listener(threading.Thread):
                     status = logs = currentState = e.reason
                 else:
                     raise e
-            
+
             d_ret = {
                 'description':   str(status),
-                'l_logs':     str(logs),         
+                'l_logs':     str(logs),
                 'l_status': currentState
             }
             return {
                     "d_ret":    d_ret,
                     "status":   str(currentState)
             }
-        
+
         else:
 
             d_state     = self.job_state(*args, **kwargs)
             # {
             #     "hits":         hits,
-            #     "d_ret":        
+            #     "d_ret":
             #         [<index>+'.container']   = {
             #             "jobRoot": job, "tree": dict(T_container.snode_root)
             #         },
@@ -1130,10 +1182,10 @@ class Listener(threading.Thread):
 
     def DB_store(self, data, str_path, str_file):
         """
-        In the DB memory tree, simply stores <data> to a location called 
+        In the DB memory tree, simply stores <data> to a location called
         <str_path> and a file called <str_file>.
 
-        Explicitly separating <str_path> and <str_file> is just for 
+        Explicitly separating <str_path> and <str_file> is just for
         expedience in checking up on path validity in the DB memory tree.
 
         This method also triggers a DB save event.
@@ -1146,7 +1198,7 @@ class Listener(threading.Thread):
 
     def t_status_process_container_stateObject(self, *args, **kwargs):
         """
-        This method processes the swarm manager state object and, if 
+        This method processes the swarm manager state object and, if
         necessary, shuts down the service from the swarm scheduler.
 
         PRECONDITIONS:
@@ -1206,7 +1258,7 @@ class Listener(threading.Thread):
                                     '%s' % d_serviceInfo['managerImage'],
                                     str_cmdShutDown,
                                     volumes = {
-                                                '/var/run/docker.sock': 
+                                                '/var/run/docker.sock':
                                                         {
                                                             'bind': '/var/run/docker.sock',
                                                             'mode': 'rw'
@@ -1288,7 +1340,7 @@ class Listener(threading.Thread):
 
         # Check if the state of the container service has been recorded to the data tree
         if self.within.ptree.exists('state', path = '/%s/container' % str_jobRoot):
-            # If this exists, then the job has actually completed and 
+            # If this exists, then the job has actually completed and
             # its state has been recorded in the data tree. We can simply 'cat'
             # the state from this memory dictionary
             d_serviceState  = self.within.ptree.cat('/%s/container/state' % str_jobRoot)
@@ -1297,7 +1349,7 @@ class Listener(threading.Thread):
                 str_logs     = self.within.ptree.cat('/%s/container/logs' % str_jobRoot)
         else:
             # Here, the manager has not been queried yet about the state of
-            # the service. We need to ask the container service for this 
+            # the service. We need to ask the container service for this
             # state, and then record the state (and logs) in the memory
             # tree, and then "shut down" the service.
             client = docker.from_env()
@@ -1309,7 +1361,7 @@ class Listener(threading.Thread):
                     '%s' % str_managerImage,
                     str_cmdManager,
                     volumes =   {
-                                '/var/run/docker.sock': 
+                                '/var/run/docker.sock':
                                     {
                                         'bind': '/var/run/docker.sock',
                                         'mode': 'rw'
@@ -1330,7 +1382,7 @@ class Listener(threading.Thread):
                 str_logs    = container.logs()
                 str_logs    = str_logs.decode()
 
-        d_ret = self.t_status_process_container_stateObject( 
+        d_ret = self.t_status_process_container_stateObject(
                                     hitIndex        = str_hitIndex,
                                     jobState        = d_state,
                                     serviceState    = d_serviceState,
@@ -1350,7 +1402,7 @@ class Listener(threading.Thread):
             'logs':             str_logs,
             'currentState':     d_ret['d_process']['currentState']
         }
-    
+
     def t_delete_process(self,*args, **kwargs):
         """
         Deletes existing jobs. Checks if container environment is OpenShift.
@@ -1379,7 +1431,7 @@ class Listener(threading.Thread):
                 "status":   status
             }
 
-        
+
     def t_delete_process_openshift(self,*args, **kwargs):
         """
         Delete job and related resources (pods & pvc) from OpenShift
@@ -1397,7 +1449,7 @@ class Listener(threading.Thread):
         return {
             "jid" : jid,
             "status" : status
-        } 
+        }
 
     def t_status_process_openshift(self, *args, **kwargs):
         """
@@ -1416,8 +1468,8 @@ class Listener(threading.Thread):
         # Get job-id from request
         for k,v in kwargs.items():
             if k == 'request' and v['action'] == 'status' :     jid = v['meta']['value']
-        
-        # Query OpenShift API to get job state 
+
+        # Query OpenShift API to get job state
         d_json  = self.get_openshift_manager().state(jid)
 
         if d_json['Status']['Message'] == 'finished':
@@ -1429,7 +1481,7 @@ class Listener(threading.Thread):
 
         status  = d_json['Status']
         currentState =  d_json['Status']['Message']
-    
+
         return {
             'status':           status,
             'logs':             str_logs,
@@ -1504,7 +1556,7 @@ class Listener(threading.Thread):
 
     def t_status_process_state(self, *args, **kwargs):
         """
-        This method processes the swarm state object to make the 
+        This method processes the swarm state object to make the
         final determination on a job's state and print out container
         job state and logs.
 
@@ -1512,9 +1564,9 @@ class Listener(threading.Thread):
         of the job from the swarm scheduler if the job has completed.
         """
 
-        def debug_print(    str_jobRoot, 
-                            d_serviceState, 
-                            str_currentState, 
+        def debug_print(    str_jobRoot,
+                            d_serviceState,
+                            str_currentState,
                             str_logs
                         ):
             """
@@ -1526,10 +1578,10 @@ class Listener(threading.Thread):
             if str_currentState == 'finishedWithError':
                 l_comms = l_commsErr
             self.dp.qprint('\njobRoot %s\n-->%s<--...' % \
-                                    (str_jobRoot, 
+                                    (str_jobRoot,
                                     str_currentState),
                                     comms = l_comms[0])
-            self.dp.qprint('\n%s' % self.df_print(d_serviceState), 
+            self.dp.qprint('\n%s' % self.df_print(d_serviceState),
                                     comms = l_comms[1])
             self.dp.qprint('\njob logs:\n%s' % str_logs,
                                     comms = l_comms[2])
@@ -1576,7 +1628,7 @@ class Listener(threading.Thread):
                     'removeJob':        b_removeJob,
                     'status':           b_status
                 }
-    
+
     def t_hello_process(self, *args, **kwargs):
         """
 
@@ -1689,7 +1741,7 @@ class Listener(threading.Thread):
         for detailKey in ['cmdMgr', 'cmdMgr_byte_str']:
             if detailKey in d_meta.keys():
                 p.touch(detailKey,   json.dumps(d_meta[detailKey]))
-            
+
         p.touch('cmd',          str_cmd)
         if len(self.auid):
             p.touch('auid',     self.auid)
@@ -1732,7 +1784,7 @@ class Listener(threading.Thread):
 
     def FScomponent_pollExists(self, *args, **kwargs):
         """
-        This method polls access to a file system component (a file or 
+        This method polls access to a file system component (a file or
         directory). Its purpose is to wait for possible transients when
         an asynchronous process creates a file system component that some
         method in pmans wants to access.
@@ -2347,7 +2399,7 @@ class Crunner(threading.Thread):
                                             debugToFile = self.b_debugToFile,
                                             debugFile   = self.str_debugFile)
 
-        self.dp                 = pfmisc.debug(    
+        self.dp                 = pfmisc.debug(
                                             verbosity   = self.verbosity,
                                             debugFile   = self.str_debugFile,
                                             debugToFile = self.b_debugToFile,

@@ -1,5 +1,5 @@
 #################
-pman - v2.0.0.10
+pman - v2.2.0.0
 #################
 
 .. image:: https://badge.fury.io/py/pman.svg
@@ -14,10 +14,10 @@ pman - v2.0.0.10
 .. contents:: Table of Contents
 
 ********
-Overview        
+Overview
 ********
 
-This repository proves ``pman`` -- a process manager. 
+This repository proves ``pman`` -- a process manager.
 
 pman
 ====
@@ -66,7 +66,7 @@ You might want to add to your .bashrc file these two lines:
 (Note depending on distro, the ``virtualenvwrapper.sh`` path might be
 
 .. code-block:: bash
-    
+
     /usr/share/virtualenvwrapper/virtualenvwrapper.sh
 
 Then you can source your .bashrc and create a new Python3 virtual environment:
@@ -87,7 +87,7 @@ To deactivate virtual env:
 .. code-block:: bash
 
     deactivate
-  
+
 
 Using the ``fnndsc/pman`` dock
 ==============================
@@ -97,7 +97,7 @@ The easiest option however, is to just use the ``fnndsc/pman`` dock.
 .. code-block:: bash
 
     docker pull fnndsc/pman
-    
+
 and then run
 
 .. code-block:: bash
@@ -123,7 +123,7 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
 
     ARGS
 
-        [--ip <IP>]                            
+        [--ip <IP>]
 
         The IP interface on which to listen.
 
@@ -153,6 +153,11 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
         A small delay in the listener loop to prevent busy-wait.
         Default is 0.1 seconds.
 
+        [--directiveFile <directiveFile>]
+        The location of a message-conformant <directiveFile>. If this file
+        if found by the FileIO thread, its contents will be read and
+        executed, after which the file will be deleted.
+T
         [--DBsavePeriod <time>]
         The periodicity in seconds for the internal DB save.
 
@@ -164,7 +169,7 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
         Specify the absolute path to the token in the file system.
         By default, this looks for the pfiohConfig.ini file in the current working directory.
 
-        [-x|--desc]                                     
+        [-x|--desc]
         Provide an overview help page.
 
         [-y|--synopsis]
@@ -181,7 +186,7 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
         --container-env <env>
         The container env within which to run.
 
-********    
+********
 EXAMPLES
 ********
 

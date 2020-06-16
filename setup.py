@@ -11,7 +11,7 @@ def readme():
 
 setup(
       name             =   'pman',
-      version          =   '2.0.0.10',
+      version          =   '2.2.0.0',
       description      =   '(Python) Process Manager',
       long_description =   readme(),
       author           =   'Rudolph Pienaar',
@@ -21,7 +21,7 @@ setup(
       install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc', 'ipaddress', 'fasteners', 'kubernetes', 'python-keystoneclient'],
       test_suite       =   'nose.collector',
       tests_require    =   ['nose'],
-      scripts          =   ['bin/pman'],
+      scripts          =   ['bin/pman', 'bin/pman_do'],
       license          =   'MIT',
       zip_safe         =   False
      )
