@@ -41,24 +41,31 @@ def getData(**kwargs):
 
     if not os.path.exists('/local'):
         os.mkdir('/local')
-    downloadResultsGenerator = swiftService.download(containerName, [key], {'out_file': '/local/incomingData.zip'})
-    for res in downloadResultsGenerator:
-        print("Download results generated")
-        if not res['success']:
-            success = False
-        pp.pprint(res)
+
+    response_headers, object_contents = swiftService.get_object(containerName, key)
+
+    # Download the object
+    try:
+        downloaded_file = open('/local/incomingData.zip', mode='wb')
+        downloaded_file.write(object_contents)
+        downloaded_file.close()
+        print("Download results generated", flush=True)
+    except Exception as e:
+        success = False
+        pp.pprint(e)
+
     if success:
         print("Download successful")
         if b_delete:
-            for res in swiftService.delete(containerName, [key]):
-                print("Delete results generated")
-                if not res['success']:
-                    success = False
-                pp.pprint(res)
+            try:
+                swiftService.delete_object(containerName, key)
+            except Exception as e:
+                success = False
+                pp.pprint(e)
             if success:
-                print('Deleted object with key %s' %key)
-        else:
-            print("Deletion unsuccessful")
+                print('Deleted object with key %s' % key)
+            else:
+                print("Deletion unsuccessful")
     else:
         print("Download unsuccessful")
 

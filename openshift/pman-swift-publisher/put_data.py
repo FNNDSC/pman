@@ -30,22 +30,44 @@ def storeData(**kwargs):
     swiftService = swift_handler._createSwiftService(configPath)
 
     shutil.make_archive('/local/outgoingData', 'zip', outgoing_dir)
+    zip_file_contents = open('/local/outgoingData.zip', mode='rb')
+
     try:
         success = True
-        uploadObject = swift_service.SwiftUploadObject('/local/outgoingData.zip', "output/data")
-        uploadResultsGenerator = swiftService.upload(containerName, [uploadObject])
-        for res in uploadResultsGenerator:
-            print("Upload results generated")
-            if not res["success"]:
-                success = False
-            pp.pprint(res)
+        filePath = "output/data"
+
+        resp_headers, containers = swiftService.get_account()
+        listContainers = [d['name'] for d in containers if 'name' in d]
+
+        if containerName not in listContainers:
+            swiftService.put_container(containerName)
+            resp_headers, containers = swiftService.get_account()
+            listContainers = [d['name'] for d in containers if 'name' in d]
+            if containerName in listContainers:
+                print("The container was created successfully")
+            else:
+                raise Exception("The container was not created successfully")
+
+        swiftService.put_object(
+            containerName,
+            filePath,
+            contents=zip_file_contents,
+            content_type='application/zip'
+        )
+        zip_file_contents.close()
+
+        # Confirm presence of the object in swift
+        response_headers = swiftService.head_object(containerName, filePath)
+        print('The upload was successful')
     except Exception as err:
         print(err)
         success = False
+
     if success:
         print("Upload successful")
     else:
         print("Upload unsuccessful")
+
     #Delete temporary empty directory created by Swift
     swift_handler._deleteEmptyDirectory(containerName)
     os.remove('/local/outgoingData.zip')
