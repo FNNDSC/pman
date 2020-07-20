@@ -1,8 +1,15 @@
+
 # Compiled python modules.
 *.pyc
 
+# MAC-specific FS stuff
+*.DS_Store
+
 # all log files
 *.log
+
+# PyCharm
+.idea
 
 # Setuptools distribution folder.
 /dist/

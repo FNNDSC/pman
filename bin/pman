@@ -15,6 +15,7 @@ from    distutils.sysconfig import get_python_lib
 from    argparse            import RawTextHelpFormatter
 from    argparse            import ArgumentParser
 import  socket
+import signal
 import  threading
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../pman'))
@@ -29,7 +30,7 @@ from pfmisc._colors         import Colors
 
 str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
 
-str_version = "2.2.0.0"
+str_version = "2.2.0.1"
 str_name    = 'pman'
 str_desc    = Colors.CYAN + """
 
@@ -386,6 +387,15 @@ comm = pman.pman(
     b_tokenAuth     = args.b_tokenAuth,
     str_tokenPath   = args.str_tokenPath
 )
+
+
+def exit_gracefully(signum, frame):
+    print("Gracefully shutting down!...")
+    comm.threaded_server.stopit()
+
+
+signal.signal(signal.SIGINT, exit_gracefully)
+signal.signal(signal.SIGTERM, exit_gracefully)
 
 # This starts the main thread and "detaches" execution from the main
 # program.

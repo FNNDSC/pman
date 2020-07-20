@@ -184,12 +184,12 @@ windowBottom
 
 if (( b_restart || b_kill )) ; then
     printf "${Red}Stopping $JOB...${NC}\n"
-    docker-compose -f docker-compose.yml stop                           \
-        ${RESTART}_service && docker-compose -f docker-compose.yml      \
+    docker-compose -f docker-compose_dev.yml stop                           \
+        ${RESTART}_service && docker-compose -f docker-compose_dev.yml      \
         rm -f ${RESTART}_service                                        > dc.out
         cat dc.out | ./boxes.sh
 
-    docker-compose -f docker-compose.yml run --service-ports            \
+    docker-compose -f docker-compose_dev.yml run --service-ports            \
         ${RESTART}_service                                              > dc.out
         cat dc.out | ./boxes.sh
 else
@@ -232,10 +232,10 @@ else
     title -d 1 "Shutting down any running pman and pman related containers... "
         echo "This might take a few minutes... please be patient."              | ./boxes.sh ${Yellow}
         windowBottom
-        docker-compose --no-ansi -f docker-compose.yml stop >& dc.out > /dev/null
+        docker-compose --no-ansi -f docker-compose_dev.yml stop >& dc.out > /dev/null
         echo -en "\033[2A\033[2K"
         cat dc.out | sed -E 's/(.{80})/\1\n/g'                                  | ./boxes.sh ${LightBlue}
-        docker-compose --no-ansi -f docker-compose.yml rm -vf >& dc.out > /dev/null
+        docker-compose --no-ansi -f docker-compose_dev.yml rm -vf >& dc.out > /dev/null
         cat dc.out | sed -E 's/(.{80})/\1\n/g'                                  | ./boxes.sh ${LightCyan}
         for CORE in ${A_CONTAINER[@]} ; do
             cparse $CORE " " "REPO" "CONTAINER" "MMN" "ENV"
@@ -285,9 +285,9 @@ else
     windowBottom
 
     title -d 1 "Starting pman containerized development environment using "\
-                        "./docker-compose.yml"
+                        "./docker-compose_dev.yml"
         echo "This might take a few minutes... please be patient."      | ./boxes.sh ${Yellow}
         echo "docker-compose -f docker-compose_dev.yml up -d"           | ./boxes.sh ${LightCyan}
         windowBottom
-        docker-compose -f docker-compose.yml run --service-ports pman_service
+        docker-compose -f docker-compose_dev.yml run --service-ports pman_service
 fi

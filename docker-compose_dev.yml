@@ -8,7 +8,7 @@
 # specify them again in docker-compose.yml.
 #
 
-version: '3'
+version: '3.7'
 
 services:
   pman_service:
@@ -24,12 +24,13 @@ services:
     # full path to the spawned container should be ${STOREBASE} + keyStore!
     environment:
       - STOREBASE
-    image:  ${PMANREPO}/pman${TAG}
+    image:  ${PMANREPO}/pman:dev
     command: ["--rawmode", "1", "--http", "--port", "5010", "--listeners", "12"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./FS/remote:/hostFS/storeBase
-      - ./pman/pman.py:/usr/local/lib/python3.8/dist-packages/pman/pman.py
+      - ./pman/pman.py:/home/localuser/pman/pman/pman.py
+      - ./pman/tests:/home/localuser/pman/pman/tests
       - /tmp:/tmp
     ports:
       - "5010:5010"
