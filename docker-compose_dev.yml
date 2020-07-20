@@ -8,7 +8,7 @@
 # specify them again in docker-compose.yml.
 #
 
-version: '3'
+version: '3.7'
 
 services:
   pman_service:
