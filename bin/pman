@@ -15,6 +15,7 @@ from    distutils.sysconfig import get_python_lib
 from    argparse            import RawTextHelpFormatter
 from    argparse            import ArgumentParser
 import  socket
+import signal
 import  threading
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../pman'))
@@ -386,6 +387,15 @@ comm = pman.pman(
     b_tokenAuth     = args.b_tokenAuth,
     str_tokenPath   = args.str_tokenPath
 )
+
+
+def exit_gracefully(signum, frame):
+    print("Gracefully shutting down!...")
+    comm.threaded_server.stopit()
+
+
+signal.signal(signal.SIGINT, exit_gracefully)
+signal.signal(signal.SIGTERM, exit_gracefully)
 
 # This starts the main thread and "detaches" execution from the main
 # program.

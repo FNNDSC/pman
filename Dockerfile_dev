@@ -1,26 +1,26 @@
 #
-# Dockerfile for pman production.
+# Dockerfile for pman development.
 #
 # Build with
 #
-#   docker build -t <name> .
+#   docker build -t <name>:<tag> -f <dockerfile> .
 #
 # For example if building a local version, you could do:
 #
-#   docker build -t local/pman .
+#   docker build -t local/pman:dev -f Dockerfile_dev .
 #
 # In the case of a proxy (located at say 10.41.13.4:3128), do:
 #
 #    export PROXY="http://10.41.13.4:3128"
-#    docker build --build-arg http_proxy=${PROXY} --build-arg UID=$UID -t local/pman .
+#    docker build --build-arg http_proxy=${PROXY} --build-arg UID=$UID -t local/pman:dev -f Dockerfile_dev .
 #
 # To run an interactive shell inside this container, do:
 #
-#   docker run -ti --rm --entrypoint /bin/bash local/pman
+#   docker run -ti --entrypoint /bin/bash local/pman:dev
 #
 # To pass an env var HOST_IP to container, do:
 #
-#   docker run -ti --rm -e HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}') --entrypoint /bin/bash local/pman
+#   docker run -ti --rm -e HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}') --entrypoint /bin/bash local/pman:dev
 #
 
 FROM fnndsc/ubuntu-python3:latest
@@ -37,9 +37,11 @@ RUN apt-get update                                                \
   && export LC_ALL=en_US.UTF-8                                    \
   && locale-gen en_US.UTF-8                                       \
   && dpkg-reconfigure locales                                     \
+  && apt-get install -y sudo                                             \
   && apt-get install -y libssl-dev libcurl4-openssl-dev bsdmainutils net-tools inetutils-ping \
   && pip install --upgrade pip                                        \
-  && useradd -u $UID -ms /bin/bash localuser
+  && useradd -u $UID -ms /bin/bash localuser                          \
+  && echo "localuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Copy source code
 COPY --chown=localuser ./bin ${APPROOT}/bin
@@ -48,8 +50,7 @@ COPY --chown=localuser ./pman ${APPROOT}/pman
 COPY --chown=localuser ./openshift ${APPROOT}/openshift
 COPY --chown=localuser ./setup.cfg ./setup.py README.rst  ${APPROOT}/
 
-RUN pip3 install ${APPROOT}  \
-  && rm -fr ${APPROOT}
+RUN pip3 install -e ${APPROOT}
 
 # Start as user localuser
 #USER localuser
