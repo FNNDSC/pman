@@ -601,6 +601,10 @@ class Listener(threading.Thread):
 
         self.openshiftmgr       = None
 
+        self.b_treeLocked       = False
+        self.initial_wait       = 0.2
+        self.max_wait           = 120
+
         # Debug parameters
         self.str_debugFile      = '/dev/null'
         self.b_debugToFile      = True
@@ -746,7 +750,7 @@ class Listener(threading.Thread):
         self.dp.qprint(b_pathSpec)
         str_fileName    = d_meta['key']
         str_target      = d_meta['value']
-        p               = self.within.ptree
+        p               = self.tree_access()
         str_origDir     = p.cwd()
         str_pathOrig    = str_path
         for r in self.within.ptree.lstr_lsnode('/'):
@@ -770,8 +774,38 @@ class Listener(threading.Thread):
                     hits               += 1
         p.cd(str_origDir)
 
+        # Unlock the Tree for other threads
+        self.b_treeLocked = False
+
         return {"d_ret":    d_ret,
                 "status":   bool(hits)}
+
+    def exponential_backoff(self, attempt):
+        """
+
+        Returns exponential backoff value based on the
+        number of attempts
+
+        Useful for retrying certain operations until
+        a successful state is reached
+        """
+        return min(self.max_wait, self.initial_wait * 2 ** attempt)
+
+    def tree_access(self):
+        """
+
+        Return a pointer to Gd_tree if no other execution
+        thread is accessing the tree
+
+        Prevents RunTime Error when iterating through
+        Gd_tree or saving it to a local path
+        """
+        number_attempts = 0
+        while self.b_treeLocked:
+            time.sleep(self.exponential_backoff(number_attempts))
+            number_attempts += 1
+        self.b_treeLocked = True
+        return self.within.ptree
 
     def t_info_process(self, *args, **kwargs):
         """
@@ -1193,8 +1227,12 @@ class Listener(threading.Thread):
         """
         if not self.within.ptree.exists(str_file, path = str_path):
             self.within.ptree.touch('%s/%s' % (str_path, str_file), data)
-            # Save DB state...
-            self.within.DB_fileIO(cmd = 'save')
+
+            # Turning off save DB after each operation to prevent possible
+            # issues when running multiple jobs in parallel which results in
+            # a state where one thread wants to save the DB to a directory
+            # that has been deleted by another thread.
+            # self.within.DB_fileIO(cmd = 'save')
 
     def t_status_process_container_stateObject(self, *args, **kwargs):
         """
@@ -1780,7 +1818,12 @@ class Listener(threading.Thread):
 
         # Save DB state...
         self.within.ptree           = p
-        self.within.DB_fileIO(cmd   = 'save')
+
+        # Turning off save DB after each operation to prevent possible
+        # issues when running multiple jobs in parallel which results in
+        # a state where one thread wants to save the DB to a directory
+        # that has been deleted by another thread.
+        # self.within.DB_fileIO(cmd   = 'save')
 
     def FScomponent_pollExists(self, *args, **kwargs):
         """
