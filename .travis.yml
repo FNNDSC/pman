@@ -32,7 +32,7 @@ before_script:
 # command to run tests
 script:
   - if [ "$TO_TEST" = "pman" ]; then nosetests; fi
-  - if [ "$TO_TEST" = "cube" ]; then cd ../ChRIS_ultron_backEnd/; docker-compose -f docker-compose_dev.yml exec chris_dev python manage.py test --tag integration; fi
+  - if [ "$TO_TEST" = "cube" ]; then cd ../ChRIS_ultron_backEnd/; docker-compose -f docker-compose_dev.yml exec chris_dev python manage.py test --tag integration --exclude-tag error-pman; fi
 
 after_script:
   - if [ "$TO_TEST" = "cube" ]; then cd ../ChRIS_ultron_backEnd/; docker-compose -f docker-compose_dev.yml down -v; sudo rm -fr ./FS; docker swarm leave --force; fi
