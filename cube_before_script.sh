@@ -33,9 +33,10 @@ docker build -t fnndsc/pfcon:latest .
 
 popd
 pushd ChRIS_ultron_backEnd/
+docker build -t fnndsc/chris:dev -f Dockerfile_dev .
+docker pull fnndsc/pfurl
 docker pull fnndsc/pfdcm
 docker pull fnndsc/swarm
-docker build -t fnndsc/chris:dev -f Dockerfile_dev .
 docker swarm init --advertise-addr 127.0.0.1
 chmod -R 755 $(pwd)
 mkdir -p FS/remote
