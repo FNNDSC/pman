@@ -1,5 +1,5 @@
 #################
-pman - v2.2.0.2
+pman - v2.2.0.4
 #################
 
 .. image:: https://badge.fury.io/py/pman.svg
@@ -157,7 +157,7 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
         The location of a message-conformant <directiveFile>. If this file
         if found by the FileIO thread, its contents will be read and
         executed, after which the file will be deleted.
-T
+
         [--DBsavePeriod <time>]
         The periodicity in seconds for the internal DB save.
 
