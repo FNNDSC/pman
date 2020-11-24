@@ -18,17 +18,21 @@ def _createSwiftService(configPath):
         f.close()
 
     options = {
-        'auth_version':         3,
-        'os_auth_url':          config['AUTHORIZATION']['osAuthUrl'],
-        'os_username':          config['AUTHORIZATION']['username'],
-        'os_password':          config['AUTHORIZATION']['password'],
-        'os_project_domain_name':    config['PROJECT']['osProjectDomain'],
-        'os_project_name':      config['PROJECT']['osProjectName']
+        'os_auth_url': config['AUTHORIZATION']['osAuthUrl'],
+        'application_id': config['SECRET']['applicationId'],
+        'application_secret': config['SECRET']['applicationSecret'],
     }
 
-    service = swift_service.SwiftService(options)
-    return service
+    auth_swift = v3.application_credential.ApplicationCredential(
+        options['os_auth_url'],
+        application_credential_id=options['application_id'],
+        application_credential_secret=options['application_secret']
+    )
 
+    session_client = session.Session(auth=auth_swift)
+    service = swift_service.Connection(session=session_client)
+    return service
+    
 def _deleteEmptyDirectory(key):
     """
     Deletes the empty directory created by Swift in the parent directory

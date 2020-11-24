@@ -89,13 +89,11 @@ The credentials file for Swift should be stored in a **secret**, mounted at /etc
 .. code-block:: bash
     
     [AUTHORIZATION]
-    osAuthUrl  =   
-    username   = 
-    password   = 
+    osAuthUrl          =
 
-    [PROJECT]
-    osProjectDomain  = 
-    osProjectName    = 
+    [SECRET]
+    applicationId      =
+    applicationSecret  =
 
 **************
 Creating a secret and running pman.
