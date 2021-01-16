@@ -55,5 +55,7 @@ RUN pip3 install ${APPROOT}  \
 #USER localuser
 
 WORKDIR "/home/localuser"
-ENTRYPOINT ["pman"]
+
+COPY --chown=localuser ./docker-entrypoint.sh /home/localuser/docker-entrypoint.sh
+ENTRYPOINT ["/home/localuser/docker-entrypoint.sh"]
 EXPOSE 5010
