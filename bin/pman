@@ -9,7 +9,6 @@
 
 import sys
 import os
-# sys.path.insert(1, os.path.join(os.path.dirname(__file__), '..'))
 from    distutils.sysconfig import get_python_lib
 
 from    argparse            import RawTextHelpFormatter
@@ -18,13 +17,7 @@ import  socket
 import signal
 import  threading
 
-sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../pman'))
-try:
-    import pman
-except:
-    sys.path.insert(1, os.path.join(get_python_lib(True, True), 'site-packages'))
-    sys.path.insert(1, os.path.join(get_python_lib(True, True), 'site-packages/pman'))
-    import pman
+import pman
 
 from pfmisc._colors         import Colors
 
