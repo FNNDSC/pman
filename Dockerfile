@@ -1,4 +1,4 @@
-FROM python:3.9.1-buster
+FROM fnndsc/ubuntu-python3:ubuntu20.04-python3.8.5
 LABEL version="2.2.1" maintainer="FNNDSC <dev@babyMRI.org>" 
 
 WORKDIR /usr/local/src
