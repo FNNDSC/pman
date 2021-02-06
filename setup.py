@@ -1,27 +1,23 @@
-import sys
-# Make sure we are running python3.5+
-if 10 * sys.version_info[0]  + sys.version_info[1] < 35:
-    sys.exit("Sorry, only Python 3.5+ is supported.")
-
+from os import path
 from setuptools import setup
 
-def readme():
-    with open('README.rst') as f:
-        return f.read()
+with open(path.join(path.abspath(path.dirname(__file__)), 'README.rst')) as f:
+    readme = f.read()
 
 setup(
-      name             =   'pman',
-      version          =   '2.2.0.4',
-      description      =   '(Python) Process Manager',
-      long_description =   readme(),
-      author           =   'Rudolph Pienaar',
-      author_email     =   'rudolph.pienaar@gmail.com',
-      url              =   'https://github.com/FNNDSC/pman',
-      packages         =   ['pman'],
-      install_requires =   ['pycurl', 'pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc', 'ipaddress', 'fasteners', 'kubernetes', 'python-keystoneclient'],
-      test_suite       =   'nose.collector',
-      tests_require    =   ['nose'],
-      scripts          =   ['bin/pman', 'bin/pman_do'],
-      license          =   'MIT',
-      zip_safe         =   False
-     )
+    name             =   'pman',
+    version          =   '2.2.1',
+    description      =   'Process Manager',
+    long_description =   readme,
+    author           =   'Rudolph Pienaar',
+    author_email     =   'rudolph.pienaar@gmail.com',
+    url              =   'https://github.com/FNNDSC/pman',
+    packages         =   ['pman'],
+    install_requires =   ['pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc', 'fasteners', 'kubernetes', 'python-keystoneclient'],
+    test_suite       =   'nose.collector',
+    tests_require    =   ['nose'],
+    scripts          =   ['bin/pman', 'bin/pman_do'],
+    license          =   'MIT',
+    zip_safe         =   False,
+    python_requires  =   '>=3.6'
+)

@@ -1,15 +1,16 @@
-#################
-pman - v2.2.0.4
-#################
+####
+pman
+####
 
-.. image:: https://badge.fury.io/py/pman.svg
-    :target: https://badge.fury.io/py/pman
-
-.. image:: https://travis-ci.org/FNNDSC/pman.svg?branch=master
-    :target: https://travis-ci.org/FNNDSC/pman
-
-.. image:: https://img.shields.io/badge/python-3.5%2B-blue.svg
-    :target: https://badge.fury.io/py/pman
+.. image:: https://img.shields.io/docker/v/fnndsc/pman?sort=semver
+    :alt: Docker Image Version
+    :target: https://hub.docker.com/r/fnndsc/pman
+.. image:: https://img.shields.io/github/license/fnndsc/pfioh
+    :alt: MIT License
+    :target: https://github.com/FNNDSC/pman/blob/master/LICENSE
+.. image:: https://github.com/FNNDSC/pman/workflows/ci/badge.svg
+    :alt: Github Actions
+    :target: https://github.com/FNNDSC/pman/actions
 
 .. contents:: Table of Contents
 
@@ -18,101 +19,98 @@ Overview
 ********
 
 This repository proves ``pman`` -- a process manager.
+``pman`` provides a unified API over HTTP for running jobs on
 
-pman
-====
+* the host
+* docker swarm
+* OpenShift
 
-Most simply, ``pman`` manages processes, i.e. programs or applications that are run by an underlying system. Typically, these processes are command line applications (i.e. have no GUI) and usually do not interact really with a user at all. The primary purpose of ``pman`` is to provide other software agents the ability to execute processes via ``http``.
+For more info see
+https://github.com/FNNDSC/pman/wiki/pman-overview
 
-Originally, ``pman`` was designed to track simple processes executed on the local system. In addition, ``pman`` keeps a record of the current and historical state of processes that it has executed and is thus able to respond to queries about the processes. Some of the queries that ``pman`` can address are
+***********
+Basic Usage
+***********
 
-- *state*: Is job <XYZ> still running?
-- *result*: What is the stdout (or stderr) from job <XYZ>?
-- *control*: Kill job <XYZ>
+The most common use case for ``pman`` is for running jobs against *docker swarm*.
 
-``pman`` also maintains a persistent human-readable/friendly database-in-the-filesystem of jobs and states of jobs.
-
-Current versions of ``pman`` however can use container-based backends (swarm and openshift) to execute processes. In those cases, the internal database of tracking jobs becomes superfluous. Future versions of ``pman`` might depreciate the local/internal DB tracking.
-
-
-************
 Installation
-************
-
-Installation is relatively straightforward, and we recommend using either python virtual environments or docker.
-
-Python Virtual Environment
-==========================
-
-On Ubuntu, install the Python virtual environment creator
+============
 
 .. code-block:: bash
 
-  sudo apt install virtualenv virtualenvwrapper
+    docker pull fnndsc/pman:latest
+    docker pull fnndsc/swarm:latest
 
-Then, create a directory for your virtual environments e.g.:
-
-.. code-block:: bash
-
-  mkdir ~/python-envs
-
-You might want to add to your .bashrc file these two lines:
+Start pman
+==========
 
 .. code-block:: bash
 
-    export WORKON_HOME=~/python-envs
-    source /usr/local/bin/virtualenvwrapper.sh
+    docker swarm init --advertise-addr=127.0.0.1
+    docker run --rm --name pman                       \
+        -p 127.0.0.1:5010:5010                        \
+        -v /var/run/docker.sock:/var/run/docker.sock  \
+        -v $PWD/FS/remote:/hostFS/storeBase           \
+        -e STOREBASE=$PWD/FS/remote                   \
+        fnndsc/pman:latest                            \
+        --rawmode 1 --http --port 5010 --listeners 12 --verbosity 1
 
-(Note depending on distro, the ``virtualenvwrapper.sh`` path might be
+Example Job
+===========
 
-.. code-block:: bash
+Simulate incoming data
 
-    /usr/share/virtualenvwrapper/virtualenvwrapper.sh
+.. codde-block:: bash
 
-Then you can source your .bashrc and create a new Python3 virtual environment:
+    docker exec pman bash -c 'mkdir /hostFS/storeBase/somedata && touch /hostFS/storeBase/somedata/something'
 
-.. code-block:: bash
 
-    source .bashrc
-    mkvirtualenv --python=python3 python_env
-
-To activate or "enter" the virtual env:
-
-.. code-block:: bash
-
-    workon python_env
-
-To deactivate virtual env:
+Using `HTTPie <https://httpie.org/>` to run a container
 
 .. code-block:: bash
 
-    deactivate
+    http :5010 payload:='{
+        "action": "run",
+        "meta": {
+            "cmd": "ls /share",
+            "threaded": true,
+            "auid": "someone",
+            "jid": "a-job-id-2",
+            "number_of_workers": "1",
+            "cpu_limit": "1000",
+            "memory_limit": "200",
+            "gpu_limit": "0",
+            "container": {
+                "target": {
+                    "image": "fnndsc/pl-simpledsapp:version-1.0.8",
+                    "cmdParse": false
+                },
+                "manager": {
+                    "image": "fnndsc/swarm",
+                    "app": "swarm.py",
+                    "env": {
+                        "meta-store": "key",
+                        "serviceType": "docker",
+                        "shareDir": "/hostFS/storeBase/somedata/",
+                        "serviceName": "testService"
+                    }
+                }
+            }
+        }
+    }'
 
+Get the result
 
-Using the ``fnndsc/pman`` dock
-==============================
+.. code-block: bash
 
-The easiest option however, is to just use the ``fnndsc/pman`` dock.
-
-.. code-block:: bash
-
-    docker pull fnndsc/pman
-
-and then run
-
-.. code-block:: bash
-
-    docker run  --name pman         \
-                -v /home:/Users     \
-                --rm -ti            \
-                fnndsc/pman         \
-                --rawmode 1 --http  \
-                --port 5010         \
-                --listeners 12
-
-*****
-Usage
-*****
+    http :5010/api/v1/cmd payload:='{
+        "action": "status",
+            "meta": {
+                    "key":          "jid",
+                    "value":        "a-job-id-2"
+            }
+        }'
 
 ``pman`` usage
 ===============
@@ -185,19 +183,3 @@ For ``pman`` detailed information, see the `pman wiki page <https://github.com/F
 
         --container-env <env>
         The container env within which to run.
-
-********
-EXAMPLES
-********
-
-Start ``pman`` with 12 listeners:
-
-.. code-block:: bash
-
-        pman                                                        \\
-                --ip 127.0.0.1                                      \\
-                --port 5010                                         \\
-                --rawmode 1                                         \\
-                --http                                              \\
-                --listeners 12                                      \\
-                --verbosity 1

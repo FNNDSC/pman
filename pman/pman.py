@@ -25,15 +25,8 @@ import  uuid
 
 import  pfmisc
 
-# pman local dependencies
-try:
-    from    .openshiftmgr   import *
-except:
-    from    openshiftmgr    import *
-try:
-    from    .crunner        import *
-except:
-    from    crunner         import *
+from    .openshiftmgr   import *
+from    .crunner        import *
 
 from pfmisc.Auth            import Auth
 from pfmisc.C_snode         import  *
