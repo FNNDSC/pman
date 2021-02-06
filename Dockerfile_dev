@@ -45,10 +45,9 @@ RUN apt-get update                                                \
 
 # Copy source code
 COPY --chown=localuser ./bin ${APPROOT}/bin
-COPY --chown=localuser ./docker-bin ${APPROOT}/docker-bin
 COPY --chown=localuser ./pman ${APPROOT}/pman
 COPY --chown=localuser ./openshift ${APPROOT}/openshift
-COPY --chown=localuser ./setup.cfg ./setup.py README.rst  ${APPROOT}/
+COPY --chown=localuser ./setup.py README.rst  ${APPROOT}/
 
 RUN pip3 install -e ${APPROOT}
 
