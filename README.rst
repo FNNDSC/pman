@@ -2,17 +2,15 @@
 pman
 ####
 
-.. image:: https://badge.fury.io/py/pman.svg
-    :alt: Version
-    :target: https://badge.fury.io/py/pman
-
-.. image:: https://travis-ci.org/FNNDSC/pman.svg?branch=master
-    :alt: Travis Build
-    :target: https://travis-ci.org/FNNDSC/pman
-
-.. image:: https://img.shields.io/github/license/fnndsc/pman
+.. image:: https://img.shields.io/docker/v/fnndsc/pman?sort=semver
+    :alt: Docker Image Version
+    :target: https://hub.docker.com/r/fnndsc/pman
+.. image:: https://img.shields.io/github/license/fnndsc/pfioh
     :alt: MIT License
     :target: https://github.com/FNNDSC/pman/blob/master/LICENSE
+.. image:: https://github.com/FNNDSC/pman/workflows/ci/badge.svg
+    :alt: Github Actions
+    :target: https://github.com/FNNDSC/pman/actions
 
 .. contents:: Table of Contents
 
@@ -53,17 +51,66 @@ Start pman
     docker run --rm --name pman                       \
         -p 127.0.0.1:5010:5010                        \
         -v /var/run/docker.sock:/var/run/docker.sock  \
-        -v ./FS/remote:/hostFS/storeBase              \
+        -v $PWD/FS/remote:/hostFS/storeBase           \
+        -e STOREBASE=$PWD/FS/remote                   \
         fnndsc/pman:latest                            \
         --rawmode 1 --http --port 5010 --listeners 12 --verbosity 1
 
 Example Job
 ===========
 
+Simulate incoming data
+
+.. codde-block:: bash
+
+    docker exec pman bash -c 'mkdir /hostFS/storeBase/somedata && touch /hostFS/storeBase/somedata/something'
+
+
+Using `HTTPie <https://httpie.org/>` to run a container
+
 .. code-block:: bash
 
-    curl http://localhost:5010/api/v1/cmd --data \
+    http :5010 payload:='{
+        "action": "run",
+        "meta": {
+            "cmd": "ls /share",
+            "threaded": true,
+            "auid": "someone",
+            "jid": "a-job-id-2",
+            "number_of_workers": "1",
+            "cpu_limit": "1000",
+            "memory_limit": "200",
+            "gpu_limit": "0",
+            "container": {
+                "target": {
+                    "image": "fnndsc/pl-simpledsapp:version-1.0.8",
+                    "cmdParse": false
+                },
+                "manager": {
+                    "image": "fnndsc/swarm",
+                    "app": "swarm.py",
+                    "env": {
+                        "meta-store": "key",
+                        "serviceType": "docker",
+                        "shareDir": "/hostFS/storeBase/somedata/",
+                        "serviceName": "testService"
+                    }
+                }
+            }
+        }
+    }'
 
+Get the result
+
+.. code-block: bash
+
+    http :5010/api/v1/cmd payload:='{
+        "action": "status",
+            "meta": {
+                    "key":          "jid",
+                    "value":        "a-job-id-2"
+            }
+        }'
 
 ``pman`` usage
 ===============
