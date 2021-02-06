@@ -5,10 +5,17 @@
 
 name: ci
 
-on: [push, pull_request, release]
+on:
+  push:
+    # we have to guess what the name of the default branch is
+    branches: [ master, main, trunk ]
+    tags: [ '**' ]
+  pull_request:
+    branches: [ master, main, trunk ]
+  release:
+    types: [ created ]
 
 jobs:
-
   tests-nose:
     name: Nose tests
     runs-on: ubuntu-20.04
