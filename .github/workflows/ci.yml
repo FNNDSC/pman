@@ -16,7 +16,7 @@ on:
     types: [ created ]
 
 jobs:
-  tests-nose:
+  test-nose:
     name: Nose tests
     runs-on: ubuntu-20.04
     steps:
@@ -30,7 +30,7 @@ jobs:
       - name: nosetests
         run: nosetests
 
-  tests-cube:
+  test-cube:
     name: CUBE tests
     runs-on: ubuntu-20.04
     steps:
@@ -40,7 +40,7 @@ jobs:
 
 
   build:
-    needs: [tests-nose, tests-cube]
+    needs: [test-nose, test-cube]
     if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-20.04
     steps:
