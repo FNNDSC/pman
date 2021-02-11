@@ -418,7 +418,7 @@ spec:
                 ],
                 "resources": {
                     "requests": {
-                        "storage": "5Gi"
+                        "storage": "2Gi"
                     }
                 }
             }
