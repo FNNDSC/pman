@@ -1096,7 +1096,6 @@ class Listener(threading.Thread):
         :return: dictionary of components defining job state.
         """
         self.dp.qprint("------- In status process ------------")
-        status = logs = currentState = ''
         if self.container_env == 'openshift':
             self.dp.qprint('------- Processing openshift status request -----------')
             try:
@@ -1119,10 +1118,8 @@ class Listener(threading.Thread):
                     "d_ret":    d_ret,
                     "status":   str(currentState)
             }
-
-        else:
-
-            d_state     = self.job_state(*args, **kwargs)
+        elif self.container_env == 'swarm':
+            d_state = self.job_state(*args, **kwargs)
             # {
             #     "hits":         hits,
             #     "d_ret":
@@ -1132,12 +1129,11 @@ class Listener(threading.Thread):
             #     "status":       b_status
             # }
 
-            d_ret       = d_state['d_ret']
-            b_status    = d_state['status']
-
-            d_keys      = d_ret.items()
-            l_status    = []
-            l_logs      = []
+            d_ret = d_state['d_ret']
+            b_status = d_state['status']
+            d_keys = d_ret.items()
+            l_status = []
+            l_logs = []
 
             #
             # The d_ret keys consist of groups of
@@ -1149,6 +1145,46 @@ class Listener(threading.Thread):
             # thus the loop grouping is number of items / 3
             #
             if '0.start' in d_ret:
+                for i in range(0, int(len(d_keys) / 3)):
+                    try:
+                        b_startEvent = d_ret['%s.start' % str(i)]['startTrigger'][0]
+                    except:
+                        b_startEvent = False
+
+                    found_container = False
+                    container_path = '%s.%s' % (str(i), 'container')
+                    if container_path in d_state['d_ret'] and \
+                            d_state['d_ret'][container_path]['tree'] and \
+                            b_startEvent:
+
+                        kwargs['d_state'] = d_state
+                        kwargs['hitIndex'] = str(i)
+
+                        d_containerStatus = self.t_status_process_container(*args, **kwargs)
+                        # d_ret {
+                        #     'status':         d_ret['status'],              # bool
+                        #     'logs':           str_logs,                     # logs from app in container
+                        #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
+                        # }
+                        l_status.append(d_containerStatus['currentState'])
+                        l_logs.append(d_containerStatus['logs'])
+                        found_container = True
+                        self.dp.qprint('b_startEvent = %d' % b_startEvent)
+                        self.dp.qprint('l_status = %s' % l_status)
+                    if found_container:
+                        self.dp.qprint('Found job container')
+                    else:
+                        self.dp.qprint('Could not find job container')
+        else:
+            # The case for non-containerized jobs
+            d_state     = self.job_state(*args, **kwargs)
+            d_ret       = d_state['d_ret']
+            b_status    = d_state['status']
+            d_keys      = d_ret.items()
+            l_status    = []
+            l_logs      = []
+
+            if '0.start' in d_ret:
                 for i in range(0, int(len(d_keys)/3)):
                     try:
                         b_startEvent    = d_ret['%s.start'  % str(i)]['startTrigger'][0]
@@ -1159,41 +1195,14 @@ class Listener(threading.Thread):
                     except:
                         endcode     = None
 
-                    # Was this a containerized job?
-                    found_container = False
-                    container_path = '%s.%s' % (str(i), 'container')
-                    if container_path in d_state['d_ret']           and \
-                        d_state['d_ret'][container_path]['tree']    and \
-                        b_startEvent:
-
-                        kwargs['d_state']   = d_state
-                        kwargs['hitIndex']  = str(i)
-
-                        str_methodSuffix = None
-                        if self.container_env == 'swarm':
-                            # append suffix _container to redirect to container function
-                            str_methodSuffix    = 'container'
-                        d_containerStatus       = eval("self.t_status_process_%s(*args, **kwargs)" % str_methodSuffix)
-                        # d_ret {
-                        #     'status':         d_ret['status'],              # bool
-                        #     'logs':           str_logs,                     # logs from app in container
-                        #     'currentState':   d_ret['d_process']['state']   # string of 'finishedSuccessfully' etc
-                        # }
-
-                        l_status.append(d_containerStatus['currentState'])
-                        l_logs.append(d_containerStatus['logs'])
-                        found_container = True
-
-                    # The case for non-containerized jobs
-                    if not found_container:
-                        if endcode is None and not b_startEvent:
-                            l_status.append('notstarted')
-                        if endcode is None and b_startEvent:
-                            l_status.append('started')
-                        if not endcode and b_startEvent and type(endcode) is int:
-                            l_status.append('finishedSuccessfully')
-                        if endcode and b_startEvent:
-                            l_status.append('finishedWithError')
+                    if endcode is None and not b_startEvent:
+                        l_status.append('notstarted')
+                    if endcode is None and b_startEvent:
+                        l_status.append('started')
+                    if not endcode and b_startEvent and type(endcode) is int:
+                        l_status.append('finishedSuccessfully')
+                    if endcode and b_startEvent:
+                        l_status.append('finishedWithError')
 
                     self.dp.qprint('b_startEvent = %d' % b_startEvent)
                     self.dp.qprint(endcode)
@@ -1201,7 +1210,6 @@ class Listener(threading.Thread):
 
         d_ret['l_status']   = l_status
         d_ret['l_logs']     = l_logs
-
         return {
                 "d_ret":    d_ret,
                 "status":   b_status
@@ -1633,22 +1641,24 @@ class Listener(threading.Thread):
         b_removeJob = False
         str_jobRoot = d_jobState['d_ret']['%s.container' % (hitIndex)]['jobRoot']
         str_state   = d_serviceState['Status']['State']
-        str_message = d_serviceState['Status']['Message']
-        if str_state == 'running' and str_message == 'started':
+        #str_message = d_serviceState['Status']['Message']
+        if str_state in ('new', 'pending', 'assigned', 'accepted', 'preparing', 'starting'):
+            str_currentState    = 'notstarted'
+            debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
+        elif str_state == 'running':
             str_currentState    = 'started'
             debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
-            b_status    = True
         else:
             self.DB_store(d_serviceState,   '/%s/container' % (str_jobRoot), 'state')
             self.DB_store(str_logs,         '/%s/container' % (str_jobRoot), 'logs')
             b_removeJob   = True
-            if str_state == 'failed'        and str_message == 'started':
+            if str_state == 'failed':
                 str_currentState    = 'finishedWithError'
                 debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
-            elif str_state == 'complete'    and str_message == 'finished':
+            elif str_state == 'complete':
                 str_currentState    = 'finishedSuccessfully'
                 debug_print(str_jobRoot, d_serviceState, str_currentState, str_logs)
-            b_status = True
+        b_status = True
         self.DB_store(str_currentState, '/%s/container' % (str_jobRoot), 'currentState')
         if str_currentState == 'undefined':
             self.dp.qprint('The state of the job is undefined!', comms = 'error')
