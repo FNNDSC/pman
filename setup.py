@@ -1,19 +1,22 @@
-from os import path
-from setuptools import setup
 
-with open(path.join(path.abspath(path.dirname(__file__)), 'README.rst')) as f:
+from os import path
+from setuptools import find_packages, setup
+
+with open(path.join(path.dirname(path.abspath(__file__)), 'README.rst')) as f:
     readme = f.read()
 
 setup(
     name             =   'pman',
-    version          =   '2.2.4',
+    version          =   '3.0.0.0',
     description      =   'Process Manager',
     long_description =   readme,
-    author           =   'Rudolph Pienaar',
-    author_email     =   'rudolph.pienaar@gmail.com',
+    author           =   'FNNDSC Developers',
+    author_email     =   'dev@babymri.org',
     url              =   'https://github.com/FNNDSC/pman',
-    packages         =   ['pman'],
-    install_requires =   ['pyzmq', 'webob', 'pudb', 'psutil', 'docker', 'openshift', 'pfmisc', 'fasteners', 'kubernetes', 'python-keystoneclient'],
+    packages         =   find_packages(),
+    install_requires =   ['pudb', 'pfmisc', 'docker', 'openshift', 'kubernetes',
+                          'python-keystoneclient', 'Flask', 'Flask_RESTful', 'environs',
+                          'mod-wsgi'],
     test_suite       =   'nose.collector',
     tests_require    =   ['nose'],
     scripts          =   ['bin/pman', 'bin/pman_do'],

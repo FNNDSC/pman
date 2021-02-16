@@ -1,5 +1,6 @@
 
 # Compiled python modules.
+*__pycache__
 *.pyc
 
 # MAC-specific FS stuff

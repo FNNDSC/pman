@@ -6,35 +6,35 @@
 #
 # SYNPOSIS
 #
-#   make.sh                     [-k|-r <service>]               \
+#   make.sh                     [-r <service>]                  \
 #                               [-a <swarm-advertise-adr>]      \
-#                               [-p] [-s] [-i] [-d]             \
-#                               [-U] [-I]                       \
+#                               [-p] [-i] [-s]                  \
 #                               [-S <storeBaseOverride>]        \
-#                               [-e <computeEnv>]               \
 #                               [local|fnndsc[:dev]]
 #
 # DESC
 #
-#   'make.sh' is the main entry point for instantiating a
-#   stand-alone `pman` environment.
+#   'make.sh' sets up a pman development instance using docker-compose.
+#   It can also optionally create a pattern of directories and symbolic links
+#   that reflect the declarative environment of the docker-compose contents.
 #
 # TYPICAL CASES:
 #
-#   Run the `pman` instantiation with tests:
+#   Run full pfcom instantiation:
 #
 #       unmake.sh ; sudo rm -fr FS; rm -fr FS; make.sh
 #
+#   Skip the intro:
+#
+#       unmake.sh ; sudo rm -fr FS; rm -fr FS; make.sh -s
 #
 # ARGS
 #
-#   -U
 #
-#       Skip the UNIT tests.
+#   -r <service>
 #
-#   -I
-#
-#       Skip the INTEGRATION tests.
+#       Restart <service> in interactive mode. This is mainly for debugging
+#       and is typically used to restart the 'pman' service.
 #
 #   -S <storeBaseOverride>
 #
@@ -43,30 +43,13 @@
 #       between the actual STOREBASE path and the text of the path shared between
 #       the macOS host and the docker VM.
 #
-#   -r <service>
-#
-#       Restart <service> in interactive mode. This is mainly for debugging
-#       and is typically used to restart the 'pfcon', 'pfioh', and 'pman'
-#       services.
-#
-#   -e <computeEnv>
-#
-#       Register all plugins to the passed <computeEnv>. Note, this is simply
-#       an index string that is actually defined in `pfcon`. In other words,
-#       the <computeEnv> here is just a label, and the actual env is fully
-#       specified by `pfcon`.
-#
 #   -a <swarm-advertise-adr>
 #
 #       If specified, pass <swarm-advertise-adr> to swarm init.
 #
 #   -i
 #
-#       Optional do not restart final chris_dev in interactive mode. If any
-#       sub services have been restarted in interactive mode then this will
-#       break the final restart of the chris_dev container. Thus, if any
-#       services have been restarted with '-r <service>' it is recommended
-#       to also use this flag to avoid the chris_dev restart.
+#       Optional do not restart final pman in interactive mode.
 #
 #   -s
 #
@@ -82,11 +65,6 @@
 #
 #               docker stop <ID> && docker rm -vf <ID> && *make* -r <service>
 #
-#   -d
-#
-#       Optional debug ON. If specified, trigger verbose output during
-#       run, especially during testing. Useful for debugging.
-#
 #   [local|fnndsc[:dev]] (optional, default = 'fnndsc')
 #
 #       If specified, denotes the container "family" to use.
@@ -99,8 +77,7 @@
 #
 #       The 'local' family are containers that are assumed built on the local
 #       machine and assumed to exist. The 'local' containers are used when
-#       the 'pfcon/pman/pfioh/pfurl' services are being locally
-#       developed/debugged.
+#       'pman' service is being locally developed/debugged.
 #
 #
 
@@ -109,21 +86,9 @@ source ./cparse.sh
 
 declare -i STEP=0
 declare -i b_restart=0
-declare -i b_kill=0
-
-# declare -i b_pause=0
-# declare -i b_skipIntro=0
-# declare -i b_norestartinteractive_chris_dev=0
-# declare -i b_debug=0
-# declare -i b_swarmAdvertiseAdr=0
-# declare -i b_storeBaseOverride=0
-# COMPUTEENV="host"
-# SWARMADVERTISEADDR=""
-# RESTART=""
+JOB=""
 HERE=$(pwd)
-# LINE="------------------------------------------------"
-# echo ""
-# echo "Starting script in dir $HERE"
+echo "Starting script in dir $HERE"
 
 CREPO=fnndsc
 TAG=
@@ -132,20 +97,16 @@ if [[ -f .env ]] ; then
     source .env
 fi
 
-while getopts "k:r:psidUIa:S:" opt; do
+while getopts "r:psiUa:S:" opt; do
     case $opt in
         r) b_restart=1
-           RESTART=$OPTARG                      ;;
-        k) b_kill=1
-           RESTART=$OPTARG                      ;;
+           JOB=$OPTARG                          ;;
         p) b_pause=1                            ;;
         s) b_skipIntro=1                        ;;
         i) b_norestartinteractive_chris_dev=1   ;;
         a) b_swarmAdvertiseAdr=1
             SWARMADVERTISEADDR=$OPTARG          ;;
-        d) b_debug=1                            ;;
         U) b_skipUnitTests=1                    ;;
-        I) b_skipIntegrationTests=1             ;;
         S) b_storeBaseOverride=1
            STOREBASE=$OPTARG                    ;;
     esac
@@ -162,7 +123,8 @@ if (( $# == 1 )) ; then
 fi
 
 declare -a A_CONTAINER=(
-    "${CREPO}/pman${TAG}^PMANREPO"
+    "fnndsc/pman:dev^PMANREPO"
+    "fnndsc/pl-simplefsapp"
 )
 
 title -d 1 "Setting global exports..."
@@ -174,30 +136,41 @@ title -d 1 "Setting global exports..."
         STOREBASE=$(pwd)
         cd $HERE
     fi
-    echo -e "${STEP}.1 For pman override to swarm containers, exporting\nSTOREBASE=$STOREBASE " | ./boxes.sh
+    echo -e "${STEP}.1 For pman override to swarm containers,"          | ./boxes.sh
+    echo -e "exporting STOREBASE=$STOREBASE "                           | ./boxes.sh
     export STOREBASE=$STOREBASE
-    if (( b_debug )) ; then
-        echo -e "${STEP}.2 Setting debug quiet to OFF. Note this is noisy!" | ./boxes.sh
-        export CHRIS_DEBUG_QUIET=0
-    fi
 windowBottom
 
-if (( b_restart || b_kill )) ; then
-    printf "${Red}Stopping $JOB...${NC}\n"
-    docker-compose -f docker-compose_dev.yml stop                           \
-        ${RESTART}_service && docker-compose -f docker-compose_dev.yml      \
-        rm -f ${RESTART}_service                                        > dc.out
-        cat dc.out | ./boxes.sh
+if (( b_restart )) ; then
+    title -d 1 "Restarting ${JOB} service"                              \
+                    "in interactive mode..."
+    printf "${LightCyan}%40s${LightGreen}%40s\n"                        \
+                "Stopping" "${JOB}_service"                             | ./boxes.sh
+    windowBottom
 
-    docker-compose -f docker-compose_dev.yml run --service-ports            \
-        ${RESTART}_service                                              > dc.out
-        cat dc.out | ./boxes.sh
+    docker-compose -f docker-compose_dev.yml --no-ansi                  \
+        stop ${JOB}_service >& dc.out > /dev/null
+    echo -en "\033[2A\033[2K"
+    cat dc.out | ./boxes.sh
+
+    printf "${LightCyan}%40s${LightGreen}%40s\n"                        \
+                "rm -f" "${JOB}_service"                                | ./boxes.sh
+    windowBottom
+
+    docker-compose -f docker-compose_dev.yml --no-ansi                  \
+        rm -f ${JOB}_service >& dc.out > /dev/null
+    echo -en "\033[2A\033[2K"
+    cat dc.out | ./boxes.sh
+    windowBottom
+
+    docker-compose -f docker-compose_dev.yml --no-ansi                  \
+        run --service-ports ${JOB}_service
 else
     title -d 1 "Pulling non-'local/' core containers where needed..."   \
-                "and creating appropriate .env for docker-compose"
+                "and creating appropriate .env for docker-compose_dev.yml"
     if (( ! b_skipIntro )) ; then
         echo "# Variables declared here are available to"               > .env
-        echo "# docker-compose on execution"                            >>.env
+        echo "# docker-compose -f docker-compose_dev.yml on execution"                            >>.env
         for CORE in ${A_CONTAINER[@]} ; do
             cparse $CORE " " "REPO" "CONTAINER" "MMN" "ENV"
             echo "${ENV}=${REPO}"                                       >>.env
@@ -219,23 +192,40 @@ else
         title -d 1 "Will use containers with following version info:"
         for CORE in ${A_CONTAINER[@]} ; do
             cparse $CORE " " "REPO" "CONTAINER" "MMN" "ENV"
-            windowBottom
-            CMD="docker run --rm ${REPO}/$CONTAINER --version"
-            Ver=$(echo $CMD | sh | grep Version)
-            echo -en "\033[2A\033[2K"
-            printf "${White}%40s${Green}%40s${Yellow}\n"            \
-                    "${REPO}/$CONTAINER" "$Ver"                     | ./boxes.sh
+            if [[   $CONTAINER != "pl-simplefsapp" && \
+                    $CONTAINER != "swarm" ]] ; then
+                windowBottom
+                CMD="docker run ${REPO}/$CONTAINER --version"
+                Ver=$(echo $CMD | sh | grep Version)
+                echo -en "\033[2A\033[2K"
+                printf "${White}%40s${Green}%40s${Yellow}\n"            \
+                        "${REPO}/$CONTAINER" "$Ver"                     | ./boxes.sh
+            fi
         done
-        windowBottom
     fi
 
-    title -d 1 "Shutting down any running pman and pman related containers... "
+    title -d 1 "Stopping and restarting the docker swarm... "
+        docker swarm leave --force >dc.out 2>dc.out
+        cat dc.out | ./boxes.sh
+        if (( b_swarmAdvertiseAdr )) ; then
+            docker swarm init --advertise-addr=$SWARMADVERTISEADDR      |\
+                sed 's/[[:alnum:]]+:/\n&/g' | sed -E 's/(.{80})/\1\n/g' | ./boxes.sh
+        else
+            docker swarm init --advertise-addr 127.0.0.1                |\
+                sed 's/[[:alnum:]]+:/\n&/g' | sed -E 's/(.{80})/\1\n/g' | ./boxes.sh
+        fi
+        echo "Swarm started"                                            | ./boxes.sh
+    windowBottom
+
+    title -d 1 "Shutting down any running pman and related containers... "
         echo "This might take a few minutes... please be patient."              | ./boxes.sh ${Yellow}
         windowBottom
-        docker-compose --no-ansi -f docker-compose_dev.yml stop >& dc.out > /dev/null
+        docker-compose -f docker-compose_dev.yml --no-ansi                      \
+            stop >& dc.out > /dev/null
         echo -en "\033[2A\033[2K"
         cat dc.out | sed -E 's/(.{80})/\1\n/g'                                  | ./boxes.sh ${LightBlue}
-        docker-compose --no-ansi -f docker-compose_dev.yml rm -vf >& dc.out > /dev/null
+        docker-compose -f docker-compose_dev.yml --no-ansi                      \
+            rm -vf >& dc.out > /dev/null
         cat dc.out | sed -E 's/(.{80})/\1\n/g'                                  | ./boxes.sh ${LightCyan}
         for CORE in ${A_CONTAINER[@]} ; do
             cparse $CORE " " "REPO" "CONTAINER" "MMN" "ENV"
@@ -255,27 +245,26 @@ else
     windowBottom
 
     title -d 1 "Checking that FS directory tree is empty..."
-        mkdir -p FS/local
         mkdir -p FS/remote
-        mkdir -p FS/data
         chmod -R 777 FS
         b_FSOK=1
         type -all tree >/dev/null 2>/dev/null
         if (( ! $? )) ; then
             tree FS                                                     | ./boxes.sh
             report=$(tree FS | tail -n 1)
-            if [[ "$report" != "3 directories, 0 files" ]] ; then
+            if [[ "$report" != "1 directory, 0 files" ]] ; then
                 b_FSOK=0
             fi
         else
             report=$(find FS 2>/dev/null)
             lines=$(echo "$report" | wc -l)
-            if (( lines != 4 )) ; then
+            if (( lines != 2 )) ; then
                 b_FSOK=0
             fi
+            echo "lines is $lines"
         fi
         if (( ! b_FSOK )) ; then
-            printf "There should only be 3 directories and no files in the FS tree!\n"  | ./boxes.sh ${Red}
+            printf "There should only be 1 directory and no files in the FS tree!\n"    | ./boxes.sh ${Red}
             printf "Please manually clean/delete the entire FS tree and re-run.\n"      | ./boxes.sh ${Yellow}
             printf "\nThis script will now exit with code '1'.\n\n"                     | ./boxes.sh ${Yellow}
             exit 1
@@ -284,10 +273,70 @@ else
                     "Tree state" "[ OK ]"                               | ./boxes.sh
     windowBottom
 
-    title -d 1 "Starting pman containerized development environment using "\
-                        "./docker-compose_dev.yml"
+    title -d 1 "Starting pman containerized development environment "
         echo "This might take a few minutes... please be patient."      | ./boxes.sh ${Yellow}
-        echo "docker-compose -f docker-compose_dev.yml up -d"           | ./boxes.sh ${LightCyan}
+        echo "docker-compose -f docker-compose_dev.yml  up -d"          | ./boxes.sh ${LightCyan}
         windowBottom
-        docker-compose -f docker-compose_dev.yml run --service-ports pman_service
+        docker-compose -f docker-compose_dev.yml --no-ansi              \
+            up -d >& dc.out > /dev/null
+        echo -en "\033[2A\033[2K"
+        cat dc.out | sed -E 's/(.{80})/\1\n/g'                          | ./boxes.sh ${LightGreen}
+    windowBottom
+
+    if (( ! b_skipUnitTests )) ; then
+        title -d 1 "Running pman tests..."
+        echo "This might take a few minutes... please be patient."      | ./boxes.sh ${Yellow}
+        windowBottom
+        docker-compose -f docker-compose_dev.yml exec pman_service nosetests --exe tests
+        status=$?
+        title -d 1 "pman test results"
+        if (( $status == 0 )) ; then
+            printf "%40s${LightGreen}%40s${NC}\n"                       \
+                "pman tests" "[ success ]"                         | ./boxes.sh
+        else
+            printf "%40s${Red}%40s${NC}\n"                              \
+                "pman tests" "[ failure ]"                         | ./boxes.sh
+        fi
+        windowBottom
+    fi
+
+    title -d 1 "Pause for manual restart of services?"
+    if (( b_pause )) ; then
+        echo "Pausing... hit *ANY* key to continue"                     | ./boxes.sh
+        windowBottom
+        old_stty_cfg=$(stty -g)
+        stty raw -echo ; REPLY=$(head -c 1) ; stty $old_stty_cfg
+        echo -en "\033[2A\033[2K"
+        echo "Resuming..."                                              | ./boxes.sh
+    fi
+    windowBottom
+
+
+    if (( !  b_norestartinteractive_chris_dev )) ; then
+        title -d 1 "Restarting pman development server"                \
+                            "in interactive mode..."
+            printf "${LightCyan}%40s${LightGreen}%40s\n"                \
+                        "Stopping" "pman_service"                      | ./boxes.sh
+            windowBottom
+            docker-compose -f docker-compose_dev.yml --no-ansi          \
+                stop pman_service >& dc.out > /dev/null
+            echo -en "\033[2A\033[2K"
+            cat dc.out | ./boxes.sh
+
+            printf "${LightCyan}%40s${LightGreen}%40s\n"                \
+                        "rm -f" "pman_service"                         | ./boxes.sh
+            windowBottom
+            docker-compose -f docker-compose_dev.yml --no-ansi          \
+                rm -f pman_service >& dc.out > /dev/null
+            echo -en "\033[2A\033[2K"
+            cat dc.out | ./boxes.sh
+
+
+            printf "${LightCyan}%40s${LightGreen}%40s\n"                \
+                        "Starting in interactive mode" "pman"          |./boxes.sh
+            windowBottom
+            docker-compose -f docker-compose_dev.yml                    \
+                run --service-ports pman_service
+    fi
+
 fi

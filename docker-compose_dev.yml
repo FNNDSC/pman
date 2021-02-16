@@ -12,26 +12,24 @@ version: '3.7'
 
 services:
   pman_service:
-    # pman also needs access to the pfioh storeBase folder (and hence the volume)
-    # mapping from the HOST file system space.
+    # During dev pman needs access to the pfioh storeBase folder (and hence the volume)
+    # mapping from the HOST file system space to be able to run the tests. This is not
+    # necessary for a production pman.
     #
-    # There is however an extra twist. Since pman spins off containers of its
-    # own, it needs to mount this storeBase dir into the spawned container.
-    # However, it can't mount a dir inside itself to the spawned container,
-    # it has to mount an actaul existing directory. This directory is
-    # passed in the STOREBASE env variable, and will override the base
-    # mapping of SHAREDIR inside pman to the swarm manager. Note that the
-    # full path to the spawned container should be ${STOREBASE} + keyStore!
+    # Since pman spins off containers of its own it needs to mount storeBase dir (where
+    # pfioh shares the data) into the spawned container. However, it can't mount a dir
+    # inside itself to the spawned container, it has to mount an actual existing
+    # directory in the host. This directory is passed in the STOREBASE env variable.
     environment:
       - STOREBASE
-    image:  ${PMANREPO}/pman:dev
-    command: ["--rawmode", "1", "--http", "--port", "5010", "--listeners", "12"]
+    image:  local/pman:dev
+    command: ["pman", "--ip", "0.0.0.0", "--verbosity", "1"]
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./FS/remote:/hostFS/storeBase
-      - ./pman/pman.py:/home/localuser/pman/pman/pman.py
-      - ./pman/tests:/home/localuser/pman/pman/tests
-      - /tmp:/tmp
+      - /var/run/docker.sock:/var/run/docker.sock:z
+      - ./FS/remote:/home/localuser/storeBase:z
+      - ./pman:/home/localuser/pman/pman:z
+      - ./bin:/home/localuser/pman/bin:z
+      - ./tests:/home/localuser/pman/tests:z
     ports:
       - "5010:5010"
     labels:

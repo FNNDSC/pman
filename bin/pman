@@ -7,23 +7,22 @@
 #                           dev@babyMRI.org
 #
 
-import sys
-import os
-from    distutils.sysconfig import get_python_lib
+import sys, os
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '..'))
 
+import  socket
 from    argparse            import RawTextHelpFormatter
 from    argparse            import ArgumentParser
-import  socket
-import signal
-import  threading
-
-import pman
+import pudb
 
 from pfmisc._colors         import Colors
 
+from pman.app import create_app
+from pman.config import Config
+
 str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
 
-str_version = "2.2.4"
+str_version = Config.SERVER_VERSION
 str_name    = 'pman'
 str_desc    = Colors.CYAN + """
 
@@ -81,19 +80,10 @@ def synopsis(ab_shortOnly = False):
             pman                                                    \\
                 [--ip <IPofServer>]                                 \\
                 [--port <port>]                                     \\
-                [--protocol <protocol>]                             \\
-                [--rawmode <modenumber>]                            \\
-                [--listeners <numberOfListeners>]                   \\
-                [--http]                                            \\
-                [--debugToFile <fileName>]                          \\
-                [--directiveFile <directiveFile>]                   \\
-                [--DBpath <str_location>]                           \\
-                [--DBSavePeriod <seconds>]                          \\
-                [--listenerSleep <amount>]                          \\
-                [--container-env openshift|swarm]                   \\
                 [--enableTokenAuth]                                 \\
                 [--tokenPath <tokenPath>]                           \\
                 [--synopsis]                                        \\
+                [--version]                                         \\
                 [--desc]                                            \\
                 [--verbosity <level>]
 
@@ -101,9 +91,6 @@ def synopsis(ab_shortOnly = False):
 
             pman                                                    \\
                 --port 5010                                         \\
-                --rawmode 1                                         \\
-                --http                                              \\
-                --listeners 12                                      \\
                 --verbosity 1                                       \\
                 --ip %s
 
@@ -126,42 +113,6 @@ def synopsis(ab_shortOnly = False):
 
         [--port <port>]
         The port on which to listen. Defaults to '5010'.
-
-        [--protocol <protocol>]
-        The protocol to interpret. Defaults to 'tcp'.
-
-        [--rawmode]
-        Internal zmq socket server mode. A value of '1' is usually used
-        here.
-
-        [--listeners <numberOfListenerThreads>]
-        The number of internal threads to which requests are dispatched.
-
-        [--http]
-        Send return strings as HTTP formatted replies with content-type html.
-
-        [--debugToFile]
-        If specified, send debugging results to file.
-
-        [--debugToFile <file>]
-        In conjunction with --debugToFile, file which will receive debugging
-        info.
-
-        [--listenerSleep <time>]
-        A small delay in the listener loop to prevent busy-wait.
-        Default is 0.1 seconds.
-
-        [--directiveFile <directiveFile>]
-        The location of a message-conformant <directiveFile>. If this file
-        if found by the FileIO thread, its contents will be read and
-        executed, after which the file will be deleted.
-
-        [--DBpath <str_location>]
-        The location on persistent storage of the state "data base".
-        Typically this is `/tmp/pman`.
-
-        [--DBsavePeriod <time>]
-        The periodicity in seconds for the internal DB save.
 
         [--enableTokenAuth]
         Enables token based authorization and can be configured to look
@@ -186,18 +137,12 @@ def synopsis(ab_shortOnly = False):
         Allows for more fine tuned output control as opposed to '--quiet'
         that effectively silences everything.
 
-        [--container-env <env>]
-        The container env within which to run.
-
     EXAMPLES
 
-    Start ``pman`` with 12 listeners:
+    Start ``pman``
 
         pman                                                        \\
                 --port 5010                                         \\
-                --rawmode 1                                         \\
-                --http                                              \\
-                --listeners 12                                      \\
                 --verbosity 1                                       \\
                 --ip %s
 
@@ -224,88 +169,11 @@ parser.add_argument(
     help    = 'Set the port to use.'
 )
 parser.add_argument(
-    '--protocol',
-    action  = 'store',
-    dest    = 'protocol',
-    default = 'tcp',
-    help    = 'Set the protocol to use.'
-)
-parser.add_argument(
-    '--rawmode',
-    action  = 'store',
-    dest    = 'raw',
-    default = '1',
-    help    = 'Set the router raw mode.'
-)
-parser.add_argument(
-    '--listeners',
-    action  = 'store',
-    dest    = 'listeners',
-    default = '1',
-    help    = 'Set the number of listeners.'
-)
-parser.add_argument(
-    '--http',
-    action  = 'store_true',
-    dest    = 'http',
-    default = False,
-    help    = """If specified, send HTTP formatted replies with content-type 'html';
-    otherwise content-type 'json'."""
-)
-parser.add_argument(
-    '--debugToFile',
-    action  = 'store_true',
-    dest    = 'debugToFile',
-    default = False,
-    help    = 'If true, stream debugging info to file.'
-)
-parser.add_argument(
-    '--debugFile',
-    action  = 'store',
-    dest    = 'debugFile',
-    default = '%s/tmp/debug-pman.log' % os.environ['HOME'],
-    help    = 'In conjunction with --debugToFile, stream debugging info to specified file.'
-)
-parser.add_argument(
-    '--listenerSleep',
-    action  = 'store',
-    dest    = 'listenerSleep',
-    default = '0.1',
-    help    = 'Set the delay in each listener loop to prevent busy-wait.'
-)
-parser.add_argument(
-    "--directiveFile",
-    action  = 'store',
-    help    = "location of the directive file",
-    dest    = 'directiveFile',
-    default = "/tmp/d_msg.json"
-)
-parser.add_argument(
-    '--DBpath',
-    help    = "location of the DB path",
-    dest    = 'DBpath',
-    default = "/tmp/pman"
-)
-parser.add_argument(
-    '--DBsavePeriod',
-    action  = 'store',
-    dest    = 'DBsavePeriod',
-    default = '60',
-    help    = 'The periodicity, in seconds, for the internal DB to be flushed to disk.'
-)
-parser.add_argument(
     '--version',
     help    = 'if specified, print version number',
     dest    = 'b_version',
     action  = 'store_true',
     default = False
-)
-parser.add_argument(
-    '--container-env',
-    help    = 'The container environment to run against (openshift, swarm)',
-    dest    = 'containerEnv',
-    action  = 'store',
-    default = 'swarm'
 )
 parser.add_argument(
     "-v", "--verbosity",
@@ -341,10 +209,8 @@ parser.add_argument(
     default = ''
 )
 
-args = parser.parse_args()
-
-# server          = ThreadedHTTPServer((args.ip, int(args.port)), StoreHandler)
-# server.setup(args = vars(args))
+args            = parser.parse_args()
+args.port       = int(args.port)
 
 if args.desc or args.synopsis:
     print(str_desc)
@@ -359,52 +225,8 @@ if args.b_version:
     print("Version: %s" % str_version)
     sys.exit(1)
 
-comm = pman.pman(
-    IP              = args.ip,
-    port            = args.port,
-    protocol        = args.protocol,
-    raw             = args.raw,
-    listeners       = args.listeners,
-    http            = args.http,
-    listenerSleep   = args.listenerSleep,
-    directiveFile   = args.directiveFile,
-    DBpath          = args.DBpath,
-    DBsavePeriod    = args.DBsavePeriod,
-    debugToFile     = args.debugToFile,
-    debugFile       = args.debugFile,
-    containerEnv    = args.containerEnv,
-    desc            = str_desc,
-    name            = str_name,
-    version         = str_version,
-    verbosity       = args.verbosity,
-    b_tokenAuth     = args.b_tokenAuth,
-    str_tokenPath   = args.str_tokenPath
-)
-
-
-def exit_gracefully(signum, frame):
-    print("Gracefully shutting down!...")
-    comm.threaded_server.stopit()
-
-
-signal.signal(signal.SIGINT, exit_gracefully)
-signal.signal(signal.SIGTERM, exit_gracefully)
-
-# This starts the main thread and "detaches" execution from the main
-# program.
-t1 = threading.Thread(target = comm.thread_serve)
-t1.start()
-
-# Execution will block until pman receives an asynchronous http quit
-# request, i.e.
-# pfurl   --content-type application/vnd.collection+json      \
-#         --verb POST                                         \
-#         --rawmode --http 192.168.1.189:5010/api/v1/cmd      \
-#         --jsonwrapper 'payload'                             \
-#         --msg '{    "action": "quit",
-#                     "meta": {
-#                         "when":         "now",
-#                         "saveDB":       true
-#                     }
-#                 }'
-
+# pudb.set_trace()
+config = vars(args)
+config.update({'desc': str_desc})
+app = create_app(config)
+app.run(host=args.ip, port=args.port)

@@ -23,37 +23,39 @@
 #   docker run -ti --rm -e HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}') --entrypoint /bin/bash local/pman:dev
 #
 
-FROM fnndsc/ubuntu-python3:latest
+FROM fnndsc/ubuntu-python3:ubuntu20.04-python3.8.5
 LABEL maintainer="dev@babymri.org"
 
 # Pass a UID on build command line (see above) to set internal UID
 ARG UID=1001
 ENV UID=$UID DEBIAN_FRONTEND=noninteractive APPROOT="/home/localuser/pman"
 
-RUN apt-get update                                                \
-  && apt-get install -y locales                                   \
-  && export LANGUAGE=en_US.UTF-8                                  \
-  && export LANG=en_US.UTF-8                                      \
-  && export LC_ALL=en_US.UTF-8                                    \
-  && locale-gen en_US.UTF-8                                       \
-  && dpkg-reconfigure locales                                     \
-  && apt-get install -y sudo                                             \
-  && apt-get install -y libssl-dev libcurl4-openssl-dev bsdmainutils net-tools inetutils-ping \
-  && pip install --upgrade pip                                        \
-  && useradd -u $UID -ms /bin/bash localuser                          \
+RUN apt-get update \
+  && apt-get install sudo                                                                         \
+  && apt-get install -y locales                                                                   \
+  && export LANGUAGE=en_US.UTF-8                                                                  \
+  && export LANG=en_US.UTF-8                                                                      \
+  && export LC_ALL=en_US.UTF-8                                                                    \
+  && locale-gen en_US.UTF-8                                                                       \
+  && dpkg-reconfigure locales  && pip install --upgrade pip                                       \
+  && apt-get install -y apache2 apache2-dev                                                       \
+  && pip install --upgrade pip                                                                    \
+  && pip install nose                                                                             \
+  && useradd -u $UID -ms /bin/bash localuser                                                      \
   && echo "localuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Copy source code
 COPY --chown=localuser ./bin ${APPROOT}/bin
 COPY --chown=localuser ./pman ${APPROOT}/pman
 COPY --chown=localuser ./openshift ${APPROOT}/openshift
-COPY --chown=localuser ./setup.py README.rst  ${APPROOT}/
+COPY --chown=localuser ./tests ${APPROOT}/tests
+COPY --chown=localuser ./setup.cfg ./setup.py README.rst ./docker-entrypoint.sh ${APPROOT}/
 
 RUN pip3 install -e ${APPROOT}
 
 # Start as user localuser
-#USER localuser
+USER localuser
 
-WORKDIR "/home/localuser"
-ENTRYPOINT ["pman"]
+WORKDIR ${APPROOT}
+ENTRYPOINT ["/home/localuser/pman/docker-entrypoint.sh"]
 EXPOSE 5010
