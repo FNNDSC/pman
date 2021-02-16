@@ -43,8 +43,7 @@ Start pman
     git checkout flask
     docker build -t local/pman:dev .
     
- In ``docker-compose_dev.yml`` change ``PMANREPO`` to ``local``
-
+In ``docker-compose_dev.yml`` change ``PMANREPO`` to ``local``
 
 .. code-block:: bash
 
