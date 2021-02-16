@@ -15,19 +15,28 @@ on:
     types: [ created ]
 
 jobs:
-  test-nose:
-    name: Nose tests
+  test-pman:
+    name: pman tests
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: pip install
+      - name: build development container image
+        run: docker build -t fnndsc/pman:dev -f Dockerfile_dev .
+      - name: provision local services
         run: |
-          pip install -r requirements.txt
-          pip install .
-          pip install nose
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          docker swarm init --advertise-addr 127.0.0.1
+          chmod -R 755 $PWD
+          mkdir -p FS/remote
+          chmod -R 777 FS
+          export STOREBASE=$PWD/FS/remote
+          docker-compose -f docker-compose_dev.yml up -d
       - name: nosetests
-        run: nosetests
+        run: docker-compose -f docker-compose_dev.yml exec -T pman_service nosetests --exe tests
+      - name: teardown
+        run: |
+          docker-compose -f docker-compose_dev.yml down -v
+          sudo rm -fr ./FS
+          docker swarm leave --force
 
   test-cube:
     name: CUBE tests
@@ -39,7 +48,7 @@ jobs:
 
 
   build:
-    needs: [test-nose, test-cube]
+    needs: [test-pman, test-cube]
     if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-20.04
     steps:

@@ -192,8 +192,7 @@ else
         title -d 1 "Will use containers with following version info:"
         for CORE in ${A_CONTAINER[@]} ; do
             cparse $CORE " " "REPO" "CONTAINER" "MMN" "ENV"
-            if [[   $CONTAINER != "pl-simplefsapp" && \
-                    $CONTAINER != "swarm" ]] ; then
+            if [[   $CONTAINER != "pl-simplefsapp"  ]] ; then
                 windowBottom
                 CMD="docker run ${REPO}/$CONTAINER --version"
                 Ver=$(echo $CMD | sh | grep Version)
