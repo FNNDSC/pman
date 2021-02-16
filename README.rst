@@ -42,14 +42,21 @@ Start pman
     cd pman
     git checkout flask
     docker build -t local/pman:dev .
+    
+ In ``docker-compose_dev.yml`` change ``PMANREPO`` to ``local``
+
+
+.. code-block:: bash
+
     ./make.sh
+    
 
 Example Job
 ===========
 
 Simulate incoming data
 
-.. codde-block:: bash
+.. code-block:: bash
 
     pman_dev=$(docker ps -f ancestor=local/pman:dev -f name=pman_service -q)  
     docker exec -it $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/incoming
@@ -61,7 +68,7 @@ Using `HTTPie <https://httpie.org/>` to run a container
 
 .. code-block:: bash
 
-http POST http://localhost:5010/api/v1/ cmd_args='--saveinputmeta --saveoutputmeta --dir cube/uploads' cmd_path_flags='--dir' auid=cube number_of_workers=1 cpu_limit=1000 memory_limit=200 gpu_limit=0 image=fnndsc/pl-dircopy selfexec=dircopy selfpath=/usr/local/bin execshell=/usr/local/bin/python type=fs jid=chris-jid-1
+    http POST http://localhost:5010/api/v1/ cmd_args='--saveinputmeta --saveoutputmeta --dir cube/uploads' cmd_path_flags='--dir' auid=cube number_of_workers=1 cpu_limit=1000 memory_limit=200 gpu_limit=0 image=fnndsc/pl-dircopy selfexec=dircopy selfpath=/usr/local/bin execshell=/usr/local/bin/python type=fs jid=chris-jid-1
 
 Get the result
 
