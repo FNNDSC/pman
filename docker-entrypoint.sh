@@ -1,5 +1,5 @@
 #!/bin/bash
 
-chown localuser:localuser /var/run/docker.sock
+sudo chown localuser:localuser /var/run/docker.sock
 
 exec "$@"

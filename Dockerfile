@@ -31,6 +31,7 @@ ARG UID=1001
 ENV UID=$UID DEBIAN_FRONTEND=noninteractive APPLICATION_MODE="production" APPROOT="/home/localuser/pman"
 
 RUN apt-get update                                                                              \
+  && apt-get install sudo                                                                       \
   && apt-get install -y locales                                                                 \
   && export LANGUAGE=en_US.UTF-8                                                                \
   && export LANG=en_US.UTF-8                                                                    \
@@ -39,7 +40,8 @@ RUN apt-get update                                                              
   && dpkg-reconfigure locales                                                                   \
   && apt-get install -y apache2 apache2-dev                                                     \
   && pip install --upgrade pip                                                                  \
-  && useradd -u $UID -ms /bin/bash localuser
+  && useradd -u $UID -ms /bin/bash localuser                                                    \
+  && echo "localuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Copy source code and make localuser the owner
 COPY --chown=localuser ./bin ${APPROOT}/bin
