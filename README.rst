@@ -18,11 +18,10 @@ pman v3.0.0.0
 Overview
 ********
 
-This repository proves ``pman`` -- a process manager.
-``pman`` provides a unified API over HTTP for running jobs on
+This repository provides ``pman`` -- a process manager, that provides a unified API over HTTP for running jobs on
 
 * docker swarm
-* OpenShift
+* Openshift
 
 For more info see
 https://github.com/FNNDSC/pman/wiki/pman-overview
@@ -33,25 +32,17 @@ Basic Usage
 
 The most common use case for ``pman`` is for running jobs against *docker swarm*.
 
-Installation
-============
-
-.. code-block:: bash
-
-    docker pull fnndsc/pman:latest
 
 Start pman
 ==========
 
 .. code-block:: bash
 
-    docker swarm init --advertise-addr=127.0.0.1
-    docker run --rm --name pman                       \
-        -p 127.0.0.1:5010:5010                        \
-        -v /var/run/docker.sock:/var/run/docker.sock  \
-        -v $PWD/FS/remote:/home/localuser/storeBase           \
-        -e STOREBASE=$PWD/FS/remote                   \
-        fnndsc/pman:latest
+    git clone https://github.com/FNNDSC/pman.git
+    cd pman
+    git checkout flask
+    docker build -t local/pman:dev .
+    ./make.sh
 
 Example Job
 ===========
@@ -60,54 +51,24 @@ Simulate incoming data
 
 .. codde-block:: bash
 
-    docker exec pman bash -c 'mkdir /home/localuser/somedata && touch /home/localuser/somedata/something'
+    pman_dev=$(docker ps -f ancestor=local/pman:dev -f name=pman_service -q)  
+    docker exec -it $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/incoming
+    docker exec -it $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/outgoing
+    docker exec -it $pman_dev touch /home/localuser/storeBase/key-chris-jid-1/incoming/test.txt
 
 
 Using `HTTPie <https://httpie.org/>` to run a container
 
 .. code-block:: bash
 
-    http :5010 payload:='{
-        "action": "run",
-        "meta": {
-            "cmd": "ls /share",
-            "threaded": true,
-            "auid": "someone",
-            "jid": "a-job-id-2",
-            "number_of_workers": "1",
-            "cpu_limit": "1000",
-            "memory_limit": "200",
-            "gpu_limit": "0",
-            "container": {
-                "target": {
-                    "image": "fnndsc/pl-simpledsapp:version-1.0.8",
-                    "cmdParse": false
-                },
-                "manager": {
-                    "image": "fnndsc/swarm",
-                    "app": "swarm.py",
-                    "env": {
-                        "meta-store": "key",
-                        "serviceType": "docker",
-                        "shareDir": "/home/localuser/somedata/",
-                        "serviceName": "testService"
-                    }
-                }
-            }
-        }
-    }'
+http POST http://localhost:5010/api/v1/ cmd_args='--saveinputmeta --saveoutputmeta --dir cube/uploads' cmd_path_flags='--dir' auid=cube number_of_workers=1 cpu_limit=1000 memory_limit=200 gpu_limit=0 image=fnndsc/pl-dircopy selfexec=dircopy selfpath=/usr/local/bin execshell=/usr/local/bin/python type=fs jid=chris-jid-1
 
 Get the result
 
-.. code-block: bash
+.. code-block:: bash
 
-    http :5010/api/v1/cmd payload:='{
-        "action": "status",
-            "meta": {
-                    "key":          "jid",
-                    "value":        "a-job-id-2"
-            }
-        }'
+    http http://localhost:5010/api/v1/chris-jid-1/
+    
 
 ``pman`` usage
 ===============
