@@ -22,8 +22,8 @@ services:
     # directory in the host. This directory is passed in the STOREBASE env variable.
     environment:
       - STOREBASE
-    image:  ${PMANREPO}/pman:dev
-    command: ["pman", "--ip", "0.0.0.0", "--verbosity", "1"]
+    image: ${PMANREPO}/pman:dev
+    command: ["--ip", "0.0.0.0", "--verbosity", "1"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
       - ./FS/remote:/home/localuser/storeBase:z
