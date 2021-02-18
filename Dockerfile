@@ -37,8 +37,8 @@ RUN apt-get update                                                              
   && export LC_ALL=en_US.UTF-8                                                           \
   && locale-gen en_US.UTF-8                                                              \
   && dpkg-reconfigure locales                                                            \
+  && apt-get install -y gunicorn                                                         \
   && pip install --upgrade pip                                                           \
-  && pip install gunicorn                                                                \
   && useradd -u $UID -ms /bin/bash localuser
 
 # Copy source code and make localuser the owner

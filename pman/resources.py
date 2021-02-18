@@ -77,12 +77,17 @@ class JobList(Resource):
 
         if self.container_env == 'swarm':
             swarm_mgr = SwarmManager()
+            logger.info(f'Scheduling job {job_id} on the Swarm cluster')
             try:
                 service = swarm_mgr.schedule(compute_data['image'], cmd, job_id, 'none',
                                              share_dir)
             except docker.errors.APIError as e:
+                logger.error(f'Error from Swarm while scheduling job {job_id}, detail: '
+                             f'{str(e)}')
                 abort(e.response.status_code, message=str(e))
             job_info = swarm_mgr.get_service_task_info(service)
+            logger.info(f'Successful job {job_id} schedule response from Swarm: '
+                        f'{job_info}')
             job_logs = swarm_mgr.get_service_logs(service)
 
         return {
@@ -146,6 +151,7 @@ class Job(Resource):
 
         if container_env == 'swarm':
             swarm_mgr = SwarmManager()
+            logger.info(f'Getting job {job_id} status from the Swarm cluster')
             try:
                 service = swarm_mgr.get_service(job_id)
             except docker.errors.NotFound as e:
@@ -155,6 +161,8 @@ class Job(Resource):
             except docker.errors.InvalidVersion as e:
                 abort(400, message=str(e))
             job_info = swarm_mgr.get_service_task_info(service)
+            logger.info(f'Successful job {job_id} status response from Swarm: '
+                        f'{job_info}')
             job_logs = swarm_mgr.get_service_logs(service)
 
             if job_info['status'] in ('undefined', 'finishedWithError',

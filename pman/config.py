@@ -50,7 +50,7 @@ class DevConfig(Config):
                     'level': 'INFO',
                     'handlers': ['console_simple'],
                 },
-                'pfcon': {  # pfcon package logger
+                'pman': {  # pman package logger
                     'level': 'DEBUG',
                     'handlers': ['console_simple', 'file'],
                     'propagate': False
@@ -102,7 +102,7 @@ class ProdConfig(Config):
                     'level': 'INFO',
                     'handlers': ['console_simple'],
                 },
-                'pfcon': {  # pfcon package logger
+                'pman': {  # pman package logger
                     'level': 'INFO',
                     'handlers': ['file'],
                     'propagate': False
