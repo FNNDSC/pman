@@ -40,43 +40,43 @@ class SwarmManager(object):
         """
         Get the service's task for a previously scheduled service object.
         """
-        return service.tasks()[0]
+        tasks = service.tasks()
+        return tasks[0] if tasks else None
 
     def get_service_task_info(self, service):
         """
         Get the service's task info for a previously scheduled service object.
         """
+        info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '',
+                'message': 'task not available yet', 'status': 'notstarted',
+                'containerid': '', 'exitcode': '', 'pid': ''}
+
         task = self.get_service_task(service)
-        status = 'undefined'
+        if task:
+            status = 'undefined'
+            state = task['Status']['State']
+            if state in ('new', 'pending', 'assigned', 'accepted', 'preparing',
+                         'starting'):
+                status = 'notstarted'
+            elif state == 'running':
+                status = 'started'
+            elif state == 'failed':
+                status = 'finishedWithError'
+            elif state == 'complete':
+                status = 'finishedSuccessfully'
 
-        state = task['Status']['State']
-        if state in ('new', 'pending', 'assigned', 'accepted', 'preparing', 'starting'):
-            status = 'notstarted'
-        elif state == 'running':
-            status = 'started'
-        elif state == 'failed':
-            status = 'finishedWithError'
-        elif state == 'complete':
-            status = 'finishedSuccessfully'
+            info['id'] = task['ID']
+            info['image'] = task['Spec']['ContainerSpec']['Image']
+            info['cmd'] = ' '.join(task['Spec']['ContainerSpec']['Command'])
+            info['timestamp'] = task['Status']['Timestamp']
+            info['message'] = task['Status']['Message']
+            info['status'] = status
 
-        containerid = ''
-        exitcode = ''
-        pid = ''
-        if 'ContainerStatus' in task['Status']:
-            containerid = task['Status']['ContainerStatus']['ContainerID']
-            exitcode = task['Status']['ContainerStatus']['ExitCode']
-            pid = task['Status']['ContainerStatus']['PID']
-
-        return {'id': task['ID'],
-                'image': task['Spec']['ContainerSpec']['Image'],
-                'cmd': ' '.join(task['Spec']['ContainerSpec']['Command']),
-                'timestamp': task['Status']['Timestamp'],
-                'message': task['Status']['Message'],
-                'status': status,
-                'containerid': containerid,
-                'exitcode': exitcode,
-                'pid': pid
-                }
+            if 'ContainerStatus' in task['Status']:
+                info['containerid'] = task['Status']['ContainerStatus']['ContainerID']
+                info['exitcode'] = task['Status']['ContainerStatus']['ExitCode']
+                info['pid'] = task['Status']['ContainerStatus']['PID']
+        return info
 
     def remove(self, name):
         """
