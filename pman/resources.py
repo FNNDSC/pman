@@ -43,7 +43,6 @@ class JobList(Resource):
         self.str_app_container_outputdir = '/share/outgoing'
 
         self.storebase = app.config.get('STOREBASE')
-        self.jobdir_prefix = app.config.get('JOBDIR_PREFIX')
 
         self.container_env = app.config.get('CONTAINER_ENV')
 
@@ -71,7 +70,7 @@ class JobList(Resource):
             'type': args.type,
         }
         cmd = self.build_app_cmd(compute_data)
-        share_dir = os.path.join(self.storebase, self.jobdir_prefix + job_id)
+        share_dir = os.path.join(self.storebase, 'key-' + job_id)
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'status': 'undefined'}
 
