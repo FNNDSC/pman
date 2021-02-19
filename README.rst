@@ -54,7 +54,7 @@ Simulate incoming data
 
 .. code-block:: bash
 
-    pman_dev=$(docker ps -f ancestor=local/pman:dev -f name=pman_service -q)  
+    pman_dev=$(docker ps -f ancestor=fnndsc/pman:dev -f name=pman_service -q)  
     docker exec -it $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/incoming
     docker exec -it $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/outgoing
     docker exec -it $pman_dev touch /home/localuser/storeBase/key-chris-jid-1/incoming/test.txt
