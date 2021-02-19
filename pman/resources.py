@@ -83,7 +83,9 @@ class JobList(Resource):
             except docker.errors.APIError as e:
                 logger.error(f'Error from Swarm while scheduling job {job_id}, detail: '
                              f'{str(e)}')
-                abort(e.response.status_code, message=str(e))
+                status_code = e.response.status_code
+                status_code = 503 if status_code == 500 else status_code
+                abort(status_code, message=str(e))
             job_info = swarm_mgr.get_service_task_info(service)
             logger.info(f'Successful job {job_id} schedule response from Swarm: '
                         f'{job_info}')
@@ -156,7 +158,9 @@ class Job(Resource):
             except docker.errors.NotFound as e:
                 abort(404, message=str(e))
             except docker.errors.APIError as e:
-                abort(e.response.status_code, message=str(e))
+                status_code = e.response.status_code
+                status_code = 503 if status_code == 500 else status_code
+                abort(status_code, message=str(e))
             except docker.errors.InvalidVersion as e:
                 abort(400, message=str(e))
             job_info = swarm_mgr.get_service_task_info(service)
