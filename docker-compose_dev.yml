@@ -26,7 +26,7 @@ services:
     command: ["--ip", "0.0.0.0", "--verbosity", "1"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
-      - ./FS/remote:/home/localuser/storeBase:z
+      - ${STOREBASE}:/home/localuser/storeBase:z
       - ./pman:/home/localuser/pman/pman:z
       - ./bin:/home/localuser/pman/bin:z
       - ./tests:/home/localuser/pman/tests:z
