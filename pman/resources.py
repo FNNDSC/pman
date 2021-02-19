@@ -72,7 +72,8 @@ class JobList(Resource):
         cmd = self.build_app_cmd(compute_data)
         share_dir = os.path.join(self.storebase, 'key-' + job_id)
         job_logs = ''
-        job_info = {'id': '', 'image': '', 'cmd': '', 'status': 'undefined'}
+        job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
+                    'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
 
         if self.container_env == 'swarm':
             swarm_mgr = SwarmManager()
@@ -148,7 +149,8 @@ class Job(Resource):
     def get(self, job_id):
         container_env = app.config.get('CONTAINER_ENV')
         job_logs = ''
-        job_info = {'id': '', 'image': '', 'cmd': '', 'status': 'undefined'}
+        job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
+                    'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
 
         if container_env == 'swarm':
             swarm_mgr = SwarmManager()
@@ -171,6 +173,7 @@ class Job(Resource):
             if job_info['status'] in ('undefined', 'finishedWithError',
                                       'finishedSuccessfully'):
                 service.remove()  # remove job from swarm cluster
+
         return {
             'jid': job_id,
             'image': job_info['image'],
