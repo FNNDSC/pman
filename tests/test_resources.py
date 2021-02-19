@@ -77,9 +77,12 @@ class TestJobList(ResourceTests):
         response = self.client.post(self.url, json=data)
         self.assertIn('status', response.json)
 
-        time.sleep(6)
+        time.sleep(5)
         with self.app.test_request_context():
             # test get job status and cleanup swarm job
             url = url_for('api.job', job_id=self.job_id)
             response = self.client.get(url)
+            if response.json['status'] != 'finishedSuccessfully':
+                time.sleep(10)
+                response = self.client.get(url)
             self.assertEqual(response.json['status'], 'finishedSuccessfully')
