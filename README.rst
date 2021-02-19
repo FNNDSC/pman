@@ -18,37 +18,34 @@ pman v3.0.0.0
 Overview
 ********
 
-This repository provides ``pman`` -- a process manager, that provides a unified API over HTTP for running jobs on
+This repository provides ``pman`` -- a process manager that provides a unified API over HTTP for running jobs on
 
 * docker swarm
 * Openshift
 
-For more info see
-https://github.com/FNNDSC/pman/wiki/pman-overview
 
-***********
-Basic Usage
-***********
+Preconditions
+=============
 
-The most common use case for ``pman`` is for running jobs against *docker swarm*.
+Install latest Docker and Docker Compose
+----------------------------------------
+
+Currently tested platforms:
+
+- Ubuntu 18.04+ and MAC OS X 11.1+
+
+Note: On a Linux machine make sure to add your computer user to the ``docker`` group
 
 
-Start pman
-==========
+Start pman's Flask development server
+=====================================
 
 .. code-block:: bash
 
     git clone https://github.com/FNNDSC/pman.git
     cd pman
-    git checkout flask
-    docker build -t local/pman:dev .
-    
-In ``docker-compose_dev.yml`` change ``PMANREPO`` to ``local``
-
-.. code-block:: bash
-
     ./make.sh
-    
+
 
 Example Job
 ===========
@@ -78,8 +75,6 @@ Get the result
 
 ``pman`` usage
 ===============
-
-For ``pman`` detailed information, see the `pman wiki page <https://github.com/FNNDSC/pman/wiki/pman-overview>`_.
 
 .. code-block:: html
 

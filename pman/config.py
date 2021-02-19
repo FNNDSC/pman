@@ -60,11 +60,9 @@ class DevConfig(Config):
         })
 
         self.CONTAINER_ENV = 'swarm'
-
         env = Env()
         env.read_env()  # also read .env file, if it exists
         self.STOREBASE = env('STOREBASE')
-        self.JOBDIR_PREFIX = 'key-'
 
 
 class ProdConfig(Config):
@@ -119,4 +117,3 @@ class ProdConfig(Config):
 
         self.CONTAINER_ENV = env('CONTAINER_ENV')
         self.STOREBASE = env('STOREBASE')
-        self.JOBDIR_PREFIX = env('JOBDIR_PREFIX', 'key-').strip('/')

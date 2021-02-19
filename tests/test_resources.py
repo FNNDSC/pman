@@ -41,8 +41,7 @@ class TestJobList(ResourceTests):
 
         self.job_id = 'chris-jid-1'
 
-        jobdir_prefix = self.app.config.get('JOBDIR_PREFIX')
-        self.share_dir = os.path.join('/home/localuser/storeBase', jobdir_prefix + self.job_id)
+        self.share_dir = os.path.join('/home/localuser/storeBase', 'key-' + self.job_id)
         incoming = os.path.join(self.share_dir, 'incoming')
         outgoing = os.path.join(self.share_dir, 'outgoing')
         Path(incoming).mkdir(parents=True, exist_ok=True)
