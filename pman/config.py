@@ -2,6 +2,11 @@
 from logging.config import dictConfig
 from environs import Env
 
+import docker
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Config:
     """
@@ -11,6 +16,33 @@ class Config:
     DEBUG = False
     TESTING = False
     SERVER_VERSION = "3.0.0.0"
+
+    def __init__(self):
+        self.env = Env()
+        self.env.read_env()  # also read .env file, if it exists
+        self.STOREBASE = self.env('STOREBASE', None)
+        """
+        STOREBASE is the real path on the host where data visible to jobs
+        will live, and where jobs will write their output data to.
+        
+        The path given by STOREBASE is typically also mounted by pfioh.
+        
+        Alternatively, one may give the name of an existing named volume
+        (typically managed by docker-compose) via another environment
+        variable PMAN_DOCKER_VOLUME. When PMAN_DOCKER_VOLUME is defined
+        (and STOREBASE is undefined) the path for that named volume is
+        automatically detected and used as the true value for STOREBASE.
+        """
+
+        if not self.STOREBASE:
+            volume_name = self.env('PMAN_DOCKER_VOLUME')
+            if volume_name:
+                docker_client = docker.from_env()
+                volume = docker_client.volumes.get(volume_name)
+                self.STOREBASE = volume.attrs['Mountpoint']
+                logger.debug('Given PMAN_DOCKER_VOLUME=%s realized STOREBASE=%s',
+                             volume_name, self.STOREBASE)
+                # TODO warn if not readable+writable by gid=0
 
 
 class DevConfig(Config):
@@ -22,6 +54,7 @@ class DevConfig(Config):
     TESTING = True
 
     def __init__(self):
+        super().__init__()
         # LOGGING CONFIGURATION
         dictConfig({
             'version': 1,
@@ -60,9 +93,6 @@ class DevConfig(Config):
         })
 
         self.CONTAINER_ENV = 'swarm'
-        env = Env()
-        env.read_env()  # also read .env file, if it exists
-        self.STOREBASE = env('STOREBASE')
 
 
 class ProdConfig(Config):
@@ -72,6 +102,7 @@ class ProdConfig(Config):
     ENV = 'production'
 
     def __init__(self):
+        super().__init__()
         # LOGGING CONFIGURATION
         dictConfig({
             'version': 1,
@@ -108,12 +139,7 @@ class ProdConfig(Config):
             }
         })
 
-        # Environment variables-based secrets
-        env = Env()
-        env.read_env()  # also read .env file, if it exists
-
         # SECURITY WARNING: keep the secret key used in production secret!
-        self.SECRET_KEY = env('SECRET_KEY')
+        self.SECRET_KEY = self.env('SECRET_KEY')
 
-        self.CONTAINER_ENV = env('CONTAINER_ENV')
-        self.STOREBASE = env('STOREBASE')
+        self.CONTAINER_ENV = self.env('CONTAINER_ENV')
