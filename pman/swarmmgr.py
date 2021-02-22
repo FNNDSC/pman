@@ -4,6 +4,7 @@ manage their state in the cluster.
 """
 
 import docker
+import time
 
 
 class SwarmManager(object):
@@ -34,7 +35,23 @@ class SwarmManager(object):
         """
         Get the logs from a previously scheduled service object.
         """
-        return ''.join([l.decode() for l in service.logs(stdout=True, stderr=True)])
+        try:
+            return ''.join([l.decode() for l in service.logs(stdout=True, stderr=True)])
+        except docker.errors.APIError as e:
+            if 'experimental feature' not in str(e):
+                raise e
+            # We will attempt to get service logs from an old docker engine.
+            # In this previous version, service logs ar an experimental feature
+            # but we can still get the logs from the service's task's container.
+
+            # At creation, task is not guaranteed to have a container ID yet.
+            time.sleep(1)
+            task = self.get_service_task(service)
+            if 'ContainerID' not in task['Status']['ContainerStatus']:
+                return 'not available'  # give up
+            container_id = task['Status']['ContainerStatus']['ContainerID']
+            container = self.docker_client.containers.get(container_id)
+            return container.logs().decode()
 
     def get_service_task(self, service):
         """
@@ -72,10 +89,25 @@ class SwarmManager(object):
             info['message'] = task['Status']['Message']
             info['status'] = status
 
+            # observed with docker engine version 1.13.1
+            # ContainerID is not immediately available in task status
+            info['containerid'] = None
+            info['exitcode'] = None
+            info['pid'] = None
             if 'ContainerStatus' in task['Status']:
-                info['containerid'] = task['Status']['ContainerStatus']['ContainerID']
-                info['exitcode'] = task['Status']['ContainerStatus']['ExitCode']
-                info['pid'] = task['Status']['ContainerStatus']['PID']
+                container_status = task['Status']['ContainerStatus']
+                if 'ContainerID' in container_status:
+                    info['containerid'] = container_status['ContainerID']
+                    if 'ExitCode' in container_status:
+                        info['exitcode'] = container_status['ExitCode']
+                        info['pid'] = container_status['PID']
+                    else:
+                        # old docker engine does not supply the exit code and PID to tasks.
+                        # We must look it up from the tasks's container.
+                        container = self.docker_client.containers.get(info['containerid'])
+                        container_status = container.attrs['State']
+                        info['exitcode'] = container_status['ExitCode']
+                        info['pid'] = container_status['Pid']
         return info
 
     def remove(self, name):
