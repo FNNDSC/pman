@@ -22,11 +22,11 @@
 #
 #   Run full pfcom instantiation:
 #
-#       unmake.sh ; sudo rm -fr FS; rm -fr FS; make.sh
+#       unmake.sh ; make.sh
 #
 #   Skip the intro:
 #
-#       unmake.sh ; sudo rm -fr FS; rm -fr FS; make.sh -s
+#       unmake.sh ; make.sh -s
 #
 # ARGS
 #
@@ -128,17 +128,11 @@ declare -a A_CONTAINER=(
 )
 
 title -d 1 "Setting global exports..."
-    if (( ! b_storeBaseOverride )) ; then
-        if [[ ! -d FS/remote ]] ; then
-            mkdir -p FS/remote
-        fi
-        cd FS/remote
-        STOREBASE=$(pwd)
-        cd $HERE
-    fi
     echo -e "${STEP}.1 For pman override to swarm containers,"          | ./boxes.sh
-    echo -e "exporting STOREBASE=$STOREBASE "                           | ./boxes.sh
-    export STOREBASE=$STOREBASE
+    if (( b_storeBaseOverride )) ; then
+        echo -e "exporting STOREBASE=$STOREBASE "                       | ./boxes.sh
+        export STOREBASE=$STOREBASE
+    fi
 windowBottom
 
 if (( b_restart )) ; then
@@ -241,35 +235,6 @@ else
         cd $HERE
         echo "chmod -R 755 $(pwd)"                                      | ./boxes.sh
         chmod -R 755 $(pwd)
-    windowBottom
-
-    title -d 1 "Checking that FS directory tree is empty..."
-        mkdir -p FS/remote
-        chmod -R 777 FS
-        b_FSOK=1
-        type -all tree >/dev/null 2>/dev/null
-        if (( ! $? )) ; then
-            tree FS                                                     | ./boxes.sh
-            report=$(tree FS | tail -n 1)
-            if [[ "$report" != "1 directory, 0 files" ]] ; then
-                b_FSOK=0
-            fi
-        else
-            report=$(find FS 2>/dev/null)
-            lines=$(echo "$report" | wc -l)
-            if (( lines != 2 )) ; then
-                b_FSOK=0
-            fi
-            echo "lines is $lines"
-        fi
-        if (( ! b_FSOK )) ; then
-            printf "There should only be 1 directory and no files in the FS tree!\n"    | ./boxes.sh ${Red}
-            printf "Please manually clean/delete the entire FS tree and re-run.\n"      | ./boxes.sh ${Yellow}
-            printf "\nThis script will now exit with code '1'.\n\n"                     | ./boxes.sh ${Yellow}
-            exit 1
-        fi
-        printf "${LightCyan}%40s${LightGreen}%40s\n"                    \
-                    "Tree state" "[ OK ]"                               | ./boxes.sh
     windowBottom
 
     title -d 1 "Starting pman containerized development environment "

@@ -20,13 +20,18 @@ services:
     # pfioh shares the data) into the spawned container. However, it can't mount a dir
     # inside itself to the spawned container, it has to mount an actual existing
     # directory in the host. This directory is passed in the STOREBASE env variable.
+    #
+    # Alternatively, the STOREBASE can be a named volume managed by docker-compose
+    # given by the name PMAN_DOCKER_VOLUME.
+    # Internally, pman resolves the physical location of STOREBASE, which is typically
+    # under /var/lib/docker/volumes/pman-dev-storebase/_data
     environment:
-      - STOREBASE
+      PMAN_DOCKER_VOLUME: pman-dev-storebase
     image: ${PMANREPO}/pman:dev
     command: ["--ip", "0.0.0.0", "--verbosity", "1"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
-      - ${STOREBASE}:/home/localuser/storeBase:z
+      - storebase:/home/localuser/storeBase:z
       - ./pman:/home/localuser/pman/pman:z
       - ./bin:/home/localuser/pman/bin:z
       - ./tests:/home/localuser/pman/tests:z
@@ -35,3 +40,7 @@ services:
     labels:
       name: "pman"
       role: "pman service"
+
+volumes:
+  storebase:
+    name: pman-dev-storebase
