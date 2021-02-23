@@ -10,8 +10,10 @@ title -d 1 "Destroying pman containerized development environment" \
                     "from ./docker-compose_dev.yml..."
     docker-compose -f docker-compose_dev.yml --no-ansi down >& dc.out >/dev/null
     cat dc.out                                                              | ./boxes.sh
-    echo "Removing ./FS tree"                                               | ./boxes.sh
-    rm -fr ./FS
+    if [ -d './FS' ]; then
+        echo "Removing ./FS tree"                                           | ./boxes.sh
+        rm -fr ./FS
+    fi
 windowBottom
 
 title -d 1 "Stopping swarm cluster..."
