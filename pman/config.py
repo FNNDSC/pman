@@ -59,10 +59,11 @@ class DevConfig(Config):
             }
         })
 
-        self.CONTAINER_ENV = 'swarm'
+        # Environment variables
         env = Env()
         env.read_env()  # also read .env file, if it exists
-        self.STOREBASE = env('STOREBASE')
+        self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
+        self.STOREBASE = env('STOREBASE') if self.CONTAINER_ENV == 'swarm' else None
 
 
 class ProdConfig(Config):
@@ -116,4 +117,4 @@ class ProdConfig(Config):
         self.SECRET_KEY = env('SECRET_KEY')
 
         self.CONTAINER_ENV = env('CONTAINER_ENV')
-        self.STOREBASE = env('STOREBASE')
+        self.STOREBASE = env('STOREBASE') if self.CONTAINER_ENV == 'swarm' else None
