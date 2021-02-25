@@ -42,8 +42,6 @@ class JobList(Resource):
         self.str_app_container_inputdir = '/share/incoming'
         self.str_app_container_outputdir = '/share/outgoing'
 
-        self.storebase = app.config.get('STOREBASE')
-
         self.container_env = app.config.get('CONTAINER_ENV')
 
     def get(self):
@@ -70,12 +68,14 @@ class JobList(Resource):
             'type': args.type,
         }
         cmd = self.build_app_cmd(compute_data)
-        share_dir = os.path.join(self.storebase, 'key-' + job_id)
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
                     'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
 
         if self.container_env == 'swarm':
+            storebase = app.config.get('STOREBASE')
+            share_dir = os.path.join(storebase, 'key-' + job_id)
+
             swarm_mgr = SwarmManager()
             logger.info(f'Scheduling job {job_id} on the Swarm cluster')
             try:
