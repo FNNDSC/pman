@@ -6,10 +6,23 @@ manage their state in the cluster.
 import docker
 
 
-class SwarmManager(object):
+class SwarmManager:
 
-    def __init__(self):
-        self.docker_client = docker.from_env()
+    def __init__(self, config=None):
+        if config is None:
+            client = docker.from_env()
+        else:
+            client = docker.from_env(environment=config)
+        info = client.info()
+
+        if info['Swarm']['LocalNodeState'] == 'inactive':
+            raise RuntimeError('Node is not part of a Swarm cluster')
+
+        l_swarm_mgr = info['Swarm']['RemoteManagers']
+        if info['Swarm']['NodeID'] not in [node['NodeID'] for node in l_swarm_mgr]:
+            raise RuntimeError('Node is not a Swarm manager')
+
+        self.docker_client = client
 
     def schedule(self, image, command, name, restart_policy, mountdir=None):
         """
