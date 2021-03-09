@@ -56,4 +56,4 @@ ENTRYPOINT ["gunicorn"]
 EXPOSE 5010
 
 # Start pman production server
-CMD ["-w", "7", "-b", "0.0.0.0:5010", "pman.wsgi:application"]
+CMD ["-w", "5", "-b", "0.0.0.0:5010", "pman.wsgi:application"]

@@ -76,7 +76,11 @@ class JobList(Resource):
             storebase = app.config.get('STOREBASE')
             share_dir = os.path.join(storebase, 'key-' + job_id)
 
-            swarm_mgr = SwarmManager()
+            try:
+                swarm_mgr = SwarmManager(app.config)
+            except RuntimeError as e:
+                abort(503, message=str(e))
+
             logger.info(f'Scheduling job {job_id} on the Swarm cluster')
             try:
                 service = swarm_mgr.schedule(compute_data['image'], cmd, job_id, 'none',
@@ -87,6 +91,7 @@ class JobList(Resource):
                 status_code = e.response.status_code
                 status_code = 503 if status_code == 500 else status_code
                 abort(status_code, message=str(e))
+
             job_info = swarm_mgr.get_service_task_info(service)
             logger.info(f'Successful job {job_id} schedule response from Swarm: '
                         f'{job_info}')
@@ -153,7 +158,11 @@ class Job(Resource):
                     'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
 
         if container_env == 'swarm':
-            swarm_mgr = SwarmManager()
+            try:
+                swarm_mgr = SwarmManager(app.config)
+            except RuntimeError as e:
+                abort(503, message=str(e))
+
             logger.info(f'Getting job {job_id} status from the Swarm cluster')
             try:
                 service = swarm_mgr.get_service(job_id)
@@ -165,6 +174,7 @@ class Job(Resource):
                 abort(status_code, message=str(e))
             except docker.errors.InvalidVersion as e:
                 abort(400, message=str(e))
+
             job_info = swarm_mgr.get_service_task_info(service)
             logger.info(f'Successful job {job_id} status response from Swarm: '
                         f'{job_info}')
