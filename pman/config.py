@@ -1,6 +1,7 @@
 
 from logging.config import dictConfig
 from environs import Env
+import os
 
 
 class Config:
@@ -62,7 +63,10 @@ class DevConfig(Config):
         # Environment variables
         env = Env()
         env.read_env()  # also read .env file, if it exists
-        self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
+        # Allow pman to load env from Openshift manifest. Else, set env as `swarm`
+        
+        self.CONTAINER_ENV = os.environ.get('CONTAINER_ENV') if os.environ.get('CONTAINER_ENV') is not None \
+                             else env('CONTAINER_ENV', 'swarm')
         self.STOREBASE = env('STOREBASE') if self.CONTAINER_ENV == 'swarm' else None
 
 
