@@ -53,6 +53,11 @@ class JobList(Resource):
         return {
             'server_version': app.config.get('SERVER_VERSION'),
         }
+        
+    def get_openshift_manager(self):
+        self.openshiftmgr = OpenShiftManager()
+        return self.openshiftmgr
+        
 
     def post(self):
         args = parser.parse_args()
@@ -63,7 +68,7 @@ class JobList(Resource):
         # json decoding
         json_payload = json.loads(args.json)
         print (json_payload)
-        if len(json_payload) > 1 :
+        if len(json_payload) > 0 :
         
             if 'jid' in json_payload:
                 job_id = json_payload['jid']
@@ -172,12 +177,13 @@ class JobList(Resource):
             outgoing_dir = self.str_app_container_outputdir 
             
             # Schedule the job    
-            self.get_openshift_manager().schedule(str_image, cmd, job_id, \
+            job = self.get_openshift_manager().schedule(str_image, cmd, job_id, \
                                          number_of_workers or compute_data['number_of_workers'],\
                                          cpu_limit or compute_data['cpu_limit'],\
                                          memory_limit or compute_data['memory_limit'], \
                                          gpu_limit or compute_data['gpu_limit'], \
                                          incoming_dir, outgoing_dir)
+            return {'job_details': str(job)}
 
         return {
             'jid': job_id,
@@ -233,6 +239,50 @@ class Job(Resource):
     """
     Resource representing a single job running on the compute.
     """
+    
+    # Initiate an openshiftmgr instance
+    def get_openshift_manager(self):
+        self.openshiftmgr = OpenShiftManager()
+        return self.openshiftmgr
+        
+    # Get the status of a running jon on Openshift
+    def t_status_process_openshift(self, jid):
+        """
+        Determine the status of a job scheduled using the openshift manager.
+        PRECONDITIONS:
+        o   Only call this method if a container structure exists
+            in the relevant job tree!
+        POSTCONDITIONS:
+        o   If the job is completed, then shutdown the container cluster
+            service.
+        """
+        
+        str_logs = ''
+        # Get job-id from request
+        #jid = self.jid
+
+        # Query OpenShift API to get job state
+        d_json  = self.get_openshift_manager().state(jid)
+        
+        print (d_json)
+        print (jid)
+
+        if d_json['Status']['Message'] == 'finished':
+            pod_names = self.get_openshift_manager().get_pod_names_in_job(jid)
+            for _, pod_name in enumerate(pod_names):
+                str_logs += self.get_openshift_manager().get_job_pod_logs(pod_name, jid)
+        else:
+            str_logs = d_json['Status']['Message']
+
+        status  = d_json['Status']
+        currentState =  d_json['Status']['Message']
+
+        return {
+            'status':           status,
+            'logs':             str_logs,
+            'currentState':     [currentState]
+        }
+            
     def get(self, job_id):
         container_env = app.config.get('CONTAINER_ENV')
         job_logs = ''
@@ -260,6 +310,29 @@ class Job(Resource):
             if job_info['status'] in ('undefined', 'finishedWithError',
                                       'finishedSuccessfully'):
                 service.remove()  # remove job from swarm cluster
+        else:
+            logger.info(f'Getting job {job_id} status from the Openshift cluster')
+            try:
+                d_containerStatus       =   self.t_status_process_openshift(job_id)
+                status                  =   d_containerStatus['status']
+                logs                    =   d_containerStatus['logs']
+                currentState            =   d_containerStatus['currentState']
+            except Exception as e:
+                if isinstance(e, ApiException) and e.reason == 'Not Found':
+                    status = logs = currentState = e.reason
+                else:
+                    raise e
+
+            d_ret = {
+                'description':   str(status),
+                'l_logs':     str(logs),
+                'l_status': currentState
+            }
+            return {
+                    "d_ret":    d_ret,
+                    "status":   str(currentState)
+            }
+
 
         return {
             'jid': job_id,

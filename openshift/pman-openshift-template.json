@@ -68,7 +68,7 @@
                   "readOnly": true
                 }
               ],
-              "image": "fnndsc/pman",
+              "image": "fnndsc/pman:flask",
               "imagePullPolicy": "Always",
               "name": "pman",
               "ports": [{
@@ -92,7 +92,7 @@
                 },
                 {
                   "name": "OPENSHIFTMGR_PROJECT",
-                  "value": "radiology"
+                  "value": "test-moc"
                 },
                 {
                   "name": "STORAGE_TYPE",
