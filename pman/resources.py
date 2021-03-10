@@ -47,6 +47,7 @@ class JobList(Resource):
         self.str_app_container_outputdir = '/share/outgoing'
 
         self.container_env = app.config.get('CONTAINER_ENV')
+        self.openshiftmgr       = None
 
     def get(self):
         return {
@@ -55,6 +56,7 @@ class JobList(Resource):
 
     def post(self):
         args = parser.parse_args()
+        str_image = ''
         
         # Check if a json is passed, then parse each of the json fields 
         # Add condition for additional json fields
@@ -89,6 +91,7 @@ class JobList(Resource):
                 
             if 'image' in json_payload:
                 image = json_payload['image']
+                str_image = image
                 
             if 'selfexec' in json_payload:
                 selfexec = json_payload['selfexec']
@@ -131,6 +134,7 @@ class JobList(Resource):
                 'type': args.type,
             }
             cmd = self.build_app_cmd(compute_data)
+            str_image = compute_data['image']
             
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
@@ -143,7 +147,7 @@ class JobList(Resource):
             swarm_mgr = SwarmManager()
             logger.info(f'Scheduling job {job_id} on the Swarm cluster')
             try:
-                service = swarm_mgr.schedule(compute_data['image'], cmd, job_id, 'none',
+                service = swarm_mgr.schedule(str_image, cmd, job_id, 'none',
                                              share_dir)
             except docker.errors.APIError as e:
                 logger.error(f'Error from Swarm while scheduling job {job_id}, detail: '
@@ -155,6 +159,25 @@ class JobList(Resource):
             logger.info(f'Successful job {job_id} schedule response from Swarm: '
                         f'{job_info}')
             job_logs = swarm_mgr.get_service_logs(service)
+            
+        else :
+            # If the container env is Openshift
+            logger.info(f'Scheduling job {job_id} on the Openshift cluster')
+            # Create the Persistent Volume Claim
+            if os.environ.get('STORAGE_TYPE') == 'swift':
+                self.get_openshift_manager().create_pvc(job_id)
+                
+            # Set some variables
+            incoming_dir = self.str_app_container_inputdir 
+            outgoing_dir = self.str_app_container_outputdir 
+            
+            # Schedule the job    
+            self.get_openshift_manager().schedule(str_image, cmd, job_id, \
+                                         number_of_workers or compute_data['number_of_workers'],\
+                                         cpu_limit or compute_data['cpu_limit'],\
+                                         memory_limit or compute_data['memory_limit'], \
+                                         gpu_limit or compute_data['gpu_limit'], \
+                                         incoming_dir, outgoing_dir)
 
         return {
             'jid': job_id,
