@@ -1,6 +1,7 @@
 
 import os
 import logging
+import json
 
 from flask import request, current_app as app
 from flask_restful import reqparse, abort, Resource
@@ -15,19 +16,22 @@ from .swarmmgr import SwarmManager
 logger = logging.getLogger(__name__)
 
 parser = reqparse.RequestParser(bundle_errors=True)
-parser.add_argument('jid', dest='jid', required=True)
-parser.add_argument('cmd_args', dest='cmd_args', required=True)
-parser.add_argument('cmd_path_flags', dest='cmd_path_flags')
-parser.add_argument('auid', dest='auid', required=True)
-parser.add_argument('number_of_workers', dest='number_of_workers', required=True,)
-parser.add_argument('cpu_limit', dest='cpu_limit', required=True)
-parser.add_argument('memory_limit', dest='memory_limit', required=True)
-parser.add_argument('gpu_limit', dest='gpu_limit', required=True)
-parser.add_argument('image', dest='image', required=True)
-parser.add_argument('selfexec', dest='selfexec', required=True)
-parser.add_argument('selfpath', dest='selfpath', required=True)
-parser.add_argument('execshell', dest='execshell', required=True)
-parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=True)
+parser.add_argument('json',type = str, dest='json', required=False, default='')
+if len('json') == 0 :
+    parser.add_argument('jid', dest='jid', required=True)
+    parser.add_argument('cmd_args', dest='cmd_args', required=True)
+    parser.add_argument('cmd_path_flags', dest='cmd_path_flags')
+    parser.add_argument('auid', dest='auid', required=True)
+    parser.add_argument('number_of_workers', dest='number_of_workers', required=True)
+    parser.add_argument('cpu_limit', dest='cpu_limit', required=True)
+    parser.add_argument('memory_limit', dest='memory_limit', required=True)
+    parser.add_argument('gpu_limit', dest='gpu_limit', required=True)
+    parser.add_argument('image', dest='image', required=True)
+    parser.add_argument('selfexec', dest='selfexec', required=True)
+    parser.add_argument('selfpath', dest='selfpath', required=True)
+    parser.add_argument('execshell', dest='execshell', required=True)
+    parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=True)
+
 
 
 class JobList(Resource):
@@ -51,23 +55,83 @@ class JobList(Resource):
 
     def post(self):
         args = parser.parse_args()
-
-        job_id = args.jid.lstrip('/')
-        compute_data = {
-            'cmd_args': args.cmd_args,
-            'cmd_path_flags': args.cmd_path_flags,
-            'auid': args.auid,
-            'number_of_workers': args.number_of_workers,
-            'cpu_limit': args.cpu_limit,
-            'memory_limit': args.memory_limit,
-            'gpu_limit': args.gpu_limit,
-            'image': args.image,
-            'selfexec': args.selfexec,
-            'selfpath': args.selfpath,
-            'execshell': args.execshell,
-            'type': args.type,
-        }
-        cmd = self.build_app_cmd(compute_data)
+        
+        # Check if a json is passed, then parse each of the json fields 
+        # Add condition for additional json fields
+        # json decoding
+        json_payload = json.loads(args.json)
+        print (json_payload)
+        if len(json_payload) > 1 :
+        
+            if 'jid' in json_payload:
+                job_id = json_payload['jid']
+                
+            if 'cmd_args' in json_payload:
+                cmd_args = json_payload['cmd_args']
+            
+            if 'cmd_path_flags' in json_payload:
+                cmd_path_flags = json_payload['cmd_path_flags']
+                
+            if 'number_of_workers' in json_payload:
+                number_of_workers = json_payload['number_of_workers']
+                
+            if 'auid' in json_payload:
+                auid = json_payload['auid']
+                
+            if 'cpu_limit' in json_payload:
+                cpu_limit = json_payload['cpu_limit']
+                
+            if 'memory_limit' in json_payload:
+                memory_limit = json_payload['memory_limit']
+                
+            if 'gpu_limit' in json_payload:
+                gpu_limit = json_payload['gpu_limit']
+                
+            if 'image' in json_payload:
+                image = json_payload['image']
+                
+            if 'selfexec' in json_payload:
+                selfexec = json_payload['selfexec']
+                
+            if 'selfpath' in json_payload:
+                selfpath = json_payload['selfpath']
+                
+            if 'execshell' in json_payload:
+                execshell = json_payload['execshell']
+                
+            if 'type' in json_payload:
+                type = json_payload['type']
+                
+            outputdir = self.str_app_container_outputdir
+            exec = os.path.join(selfpath, selfexec)
+            cmd = f'{execshell} {exec}'
+            if type == 'ds':
+                inputdir = self.str_app_container_inputdir
+                cmd = cmd + f' {cmd_args} {inputdir} {outputdir}'
+            elif type in ('fs', 'ts'):
+                cmd = cmd + f' {cmd_args} {outputdir}'
+                
+        else :
+            # Parse the arguments manually from the parameters
+                
+                
+            job_id = args.jid.lstrip('/')
+            compute_data = {
+                'cmd_args': args.cmd_args,
+                'cmd_path_flags': args.cmd_path_flags,
+                'auid': args.auid,
+                'number_of_workers': args.number_of_workers,
+                'cpu_limit': args.cpu_limit,
+                'memory_limit': args.memory_limit,
+                'gpu_limit': args.gpu_limit,
+                'image': args.image,
+                'selfexec': args.selfexec,
+                'selfpath': args.selfpath,
+                'execshell': args.execshell,
+                'type': args.type,
+            }
+            cmd = self.build_app_cmd(compute_data)
+            
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
                     'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
