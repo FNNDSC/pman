@@ -2,6 +2,11 @@
 import os
 import logging
 import json
+import platform
+import psutil
+import multiprocessing
+import socket
+import emoji 
 
 from flask import request, current_app as app
 from flask_restful import reqparse, abort, Resource
@@ -17,20 +22,19 @@ logger = logging.getLogger(__name__)
 
 parser = reqparse.RequestParser(bundle_errors=True)
 parser.add_argument('json',type = str, dest='json', required=False, default='')
-if len('json') == 0 :
-    parser.add_argument('jid', dest='jid', required=True)
-    parser.add_argument('cmd_args', dest='cmd_args', required=True)
-    parser.add_argument('cmd_path_flags', dest='cmd_path_flags')
-    parser.add_argument('auid', dest='auid', required=True)
-    parser.add_argument('number_of_workers', dest='number_of_workers', required=True)
-    parser.add_argument('cpu_limit', dest='cpu_limit', required=True)
-    parser.add_argument('memory_limit', dest='memory_limit', required=True)
-    parser.add_argument('gpu_limit', dest='gpu_limit', required=True)
-    parser.add_argument('image', dest='image', required=True)
-    parser.add_argument('selfexec', dest='selfexec', required=True)
-    parser.add_argument('selfpath', dest='selfpath', required=True)
-    parser.add_argument('execshell', dest='execshell', required=True)
-    parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=True)
+parser.add_argument('jid', dest='jid', required=False)
+parser.add_argument('cmd_args', dest='cmd_args', required=False)
+parser.add_argument('cmd_path_flags', dest='cmd_path_flags', required=False)
+parser.add_argument('auid', dest='auid', required=False)
+parser.add_argument('number_of_workers', dest='number_of_workers', required=False)
+parser.add_argument('cpu_limit', dest='cpu_limit', required=False)
+parser.add_argument('memory_limit', dest='memory_limit', required=False)
+parser.add_argument('gpu_limit', dest='gpu_limit', required=False)
+parser.add_argument('image', dest='image', required=False)
+parser.add_argument('selfexec', dest='selfexec', required=False)
+parser.add_argument('selfpath', dest='selfpath', required=False)
+parser.add_argument('execshell', dest='execshell', required=False)
+parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=False)
 
 
 
@@ -62,13 +66,17 @@ class JobList(Resource):
     def post(self):
         args = parser.parse_args()
         str_image = ''
+        number_of_workers=0
+        cpu_limit=0
+        memory_limit=0
+        gpu_limit=0
         
         # Check if a json is passed, then parse each of the json fields 
         # Add condition for additional json fields
-        # json decoding
-        json_payload = json.loads(args.json)
-        print (json_payload)
-        if len(json_payload) > 0 :
+        
+        if len(args.json) > 0 :
+            # json decoding
+            json_payload = json.loads(args.json)
         
             if 'jid' in json_payload:
                 job_id = json_payload['jid']
@@ -284,7 +292,36 @@ class Job(Resource):
         }
             
     def get(self, job_id):
+    
         container_env = app.config.get('CONTAINER_ENV')
+    
+        # Respond to simple 'hello' requests from the server
+        if job_id == 'hello' :
+            smiling_face = emoji.emojize(":grinning_face_with_big_eyes:")
+            logger.info(f'pman says hello from {container_env} {smiling_face}')
+            b_status            = False
+            d_ret               = {}
+            d_ret['message']                = (f'pman says hello from {container_env} {smiling_face}')
+            d_ret['sysinfo']                = {}
+            d_ret['sysinfo']['system']      = platform.system()
+            d_ret['sysinfo']['machine']     = platform.machine()
+            d_ret['sysinfo']['platform']    = platform.platform()
+            d_ret['sysinfo']['uname']       = platform.uname()
+            d_ret['sysinfo']['version']     = platform.version()
+            d_ret['sysinfo']['memory']      = psutil.virtual_memory()
+            d_ret['sysinfo']['cpucount']    = multiprocessing.cpu_count()
+            d_ret['sysinfo']['loadavg']     = os.getloadavg()
+            d_ret['sysinfo']['cpu_percent'] = psutil.cpu_percent()
+            d_ret['sysinfo']['hostname']    = socket.gethostname()
+            d_ret['sysinfo']['inet']        = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+            b_status                        = True
+            
+            return { 'd_ret':   d_ret,
+                 'status':  b_status}
+                 
+        # Else continue with the job details
+        
+        
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
                     'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
