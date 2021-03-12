@@ -17,9 +17,8 @@ services:
     # necessary for a production pman.
     #
     # Since pman spins off containers of its own it needs to mount storeBase dir (where
-    # pfioh shares the data) into the spawned container. However, it can't mount a dir
-    # inside itself to the spawned container, it has to mount an actual existing
-    # directory in the host. This directory is passed in the STOREBASE env variable.
+    # pfioh shares the data) into the spawned container. This directory is passed in the
+    # STOREBASE env variable.
     environment:
       - STOREBASE
     image: ${PMANREPO}/pman:dev
