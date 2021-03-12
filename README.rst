@@ -1,6 +1,6 @@
-#############
-pman v3.0.0.0
-#############
+###########
+pman v3.0.0
+###########
 
 .. image:: https://img.shields.io/docker/v/fnndsc/pman?sort=semver
     :alt: Docker Image Version
