@@ -49,7 +49,6 @@
                 "/usr/local/bin/pman",
                 "--verbosity=5",
                 "--port=5010",
-                "--enableTokenAuth",
                 "--tokenPath=/etc/pman/auth/pman_config.cfg"
               ],
               "volumeMounts": [{
