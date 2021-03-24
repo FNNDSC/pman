@@ -71,7 +71,7 @@
                   "readOnly": true
                 }
               ],
-              "image": "fnndsc/pman",
+              "image": "fnndsc/pman:2.2.4",
               "imagePullPolicy": "Always",
               "name": "pman",
               "ports": [{
@@ -176,61 +176,7 @@
           "weight": 100
         }
       }
-    },
-    {
-      "apiVersion": "batch/v1beta1",
-      "kind": "CronJob",
-      "metadata":{
-        "labels":{
-          "job-origin":"pman"
-      },
-          "name": "pman-reaper"
-      },
-      "spec":{
-          "schedule": "*/30 * * * ?",    
-          "jobTemplate":{
-              "spec":{
-                "activeDeadlineSeconds" : 1200,
-                  "template":{
-                    "metadata":{
-                      "labels":{
-                        "job-origin": "pman-reaper"
-                      },
-                      "name": "pman-reaper"
-                    },
-                      "spec":{
-                          "containers":[{
-                                  "name": "pman-reaper",
-                                  "image": "fnndsc/pman-reaper",
-                                  "imagePullPolicy": "Always",
-                                  "command": ["python3", "reaper.py"],
-                                  "env": [{
-                                    "name": "KUBECFG_PATH",
-                                    "value": "/tmp/.kube/config"
-                                  },
-                                  {
-                                    "name": "OPENSHIFTMGR_PROJECT",
-                                    "value": "radiology"
-                                  }],
-                                  "volumeMounts": [{
-                                    "name": "kubecfg-volume",
-                                    "mountPath": "/tmp/.kube/",
-                                    "readOnly": true
-                                  }]
-                              }],
-                          "volumes": [{
-                            "name": "kubecfg-volume",
-                            "secret": {
-                              "secretName": "kubecfg"
-                            }
-                          }],
-                          "restartPolicy": "Never"
-                      }
-                  }
-              }
-          }             
-      }
-  }
+    }
 ],
   "labels": {
     "template": "application-template-pman-openshift"
