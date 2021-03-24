@@ -45,8 +45,8 @@ class OpenShiftManager(object):
             },
             "spec": {
                 "ttlSecondsAfterFinished": 20,
-                "parallelism": number_of_workers,
-                "completions": number_of_workers,
+                "parallelism": int(number_of_workers),
+                "completions": int(number_of_workers),
                 "activeDeadlineSeconds": 3600,
                 "template": {
                     "metadata": {
