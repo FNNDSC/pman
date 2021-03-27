@@ -67,8 +67,8 @@ class JobList(Resource):
         args = parser.parse_args()
         str_image = ''
         number_of_workers=0
-        cpu_limit=0
-        memory_limit=0
+        cpu_limit=''
+        memory_limit=''
         gpu_limit=0
         
         # Check if a json is passed, then parse each of the json fields 
@@ -173,7 +173,7 @@ class JobList(Resource):
                         f'{job_info}')
             job_logs = swarm_mgr.get_service_logs(service)
             
-        else :
+        if self.container_env == 'openshift' :
             # If the container env is Openshift
             logger.info(f'Scheduling job {job_id} on the Openshift cluster')
             # Create the Persistent Volume Claim
@@ -182,13 +182,25 @@ class JobList(Resource):
                 
             # Set some variables
             incoming_dir = self.str_app_container_inputdir 
-            outgoing_dir = self.str_app_container_outputdir 
+            outgoing_dir = self.str_app_container_outputdir
+            
+            # Ensure that the limits are specified before scheduling a job
+            if cpu_limit or compute_data['cpu_limit'] :
+                cpu_limit = compute_data['cpu_limit'] + 'm'
+            else :
+                cpu_limit = '4000m'
+                
+            if memory_limit or compute_data['memory_limit'] :
+                memory_limit = compute_data['memory_limit'] + 'Mi'
+            else :
+                memory_limit = '4000Mi'
+             
             
             # Schedule the job    
             job = self.get_openshift_manager().schedule(str_image, cmd, job_id, \
                                          number_of_workers or compute_data['number_of_workers'],\
-                                         cpu_limit or compute_data['cpu_limit'],\
-                                         memory_limit or compute_data['memory_limit'], \
+                                         cpu_limit,\
+                                         memory_limit, \
                                          gpu_limit or compute_data['gpu_limit'], \
                                          incoming_dir, outgoing_dir)
             return {'job_details': str(job)}
@@ -320,7 +332,8 @@ class Job(Resource):
             if job_info['status'] in ('undefined', 'finishedWithError',
                                       'finishedSuccessfully'):
                 service.remove()  # remove job from swarm cluster
-        else:
+                
+        if container_env == 'openshift':
             logger.info(f'Getting job {job_id} status from the Openshift cluster')
             try:
                 d_containerStatus       =   self.t_status_process_openshift(job_id)
@@ -338,9 +351,22 @@ class Job(Resource):
                 'l_logs':     str(logs),
                 'l_status': currentState
             }
+            if 'finished' in str(currentState) :
+                job_status = 'finishedSuccessfully'
+                
+                # Also delete the job pod and related pvc
+                try:
+                    job = self.get_openshift_manager().get_job(job_id)
+                    self.get_openshift_manager().remove_pvc(job_id)
+                    self.get_openshift_manager().remove_job(job_id)
+                except Exception as err:
+                    logger.info(f'Error deleting pvc/job: {err}')
+            else :
+                job_status = str(currentState)
+                
             return {
-                    "d_ret":    d_ret,
-                    "status":   str(currentState)
+                    'd_ret':    d_ret,
+                    'status':   job_status
             }
 
 
