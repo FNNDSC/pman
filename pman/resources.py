@@ -65,6 +65,8 @@ class JobList(Resource):
 
     def post(self):
         args = parser.parse_args()
+        
+        # Declare local variables
         str_image = ''
         number_of_workers=0
         cpu_limit=''
@@ -128,7 +130,7 @@ class JobList(Resource):
                 cmd = cmd + f' {cmd_args} {outputdir}'
                 
         else :
-            # Parse the arguments manually from the parameters
+            # Parse the arguments from the parameters
                 
                 
             job_id = args.jid.lstrip('/')
@@ -185,15 +187,10 @@ class JobList(Resource):
             outgoing_dir = self.str_app_container_outputdir
             
             # Ensure that the limits are specified before scheduling a job
-            if cpu_limit or compute_data['cpu_limit'] :
-                cpu_limit = compute_data['cpu_limit'] + 'm'
-            else :
-                cpu_limit = '4000m'
-                
-            if memory_limit or compute_data['memory_limit'] :
-                memory_limit = compute_data['memory_limit'] + 'Mi'
-            else :
-                memory_limit = '4000Mi'
+            # Remove this if CUBE passes correct limits in future
+
+            cpu_limit = (cpu_limit or compute_data['cpu_limit']) + 'm'
+            memory_limit = (memory_limit or compute_data['memory_limit']) + 'Mi'
              
             
             # Schedule the job    
