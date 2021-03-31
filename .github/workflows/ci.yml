@@ -19,8 +19,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: build development container image
-        run: docker build -t fnndsc/pman:dev -f Dockerfile_dev .
       - name: provision local services
         run: |
           docker swarm init --advertise-addr 127.0.0.1

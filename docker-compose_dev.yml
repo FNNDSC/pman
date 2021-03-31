@@ -12,7 +12,13 @@ version: '3.7'
 
 services:
   pman_service:
-    # During dev pman needs access to the pfioh storeBase folder (and hence the volume)
+    image: ${PMANREPO}/pman:dev
+    build:
+      context: .
+      args:
+        ENVIRONMENT: local
+    command: ["pman", "--ip", "0.0.0.0", "--verbosity", "1"]
+    # During dev pman needs access to the pfcon storeBase folder (and hence the volume)
     # mapping from the HOST file system space to be able to run the tests. This is not
     # necessary for a production pman.
     #
@@ -21,14 +27,14 @@ services:
     # STOREBASE env variable.
     environment:
       - STOREBASE
-    image: ${PMANREPO}/pman:dev
-    command: ["--ip", "0.0.0.0", "--verbosity", "1"]
+      - APPLICATION_MODE=development
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
       - ${STOREBASE}:/home/localuser/storeBase:z
       - ./pman:/home/localuser/pman/pman:z
       - ./bin:/home/localuser/pman/bin:z
       - ./tests:/home/localuser/pman/tests:z
+      - ./openshift:/home/localuser/pman/openshift:z
     ports:
       - "5010:5010"
     labels:
