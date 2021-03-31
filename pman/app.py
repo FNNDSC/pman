@@ -9,11 +9,11 @@ from pman.resources import JobList, Job
 
 
 def create_app(config_dict=None):
-    app_mode = os.environ.get("APPLICATION_MODE", default="development")
-    if app_mode == 'development':
-        config_obj = DevConfig()
-    else:
+    app_mode = os.environ.get("APPLICATION_MODE", default="production")
+    if app_mode == 'production':
         config_obj = ProdConfig()
+    else:
+        config_obj = DevConfig()
 
     app = Flask(__name__)
     app.config.from_object(config_obj)

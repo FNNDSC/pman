@@ -18,11 +18,14 @@ pman v3.0.0
 Overview
 ********
 
-This repository provides ``pman`` -- a process manager that provides a unified API over HTTP for running jobs on
+This repository implements ``pman`` -- a process manager that provides a unified API over HTTP for running jobs on
 
 * docker swarm
 * Openshift
 
+***********************
+Development and testing
+***********************
 
 Preconditions
 =============
@@ -32,10 +35,12 @@ Install latest Docker and Docker Compose
 
 Currently tested platforms:
 
-- Ubuntu 18.04+ and MAC OS X 11.1+
+* ``Ubuntu 18.04+ and MAC OS X 10.14+ and Fedora 31+`` ([Additional instructions for Fedora](https://github.com/mairin/ChRIS_store/wiki/Getting-the-ChRIS-Store-to-work-on-Fedora))
+* ``Docker 18.06.0+``
+* ``Docker Compose 1.27.0+``
 
-Note: On a Linux machine make sure to add your computer user to the ``docker`` group
-
+Note: On a Linux machine make sure to add your computer user to the ``docker`` group.
+Consult this page https://docs.docker.com/engine/install/linux-postinstall/
 
 Start pman's Flask development server
 =====================================
@@ -45,6 +50,13 @@ Start pman's Flask development server
     git clone https://github.com/FNNDSC/pman.git
     cd pman
     ./make.sh
+
+You can later remove all the backend containers with:
+
+.. code-block:: bash
+
+    $> cd pman
+    $> ./unmake.sh
 
 
 Example Job

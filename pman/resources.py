@@ -152,6 +152,7 @@ class Job(Resource):
     Resource representing a single job running on the compute.
     """
     def get(self, job_id):
+        job_id = job_id.lstrip('/')
         container_env = app.config.get('CONTAINER_ENV')
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
