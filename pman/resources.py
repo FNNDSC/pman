@@ -358,12 +358,22 @@ class Job(Resource):
                     self.get_openshift_manager().remove_job(job_id)
                 except Exception as err:
                     logger.info(f'Error deleting pvc/job: {err}')
+                    
             else :
                 job_status = str(currentState)
                 
             return {
-                    'd_ret':    d_ret,
-                    'status':   job_status
+                    'jid': job_id,
+                    'image': '',
+                    'cmd': '',
+                    'status': job_status,
+                    'message': str(status),
+                    'timestamp': '',
+                    'containerid': '',
+                    'exitcode': '0',
+                    'pid': '0',
+                    'logs': str(logs)
+
             }
 
 
