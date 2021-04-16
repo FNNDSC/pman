@@ -24,9 +24,8 @@ jobs:
           docker swarm init --advertise-addr 127.0.0.1
           docker build --build-arg ENVIRONMENT=local -t fnndsc/pman:dev .
           ./make.sh -s -U -i
-          export pman_dev=$(docker ps -f name=pman_dev_stack_pman_service.1 -q)
       - name: nosetests
-        run: docker exec $pman_dev nosetests --exe tests
+        run: docker exec $(docker ps -f name=pman_dev_stack_pman_service.1 -q) nosetests --exe tests
       - name: teardown
         run: |
           ./unmake.sh
