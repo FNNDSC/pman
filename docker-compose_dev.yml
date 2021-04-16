@@ -12,11 +12,9 @@ version: '3.7'
 
 services:
   pman_service:
-    image: ${PMANREPO}/pman:dev
-    build:
-      context: .
-      args:
-        ENVIRONMENT: local
+    image: ${PMANREPO:?}/pman:dev
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
     command: ["pman", "--ip", "0.0.0.0", "--verbosity", "1"]
     # During dev pman needs access to the pfcon storeBase folder (and hence the volume)
     # mapping from the HOST file system space to be able to run the tests. This is not
@@ -30,7 +28,7 @@ services:
       - APPLICATION_MODE=development
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
-      - ${STOREBASE}:/home/localuser/storeBase:z
+      - ${STOREBASE:?}:/home/localuser/storeBase:z
       - ./pman:/home/localuser/pman/pman:z
       - ./bin:/home/localuser/pman/bin:z
       - ./tests:/home/localuser/pman/tests:z

@@ -6,15 +6,13 @@ declare -i STEP=0
 
 export STOREBASE=${STOREBASE}
 
-title -d 1 "Destroying pman containerized development environment" \
-                    "from ./docker-compose_dev.yml..."
-    docker-compose -f docker-compose_dev.yml down >& dc.out >/dev/null
-    cat dc.out                                                              | ./boxes.sh
-    echo "Removing ./FS tree"                                               | ./boxes.sh
+title -d 1 "Destroying pman_dev_stack containerized dev environment on Swarm"
+    echo "This might take a few minutes... please be patient."      | ./boxes.sh ${Yellow}
+    echo "docker stack rm pman_dev_stack"                               | ./boxes.sh ${LightCyan}
+    windowBottom
+    docker stack rm pman_dev_stack >& dc.out >/dev/null
+    echo -en "\033[2A\033[2K"
+    cat dc.out | sed -E 's/(.{80})/\1\n/g'                          | ./boxes.sh ${LightGreen}
+    echo "Removing ./FS tree"                                       | ./boxes.sh
     rm -fr ./FS
-windowBottom
-
-title -d 1 "Stopping swarm cluster..."
-    docker swarm leave --force >dc.out 2>dc.out
-    cat dc.out                                                              | ./boxes.sh
 windowBottom

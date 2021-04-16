@@ -20,7 +20,7 @@ Overview
 
 This repository implements ``pman`` -- a process manager that provides a unified API over HTTP for running jobs on
 
-* docker swarm
+* Docker Swarm
 * Openshift
 
 ***********************
@@ -30,17 +30,25 @@ Development and testing
 Preconditions
 =============
 
-Install latest Docker and Docker Compose
-----------------------------------------
+Install latest docker
+---------------------
 
 Currently tested platforms:
 
 * ``Ubuntu 18.04+ and MAC OS X 10.14+ and Fedora 31+`` ([Additional instructions for Fedora](https://github.com/mairin/ChRIS_store/wiki/Getting-the-ChRIS-Store-to-work-on-Fedora))
 * ``Docker 18.06.0+``
-* ``Docker Compose 1.27.0+``
 
 Note: On a Linux machine make sure to add your computer user to the ``docker`` group.
 Consult this page https://docs.docker.com/engine/install/linux-postinstall/
+
+
+Start a local Docker Swarm cluster if not already started
+=========================================================
+
+.. code-block:: bash
+
+    docker swarm init --advertise-addr 127.0.0.1
+
 
 Start pman's Flask development server
 =====================================
@@ -59,6 +67,14 @@ You can later remove all the backend containers with:
     $> ./unmake.sh
 
 
+Remove the local Docker Swarm cluster if desired
+================================================
+
+.. code-block:: bash
+
+    docker swarm leave --force
+
+
 Example Job
 ===========
 
@@ -66,7 +82,7 @@ Simulate incoming data
 
 .. code-block:: bash
 
-    pman_dev=$(docker ps -f ancestor=fnndsc/pman:dev -f name=pman_service -q)  
+    pman_dev=$(docker ps -f name=pman_dev_stack_pman_service.1 -q)
     docker exec -it $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/incoming
     docker exec -it $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/outgoing
     docker exec -it $pman_dev touch /home/localuser/storeBase/key-chris-jid-1/incoming/test.txt
