@@ -15,26 +15,26 @@ services:
     image: ${PMANREPO:?}/pman:dev
     stdin_open: true # docker run -i
     tty: true        # docker run -t
-    command: ["pman", "--ip", "0.0.0.0", "--verbosity", "1"]
+    command: ["pman", "--ip", "0.0.0.0", "--port", "30010", "--verbosity", "1"]
     # During dev pman needs access to the pfcon storeBase folder (and hence the volume)
     # mapping from the HOST file system space to be able to run the tests. This is not
     # necessary for a production pman.
     #
     # Since pman spins off containers of its own it needs to mount storeBase dir (where
-    # pfioh shares the data) into the spawned container. This directory is passed in the
+    # pfcon shares the data) into the spawned container. This directory is passed in the
     # STOREBASE env variable.
     environment:
-      - STOREBASE
       - APPLICATION_MODE=development
+      - STOREBASE
+      - CONTAINER_ENV=swarm
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
       - ${STOREBASE:?}:/home/localuser/storeBase:z
-      - ./pman:/home/localuser/pman/pman:z
-      - ./bin:/home/localuser/pman/bin:z
-      - ./tests:/home/localuser/pman/tests:z
-      - ./openshift:/home/localuser/pman/openshift:z
+      - ../pman:/home/localuser/pman/pman:z
+      - ../bin:/home/localuser/pman/bin:z
+      - ../tests:/home/localuser/pman/tests:z
     ports:
-      - "5010:5010"
+      - "30010:30010"
     labels:
       name: "pman"
       role: "pman service"
