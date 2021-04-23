@@ -133,7 +133,7 @@ class OpenShiftManager(object):
             d_job['spec']['template']['spec']['initContainers'] = [
                 {
                     "name": "init-storage",
-                    "image": "fnndsc/pman-swift-publisher",
+                    "image": "fnndsc/pman-swift-publisher:flask",
                     "imagePullPolicy": "IfNotPresent",
                     "env": [
                         {
@@ -183,7 +183,7 @@ class OpenShiftManager(object):
 
             d_job['spec']['template']['spec']['containers'].append({
                 "name": "publish",
-                "image": "fnndsc/pman-swift-publisher",
+                "image": "fnndsc/pman-swift-publisher:flask",
                 "imagePullPolicy": "IfNotPresent",
                 "env": [
                     {
