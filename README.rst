@@ -13,6 +13,9 @@ pman |ChRIS logo|
 .. image:: https://github.com/FNNDSC/pman/workflows/ci/badge.svg
     :alt: Github Actions
     :target: https://github.com/FNNDSC/pman/actions
+.. image:: https://img.shields.io/github/last-commit/fnndsc/pman.svg
+    :alt: Last Commit 
+
 
 .. contents:: Table of Contents
     :depth: 2
