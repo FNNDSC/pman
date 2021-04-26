@@ -139,8 +139,8 @@ title -d 1 "Setting global exports..."
     fi
     echo -e "exporting STOREBASE=$STOREBASE "                      | ./boxes.sh
     export STOREBASE=$STOREBASE
-    echo -e "exporting SOURCEDIR=$HERE "                           | ./boxes.sh
-    export SOURCEDIR=$HERE
+    export SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+    echo -e "exporting SOURCEDIR=$SOURCEDIR "                           | ./boxes.sh
 windowBottom
 
 if (( ! b_skipIntro )) ; then
@@ -198,15 +198,11 @@ windowBottom
 title -d 1 "Starting pman containerized dev environment on $ORCHESTRATOR"
     if [[ $ORCHESTRATOR == swarm ]]; then
         echo "docker stack deploy -c swarm/docker-compose_dev.yml pman_dev_stack" | ./boxes.sh ${LightCyan}
-        windowBottom
-        docker stack deploy -c swarm/docker-compose_dev.yml pman_dev_stack >& dc.out > /dev/null
+        docker stack deploy -c swarm/docker-compose_dev.yml pman_dev_stack
     elif [[ $ORCHESTRATOR == kubernetes ]]; then
-        echo "envsubst < kubernetes/pman_dev.yaml | kubectl apply -f -" | ./boxes.sh ${LightCyan}
-        windowBottom
-        envsubst < kubernetes/pman_dev.yaml | kubectl apply -f - >& dc.out > /dev/null
+        echo "envsubst < kubernetes/pman_dev.yaml | kubectl apply -f -"           | ./boxes.sh ${LightCyan}
+        envsubst < kubernetes/pman_dev.yaml | kubectl apply -f -
     fi
-    echo -en "\033[2A\033[2K"
-    cat dc.out | sed -E 's/(.{80})/\1\n/g'                          | ./boxes.sh ${LightGreen}
 windowBottom
 
 title -d 1 "Waiting until pman container is running on $ORCHESTRATOR"
@@ -215,7 +211,7 @@ title -d 1 "Waiting until pman container is running on $ORCHESTRATOR"
     for i in {1..30}; do
         sleep 5
         if [[ $ORCHESTRATOR == swarm ]]; then
-            pman_dev=$(docker ps -f name=pman_dev_stack_pman_service.1 -q)
+            pman_dev=$(docker ps -f name=pman_dev_stack_pman.1 -q)
         elif [[ $ORCHESTRATOR == kubernetes ]]; then
             pman_dev=$(kubectl get pods --selector="app=pman,env=development" --field-selector=status.phase=Running --output=jsonpath='{.items[*].metadata.name}')
         fi

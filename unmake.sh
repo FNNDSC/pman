@@ -62,16 +62,12 @@ shift $(($OPTIND - 1))
 
 title -d 1 "Destroying pman containerized dev environment on $ORCHESTRATOR"
     if [[ $ORCHESTRATOR == swarm ]]; then
-        echo "docker stack rm pman_dev_stack"                               | ./boxes.sh ${LightCyan}
-        windowBottom
-        docker stack rm pman_dev_stack >& dc.out >/dev/null
+        echo "docker stack rm pman_dev_stack"                       | ./boxes.sh ${LightCyan}
+        docker stack rm pman_dev_stack
     elif [[ $ORCHESTRATOR == kubernetes ]]; then
-        echo "kubectl delete -f kubernetes/pman_dev.yaml"                   | ./boxes.sh ${LightCyan}
-        windowBottom
-        kubectl delete -f kubernetes/pman_dev.yaml >& dc.out >/dev/null
+        echo "kubectl delete -f kubernetes/pman_dev.yaml"           | ./boxes.sh ${LightCyan}
+        kubectl delete -f kubernetes/pman_dev.yaml
     fi
-    echo -en "\033[2A\033[2K"
-    cat dc.out | sed -E 's/(.{80})/\1\n/g'                          | ./boxes.sh ${LightGreen}
     echo "Removing ./FS tree"                                       | ./boxes.sh
     rm -fr ./FS
 windowBottom
