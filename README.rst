@@ -1,6 +1,6 @@
-########################
-pman v3.0.0 |ChRIS logo|
-########################
+#################
+pman |ChRIS logo|
+#################
 
 .. |ChRIS logo| image:: https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/master/docs/assets/logo_chris.png
 
