@@ -129,7 +129,7 @@ Docker Swarm:
 
 .. code-block:: bash
 
-    $> pman_dev=$(docker ps -f name=pman_dev_stack_pman_service.1 -q)
+    $> pman_dev=$(docker ps -f name=pman_dev_stack_pman.1 -q)
     $> docker exec $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/incoming
     $> docker exec $pman_dev mkdir -p /home/localuser/storeBase/key-chris-jid-1/outgoing
     $> docker exec $pman_dev touch /home/localuser/storeBase/key-chris-jid-1/incoming/test.txt

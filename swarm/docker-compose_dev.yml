@@ -11,7 +11,7 @@
 version: '3.7'
 
 services:
-  pman_service:
+  pman:
     image: ${PMANREPO:?}/pman:dev
     stdin_open: true # docker run -i
     tty: true        # docker run -t
