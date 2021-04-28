@@ -77,14 +77,14 @@ class JobList(Resource):
             share_dir = os.path.join(storebase, 'key-' + job_id)
 
             try:
-                swarm_mgr = SwarmManager(app.config)
+                compute_mgr = SwarmManager(app.config)
             except RuntimeError as e:
                 abort(503, message=str(e))
 
             logger.info(f'Scheduling job {job_id} on the Swarm cluster')
             try:
-                service = swarm_mgr.schedule(compute_data['image'], cmd, job_id, 'none',
-                                             share_dir)
+                service = compute_mgr.schedule(compute_data['image'], cmd, job_id, 'none',
+                                               share_dir)
             except docker.errors.APIError as e:
                 logger.error(f'Error from Swarm while scheduling job {job_id}, detail: '
                              f'{str(e)}')
@@ -92,10 +92,10 @@ class JobList(Resource):
                 status_code = 503 if status_code == 500 else status_code
                 abort(status_code, message=str(e))
 
-            job_info = swarm_mgr.get_service_task_info(service)
+            job_info = compute_mgr.get_service_task_info(service)
             logger.info(f'Successful job {job_id} schedule response from Swarm: '
                         f'{job_info}')
-            job_logs = swarm_mgr.get_service_logs(service)
+            job_logs = compute_mgr.get_service_logs(service)
 
         return {
             'jid': job_id,
@@ -108,7 +108,7 @@ class JobList(Resource):
             'exitcode': job_info['exitcode'],
             'pid': job_info['pid'],
             'logs': job_logs
-        }
+        }, 201
 
     def build_app_cmd(self, compute_data):
         """
@@ -151,39 +151,25 @@ class Job(Resource):
     """
     Resource representing a single job running on the compute.
     """
+    def __init__(self):
+        super(Job, self).__init__()
+
+        self.container_env = app.config.get('CONTAINER_ENV')
+        self.compute_mgr = None
+
     def get(self, job_id):
         job_id = job_id.lstrip('/')
-        container_env = app.config.get('CONTAINER_ENV')
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
                     'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
 
-        if container_env == 'swarm':
-            try:
-                swarm_mgr = SwarmManager(app.config)
-            except RuntimeError as e:
-                abort(503, message=str(e))
-
+        if self.container_env == 'swarm':
             logger.info(f'Getting job {job_id} status from the Swarm cluster')
-            try:
-                service = swarm_mgr.get_service(job_id)
-            except docker.errors.NotFound as e:
-                abort(404, message=str(e))
-            except docker.errors.APIError as e:
-                status_code = e.response.status_code
-                status_code = 503 if status_code == 500 else status_code
-                abort(status_code, message=str(e))
-            except docker.errors.InvalidVersion as e:
-                abort(400, message=str(e))
-
-            job_info = swarm_mgr.get_service_task_info(service)
+            job = self.get_job(job_id)
+            job_info = self.compute_mgr.get_service_task_info(job)
             logger.info(f'Successful job {job_id} status response from Swarm: '
                         f'{job_info}')
-            job_logs = swarm_mgr.get_service_logs(service)
-
-            if job_info['status'] in ('undefined', 'finishedWithError',
-                                      'finishedSuccessfully'):
-                service.remove()  # remove job from swarm cluster
+            job_logs = self.compute_mgr.get_service_logs(job)
 
         return {
             'jid': job_id,
@@ -197,3 +183,34 @@ class Job(Resource):
             'pid': job_info['pid'],
             'logs': job_logs
         }
+
+    def delete(self, job_id):
+        job_id = job_id.lstrip('/')
+
+        if self.container_env == 'swarm':
+            logger.info(f'Deleting job {job_id} from {self.container_env}')
+            job = self.get_job(job_id)
+            job.remove()  # remove job from swarm cluster
+            logger.info(f'Successfully removed job {job_id} from {self.container_env}')
+        return '', 204
+
+    def get_job(self, job_id):
+        """
+        Return the job object.
+        """
+        if self.container_env == 'swarm':
+            try:
+                self.compute_mgr = SwarmManager(app.config)
+            except RuntimeError as e:
+                abort(503, message=str(e))
+            try:
+                service = self.compute_mgr.get_service(job_id)
+            except docker.errors.NotFound as e:
+                abort(404, message=str(e))
+            except docker.errors.APIError as e:
+                status_code = e.response.status_code
+                status_code = 503 if status_code == 500 else status_code
+                abort(status_code, message=str(e))
+            except docker.errors.InvalidVersion as e:
+                abort(400, message=str(e))
+            return service

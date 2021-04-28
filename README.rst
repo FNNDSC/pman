@@ -144,18 +144,26 @@ Kubernetes:
     $> kubectl exec $pman_dev -- touch /home/localuser/storeBase/key-chris-jid-1/incoming/test.txt
 
 
-Using `HTTPie <https://httpie.org/>` to run a container
+Using `HTTPie <https://httpie.org/>`_ to run a job
 
 .. code-block:: bash
 
     $> http POST http://localhost:30010/api/v1/ cmd_args='--saveinputmeta --saveoutputmeta --dir cube/uploads' cmd_path_flags='--dir' auid=cube number_of_workers=1 cpu_limit=1000 memory_limit=200 gpu_limit=0 image=fnndsc/pl-dircopy selfexec=dircopy selfpath=/usr/local/bin execshell=/usr/local/bin/python type=fs jid=chris-jid-1
 
-Get the result
+Get job status
 
 .. code-block:: bash
 
     $> http http://localhost:30010/api/v1/chris-jid-1/
-    
+
+Keep making the previous ``GET`` request until the ``"status"`` descriptor in the response becomes ``"finishedSuccessfully"``:
+
+Delete the job
+
+.. code-block:: bash
+
+    $> http DELETE http://localhost:30010/api/v1/chris-jid-1/
+
 
 ``pman`` usage
 ===============
