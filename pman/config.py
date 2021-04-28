@@ -9,7 +9,7 @@ class Config:
     """
     DEBUG = False
     TESTING = False
-    SERVER_VERSION = "3.0.0"
+    SERVER_VERSION = "3.1.0"
 
     def __init__(self):
         # Environment variables
