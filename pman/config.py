@@ -1,6 +1,6 @@
 
 from logging.config import dictConfig
-from environs import Env
+from environs import Env, EnvError
 
 
 class Config:
@@ -18,7 +18,6 @@ class Config:
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
         if self.CONTAINER_ENV == 'swarm':
-            self.STOREBASE = env('STOREBASE')
             docker_host = env('DOCKER_HOST', '')
             if docker_host:
                 self.DOCKER_HOST = docker_host
@@ -29,6 +28,32 @@ class Config:
             if docker_cert_path:
                 self.DOCKER_CERT_PATH = docker_cert_path
 
+            self.STOREBASE = env('STOREBASE', '')
+            """
+            STOREBASE is the host path on each swarm node where an NFS is mounted.
+            """
+            if not self.STOREBASE:
+                # auto-detect STOREBASE based on the location wher
+                # pfcon puts incoming data
+                import docker
+                client = docker.from_env(environment=self.__dict__)
+
+                pfcon_filter = {'label': 'org.chrisproject.role=pfcon'}
+                pfcon_possibilities = client.containers.list(filters=pfcon_filter)
+                if not pfcon_possibilities:
+                    raise EnvError('STOREBASE environment variable is undefined'
+                                   ' and cannot find pfcon service')
+                pfcon = pfcon_possibilities[0]
+
+                storebase_possibilities = [
+                    volume['Source'] for volume in pfcon.attrs['Mounts']
+                    if volume['Destination'] == '/home/localuser/storeBase'
+                ]
+                if not storebase_possibilities:
+                    raise EnvError('Nothing mounted to "/home/localuser/storeBase"'
+                                   f' for container {pfcon.name}')
+
+                self.STOREBASE = storebase_possibilities[0]
         self.env = env
 
 
