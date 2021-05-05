@@ -64,7 +64,7 @@ RUN pip install --upgrade pip                                                   
 #USER localuser
 
 WORKDIR ${APPROOT}
-ENTRYPOINT [""]
+ENTRYPOINT []
 EXPOSE 5010
 
 # Start pman production server
