@@ -17,8 +17,12 @@ class Config:
         env.read_env()  # also read .env file, if it exists
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
-        if self.CONTAINER_ENV == 'swarm':
+        self.STORAGE_TYPE = env('STORAGE_TYPE', 'host')
+
+        if self.STORAGE_TYPE == 'host':
             self.STOREBASE = env('STOREBASE')
+
+        if self.CONTAINER_ENV == 'swarm':
             docker_host = env('DOCKER_HOST', '')
             if docker_host:
                 self.DOCKER_HOST = docker_host
@@ -28,6 +32,9 @@ class Config:
             docker_cert_path = env('DOCKER_CERT_PATH', '')
             if docker_cert_path:
                 self.DOCKER_CERT_PATH = docker_cert_path
+
+        if self.CONTAINER_ENV == 'kubernetes':
+            self.JOB_NAMESPACE = env('JOB_NAMESPACE', 'default')
 
         self.env = env
 

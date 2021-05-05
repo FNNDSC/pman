@@ -30,9 +30,9 @@ class ResourceTests(TestCase):
         logging.disable(logging.NOTSET)
 
 
-class TestJobList(ResourceTests):
+class TestJobListResource(ResourceTests):
     """
-    Test the JobList resource.
+    Test the JobListResource resource.
     """
     def setUp(self):
         super().setUp()

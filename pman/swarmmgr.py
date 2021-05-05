@@ -1,70 +1,71 @@
 """
-Swarm cluster manager module that provides functionality to schedule services as well as
-manage their state in the cluster.
+Swarm cluster manager module that provides functionality to schedule
+jobs (short-lived services) as well as manage their state in the cluster.
 """
 
 import docker
+from .abstractmgr import AbstractManager, ManagerException
 
 
-class SwarmManager:
+class SwarmManager(AbstractManager):
 
-    def __init__(self, config=None):
-        if config is None:
-            client = docker.from_env()
+    def __init__(self, config_dict=None):
+        super().__init__(config_dict)
+
+        if self.config is None:
+            self.docker_client = docker.from_env()
         else:
-            client = docker.from_env(environment=config)
-        info = client.info()
+            self.docker_client = docker.from_env(environment=self.config)
 
-        if info['Swarm']['LocalNodeState'] == 'inactive':
-            raise RuntimeError('Node is not part of a Swarm cluster')
-
-        l_swarm_mgr = info['Swarm']['RemoteManagers']
-        if info['Swarm']['NodeID'] not in [node['NodeID'] for node in l_swarm_mgr]:
-            raise RuntimeError('Node is not a Swarm manager')
-
-        self.docker_client = client
-
-    def schedule(self, image, command, name, restart_policy, mountdir=None):
+    def schedule_job(self, image, command, name, resources_dict, mountdir=None):
         """
-        Schedule a new service and returns the service object.
+        Schedule a new job and return the job (swarm service) object.
         """
-        # 'on-failure' restart_policy ensures that the service will not be rescheduled
-        # when it completes
-        restart_policy = docker.types.RestartPolicy(condition=restart_policy)
+        restart_policy = docker.types.RestartPolicy(condition='none')
         mounts = []
         if mountdir is not None:
             mounts.append('%s:/share:rw' % mountdir)
-        return self.docker_client.services.create(image, command, name=name, mounts=mounts,
-                                                  restart_policy=restart_policy, tty=True)
+        try:
+            job = self.docker_client.services.create(image, command,
+                                                     name=name,
+                                                     mounts=mounts,
+                                                     restart_policy=restart_policy,
+                                                     tty=True)
+        except docker.errors.APIError as e:
+            status_code = 503 if e.response.status_code == 500 else e.response.status_code
+            raise ManagerException(str(e), status_code=status_code)
+        return job
 
-    def get_service(self, name):
+    def get_job(self, name):
         """
-        Get a previously scheduled service object.
+        Get a previously scheduled job object.
         """
-        return self.docker_client.services.get(name)
+        try:
+            job = self.docker_client.services.get(name)
+        except docker.errors.NotFound as e:
+            raise ManagerException(str(e), status_code=404)
+        except docker.errors.APIError as e:
+            status_code = 503 if e.response.status_code == 500 else e.response.status_code
+            raise ManagerException(str(e), status_code=status_code)
+        except docker.errors.InvalidVersion as e:
+            raise ManagerException(str(e), status_code=400)
+        return job
 
-    def get_service_logs(self, service):
+    def get_job_logs(self, job):
         """
-        Get the logs from a previously scheduled service object.
+        Get the logs from a previously scheduled job object.
         """
-        return ''.join([l.decode() for l in service.logs(stdout=True, stderr=True)])
+        return ''.join([l.decode() for l in job.logs(stdout=True, stderr=True)])
 
-    def get_service_task(self, service):
+    def get_job_info(self, job):
         """
-        Get the service's task for a previously scheduled service object.
+        Get the job's info for a previously scheduled job object.
         """
-        tasks = service.tasks()
-        return tasks[0] if tasks else None
+        info = super().get_job_info(job)
+        info['status'] = 'notstarted'
+        info['message'] = 'task not available yet'
 
-    def get_service_task_info(self, service):
-        """
-        Get the service's task info for a previously scheduled service object.
-        """
-        info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '',
-                'message': 'task not available yet', 'status': 'notstarted',
-                'containerid': '', 'exitcode': '', 'pid': ''}
-
-        task = self.get_service_task(service)
+        task = self.get_job_task(job)
         if task:
             status = 'undefined'
             state = task['Status']['State']
@@ -78,22 +79,23 @@ class SwarmManager:
             elif state == 'complete':
                 status = 'finishedSuccessfully'
 
-            info['id'] = task['ID']
+            info['name'] = job.name
             info['image'] = task['Spec']['ContainerSpec']['Image']
             info['cmd'] = ' '.join(task['Spec']['ContainerSpec']['Command'])
             info['timestamp'] = task['Status']['Timestamp']
             info['message'] = task['Status']['Message']
             info['status'] = status
-
-            if 'ContainerStatus' in task['Status']:
-                info['containerid'] = task['Status']['ContainerStatus']['ContainerID']
-                info['exitcode'] = task['Status']['ContainerStatus']['ExitCode']
-                info['pid'] = task['Status']['ContainerStatus']['PID']
         return info
 
-    def remove(self, name):
+    def remove_job(self, job):
         """
-        Remove a previously scheduled service.
+        Remove a previously scheduled job.
         """
-        service = self.get_service(name)
-        service.remove()
+        job.remove()
+
+    def get_job_task(self, job):
+        """
+        Get the job's task for a previously scheduled job object.
+        """
+        tasks = job.tasks()
+        return tasks[0] if tasks else None

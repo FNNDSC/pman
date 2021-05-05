@@ -156,7 +156,7 @@ Get job status
 
     $> http http://localhost:30010/api/v1/chris-jid-1/
 
-Keep making the previous ``GET`` request until the ``"status"`` descriptor in the response becomes ``"finishedSuccessfully"``:
+Keep making the previous ``GET`` request until the ``"status"`` descriptor in the response becomes ``"finishedSuccessfully"``
 
 Delete the job
 
