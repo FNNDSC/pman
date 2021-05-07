@@ -8,10 +8,36 @@ class Config:
     """
     Base configuration
     """
-    STATIC_FOLDER = 'static'
     DEBUG = False
     TESTING = False
-    SERVER_VERSION = "3.0.0.0"
+    SERVER_VERSION = "3.1.0"
+
+    def __init__(self):
+        # Environment variables
+        env = Env()
+        env.read_env()  # also read .env file, if it exists
+
+        self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
+        self.STORAGE_TYPE = env('STORAGE_TYPE', 'host')
+
+        if self.STORAGE_TYPE == 'host':
+            self.STOREBASE = env('STOREBASE')
+
+        if self.CONTAINER_ENV == 'swarm':
+            docker_host = env('DOCKER_HOST', '')
+            if docker_host:
+                self.DOCKER_HOST = docker_host
+            docker_tls_verify = env.int('DOCKER_TLS_VERIFY', None)
+            if docker_tls_verify is not None:
+                self.DOCKER_TLS_VERIFY = docker_tls_verify
+            docker_cert_path = env('DOCKER_CERT_PATH', '')
+            if docker_cert_path:
+                self.DOCKER_CERT_PATH = docker_cert_path
+
+        if self.CONTAINER_ENV == 'kubernetes':
+            self.JOB_NAMESPACE = env('JOB_NAMESPACE', 'default')
+
+        self.env = env
 
 
 class DevConfig(Config):
@@ -23,7 +49,9 @@ class DevConfig(Config):
     TESTING = True
 
     def __init__(self):
-        # LOGGING CONFIGURATION
+        super().__init__()
+
+        # DEV LOGGING CONFIGURATION
         dictConfig({
             'version': 1,
             'disable_existing_loggers': False,
@@ -60,14 +88,11 @@ class DevConfig(Config):
             }
         })
 
-        # Environment variables
-        env = Env()
-        env.read_env()  # also read .env file, if it exists
-        # Allow pman to load env from Openshift manifest. Else, set env as `swarm`
         
         self.CONTAINER_ENV = os.environ.get('CONTAINER_ENV') if os.environ.get('CONTAINER_ENV') is not None \
                              else env('CONTAINER_ENV', 'swarm')
         self.STOREBASE = env('STOREBASE') if self.CONTAINER_ENV == 'swarm' else None
+
 
 
 class ProdConfig(Config):
@@ -77,7 +102,9 @@ class ProdConfig(Config):
     ENV = 'production'
 
     def __init__(self):
-        # LOGGING CONFIGURATION
+        super().__init__()
+
+        # PROD LOGGING CONFIGURATION
         dictConfig({
             'version': 1,
             'disable_existing_loggers': False,
@@ -114,11 +141,6 @@ class ProdConfig(Config):
         })
 
         # Environment variables-based secrets
-        env = Env()
-        env.read_env()  # also read .env file, if it exists
-
         # SECURITY WARNING: keep the secret key used in production secret!
+        env = self.env
         self.SECRET_KEY = env('SECRET_KEY')
-
-        self.CONTAINER_ENV = env('CONTAINER_ENV')
-        self.STOREBASE = env('STOREBASE') if self.CONTAINER_ENV == 'swarm' else None

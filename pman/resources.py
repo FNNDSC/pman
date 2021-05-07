@@ -8,19 +8,19 @@ import multiprocessing
 import socket
 import emoji 
 
-from flask import request, current_app as app
+from flask import current_app as app
 from flask_restful import reqparse, abort, Resource
 
-from kubernetes.client.rest import ApiException
-import docker
-
+from .abstractmgr import ManagerException
 from .openshiftmgr import OpenShiftManager
+from .kubernetesmgr import KubernetesManager
 from .swarmmgr import SwarmManager
 
 
 logger = logging.getLogger(__name__)
 
 parser = reqparse.RequestParser(bundle_errors=True)
+
 parser.add_argument('json',type = str, dest='json', required=False, default='')
 parser.add_argument('jid', dest='jid', required=False)
 parser.add_argument('cmd_args', dest='cmd_args', required=False)
@@ -38,13 +38,23 @@ parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=Fa
 
 
 
-class JobList(Resource):
+
+def get_compute_mgr(container_env):
+    compute_mgr = None
+    if container_env == 'swarm':
+        compute_mgr = SwarmManager(app.config)
+    elif container_env == 'kubernetes':
+        compute_mgr = KubernetesManager(app.config)
+    return compute_mgr
+
+
+class JobListResource(Resource):
     """
-    Resource representing the list of jobs running on the compute.
+    Resource representing the list of jobs scheduled on the compute.
     """
 
     def __init__(self):
-        super(JobList, self).__init__()
+        super(JobListResource, self).__init__()
 
         # mounting points for the input and outputdir in the app's container!
         self.str_app_container_inputdir = '/share/incoming'
@@ -55,7 +65,7 @@ class JobList(Resource):
 
     def get(self):
         return {
-            'server_version': app.config.get('SERVER_VERSION'),
+            'server_version': app.config.get('SERVER_VERSION')
         }
         
     def get_openshift_manager(self):
@@ -65,6 +75,9 @@ class JobList(Resource):
 
     def post(self):
         args = parser.parse_args()
+
+        job_id = args.jid.lstrip('/')
+
         
         # Declare local variables
         str_image = ''
@@ -155,25 +168,37 @@ class JobList(Resource):
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
                     'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
 
-        if self.container_env == 'swarm':
+
+        cmd = self.build_app_cmd(args.cmd_args, args.cmd_path_flags, args.selfpath,
+                                 args.selfexec, args.execshell, args.type)
+
+        resources_dict = {'number_of_workers': args.number_of_workers,
+                          'cpu_limit': args.cpu_limit,
+                          'memory_limit': args.memory_limit,
+                          'gpu_limit': args.gpu_limit,
+                          }
+        share_dir = None
+        if app.config.get('STORAGE_TYPE') == 'host':
             storebase = app.config.get('STOREBASE')
             share_dir = os.path.join(storebase, 'key-' + job_id)
 
-            swarm_mgr = SwarmManager()
-            logger.info(f'Scheduling job {job_id} on the Swarm cluster')
-            try:
-                service = swarm_mgr.schedule(str_image, cmd, job_id, 'none',
-                                             share_dir)
-            except docker.errors.APIError as e:
-                logger.error(f'Error from Swarm while scheduling job {job_id}, detail: '
-                             f'{str(e)}')
-                status_code = e.response.status_code
-                status_code = 503 if status_code == 500 else status_code
-                abort(status_code, message=str(e))
-            job_info = swarm_mgr.get_service_task_info(service)
-            logger.info(f'Successful job {job_id} schedule response from Swarm: '
-                        f'{job_info}')
-            job_logs = swarm_mgr.get_service_logs(service)
+
+        logger.info(f'Scheduling job {job_id} on the {self.container_env} cluster')
+
+        compute_mgr = get_compute_mgr(self.container_env)
+        try:
+            job = compute_mgr.schedule_job(args.image, cmd, job_id, resources_dict,
+                                           share_dir)
+        except ManagerException as e:
+            logger.error(f'Error from {self.container_env} while scheduling job '
+                         f'{job_id}, detail: {str(e)}')
+            abort(e.status_code, message=str(e))
+
+        job_info = compute_mgr.get_job_info(job)
+        logger.info(f'Successful job {job_id} schedule response from '
+                    f'{self.container_env}: {job_info}')
+        job_logs = compute_mgr.get_job_logs(job)
+           
             
         if self.container_env == 'openshift' :
             # If the container env is Openshift
@@ -202,6 +227,7 @@ class JobList(Resource):
                                          incoming_dir, outgoing_dir)
             return {'job_details': str(job)}
 
+
         return {
             'jid': job_id,
             'image': job_info['image'],
@@ -209,18 +235,14 @@ class JobList(Resource):
             'status': job_info['status'],
             'message': job_info['message'],
             'timestamp': job_info['timestamp'],
-            'containerid': job_info['containerid'],
-            'exitcode': job_info['exitcode'],
-            'pid': job_info['pid'],
             'logs': job_logs
-        }
+        }, 201
 
-    def build_app_cmd(self, compute_data):
+    def build_app_cmd(self, cmd_args, cmd_path_flags, selfpath, selfexec, execshell,
+                      plugin_type):
         """
         Build and return the app's cmd string.
         """
-        cmd_args = compute_data['cmd_args']
-        cmd_path_flags = compute_data['cmd_path_flags']
         if cmd_path_flags:
             # process the argument of any cmd flag that is a 'path'
             path_flags = cmd_path_flags.split(',')
@@ -237,25 +259,42 @@ class JobList(Resource):
                     # parameters are removed
                     args[i+1] = self.str_app_container_inputdir
             cmd_args = ' '.join(args)
-        selfpath = compute_data['selfpath']
-        selfexec = compute_data['selfexec']
-        execshell = compute_data['execshell']
-        type = compute_data['type']
         outputdir = self.str_app_container_outputdir
         exec = os.path.join(selfpath, selfexec)
         cmd = f'{execshell} {exec}'
-        if type == 'ds':
+        if plugin_type == 'ds':
             inputdir = self.str_app_container_inputdir
             cmd = cmd + f' {cmd_args} {inputdir} {outputdir}'
-        elif type in ('fs', 'ts'):
+        elif plugin_type in ('fs', 'ts'):
             cmd = cmd + f' {cmd_args} {outputdir}'
         return cmd
 
 
-class Job(Resource):
+class JobResource(Resource):
     """
-    Resource representing a single job running on the compute.
+    Resource representing a single job scheduled on the compute.
     """
+
+    def __init__(self):
+        super(JobResource, self).__init__()
+
+        self.container_env = app.config.get('CONTAINER_ENV')
+        self.compute_mgr = get_compute_mgr(self.container_env)
+
+    def get(self, job_id):
+        job_id = job_id.lstrip('/')
+
+        logger.info(f'Getting job {job_id} status from the {self.container_env} '
+                    f'cluster')
+        try:
+            job = self.compute_mgr.get_job(job_id)
+        except ManagerException as e:
+            abort(e.status_code, message=str(e))
+        job_info = self.compute_mgr.get_job_info(job)
+        logger.info(f'Successful job {job_id} status response from '
+                    f'{self.container_env}: {job_info}')
+        job_logs = self.compute_mgr.get_job_logs(job)
+
     
     # Initiate an openshiftmgr instance
     def get_openshift_manager(self):
@@ -377,6 +416,7 @@ class Job(Resource):
             }
 
 
+
         return {
             'jid': job_id,
             'image': job_info['image'],
@@ -384,11 +424,22 @@ class Job(Resource):
             'status': job_info['status'],
             'message': job_info['message'],
             'timestamp': job_info['timestamp'],
-            'containerid': job_info['containerid'],
-            'exitcode': job_info['exitcode'],
-            'pid': job_info['pid'],
             'logs': job_logs
         }
+
+
+    def delete(self, job_id):
+        job_id = job_id.lstrip('/')
+
+        logger.info(f'Deleting job {job_id} from {self.container_env}')
+        try:
+            job = self.compute_mgr.get_job(job_id)
+        except ManagerException as e:
+            abort(e.status_code, message=str(e))
+        self.compute_mgr.remove_job(job)  # remove job from compute cluster
+        logger.info(f'Successfully removed job {job_id} from {self.container_env}')
+        return '', 204
+
         
 class Hello(Resource):
 
@@ -419,4 +470,4 @@ class Hello(Resource):
             return { 'd_ret':   d_ret,
                  'status':  b_status}
                  
-    
+

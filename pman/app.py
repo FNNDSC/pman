@@ -5,15 +5,16 @@ from flask import Flask
 from flask_restful import Api
 
 from .config import DevConfig, ProdConfig
-from pman.resources import JobList, Job, Hello
+from pman.resources import JobListResource, JobResource, Hello
+
 
 
 def create_app(config_dict=None):
-    app_mode = os.environ.get("APPLICATION_MODE", default="development")
-    if app_mode == 'development':
-        config_obj = DevConfig()
-    else:
+    app_mode = os.environ.get("APPLICATION_MODE", default="production")
+    if app_mode == 'production':
         config_obj = ProdConfig()
+    else:
+        config_obj = DevConfig()
 
     app = Flask(__name__)
     app.config.from_object(config_obj)
@@ -22,8 +23,9 @@ def create_app(config_dict=None):
     api = Api(app, prefix='/api/v1/')
 
     # url mappings
-    api.add_resource(JobList, '/', endpoint='api.joblist')
-    api.add_resource(Job, '/<string:job_id>/', endpoint='api.job')
+    api.add_resource(JobListResource, '/', endpoint='api.joblist')
+    api.add_resource(JobResource, '/<string:job_id>/', endpoint='api.job')
     api.add_resource(Hello, '/hello/', endpoint='api.hello')
+
 
     return app

@@ -19,21 +19,16 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: build development container image
-        run: docker build -t fnndsc/pman:dev -f Dockerfile_dev .
       - name: provision local services
         run: |
           docker swarm init --advertise-addr 127.0.0.1
-          chmod -R 755 $PWD
-          mkdir -p FS/remote
-          chmod -R 777 FS
-          export STOREBASE=$PWD/FS/remote
-          docker-compose -f docker-compose_dev.yml up -d
+          docker build --build-arg ENVIRONMENT=local -t fnndsc/pman:dev .
+          ./make.sh -s -U -i
       - name: nosetests
-        run: docker-compose -f docker-compose_dev.yml exec -T pman_service nosetests --exe tests
+        run: docker exec $(docker ps -f name=pman_dev_stack_pman.1 -q) nosetests --exe tests
       - name: teardown
         run: |
-          docker-compose -f docker-compose_dev.yml down -v
+          ./unmake.sh
           sudo rm -fr ./FS
           docker swarm leave --force
 
@@ -43,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: docker build -t fnndsc/pman .
-      - uses: FNNDSC/cube-integration-action@v1
+      - uses: FNNDSC/cube-integration-action@v4
 
 
   build:

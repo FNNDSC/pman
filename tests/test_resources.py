@@ -30,9 +30,9 @@ class ResourceTests(TestCase):
         logging.disable(logging.NOTSET)
 
 
-class TestJobList(ResourceTests):
+class TestJobListResource(ResourceTests):
     """
-    Test the JobList resource.
+    Test the JobListResource resource.
     """
     def setUp(self):
         super().setUp()
@@ -55,6 +55,7 @@ class TestJobList(ResourceTests):
 
     def test_get(self):
         response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
         self.assertTrue('server_version' in response.json)
 
     def test_post(self):
@@ -75,14 +76,20 @@ class TestJobList(ResourceTests):
         }
         # make the POST request
         response = self.client.post(self.url, json=data)
+        self.assertEqual(response.status_code, 201)
         self.assertIn('status', response.json)
 
         time.sleep(5)
         with self.app.test_request_context():
-            # test get job status and cleanup swarm job
+            # test get job status
             url = url_for('api.job', job_id=self.job_id)
             response = self.client.get(url)
             if response.json['status'] != 'finishedSuccessfully':
                 time.sleep(10)
                 response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json['status'], 'finishedSuccessfully')
+
+            # test remove job (cleanup swarm job)
+            response = self.client.delete(url)
+            self.assertEqual(response.status_code, 204)
