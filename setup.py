@@ -14,8 +14,9 @@ setup(
     author_email     =   'dev@babymri.org',
     url              =   'https://github.com/FNNDSC/pman',
     packages         =   find_packages(),
-    install_requires =   ['pfmisc', 'docker', 'openshift', 'kubernetes',
-                          'python-keystoneclient', 'Flask', 'Flask_RESTful', 'environs'],
+
+    install_requires =   ['pudb', 'pfmisc', 'docker', 'openshift', 'kubernetes',
+                          'python-keystoneclient', 'Flask', 'Flask_RESTful', 'environs','psutil','emoji'],
     test_suite       =   'nose.collector',
     tests_require    =   ['nose'],
     scripts          =   ['bin/pman'],
