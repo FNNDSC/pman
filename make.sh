@@ -6,7 +6,7 @@
 #
 # SYNPOSIS
 #
-#   make.sh                     [-i] [-s] [-U]          \
+#   make.sh                     [-h] [-i] [-s] [-U]     \
 #                               [-O <swarm|kubernetes>] \
 #                               [-S <storeBase>]        \
 #                               [local|fnndsc[:dev]]
@@ -14,21 +14,30 @@
 # DESC
 #
 #   'make.sh' sets up a pman development instance running either on Swarm or Kubernetes.
-#   It can also optionally create a pattern of directories and symbolic links
-#   that reflect the declarative environment on the orchestrator's manifest file.
+#   It can also optionally create a pattern of directories and symbolic links that
+#   reflect the declarative environment on the orchestrator's service configuration file.
 #
 # TYPICAL CASES:
 #
-#   Run full pman instantiation:
+#   Run full pman instantiation on Swarm:
 #
-#       unmake.sh ; sudo rm -fr FS; rm -fr FS; make.sh
+#       unmake.sh ; sudo rm -fr CHRIS_REMOTE_FS; rm -fr CHRIS_REMOTE_FS; make.sh
 #
 #   Skip the intro:
 #
-#       unmake.sh ; sudo rm -fr FS; rm -fr FS; make.sh -s
+#       unmake.sh ; sudo rm -fr CHRIS_REMOTE_FS; rm -fr CHRIS_REMOTE_FS; make.sh -s
+#
+#
+#   Run full pman instantiation on Kubernetes:
+#
+#       unmake.sh -O kubernetes; sudo rm -fr CHRIS_REMOTE_FS; rm -fr CHRIS_REMOTE_FS; make.sh -O kubernetes
 #
 # ARGS
 #
+#
+#   -h
+#
+#       Optional print usage help.
 #
 #   -O <swarm|kubernetes>
 #
@@ -36,10 +45,8 @@
 #
 #   -S <storeBase>
 #
-#       Explicitly set the STOREBASE dir to <storeBase>. This is useful
-#       mostly in non-Linux hosts (like macOS) where there might be a mismatch
-#       between the actual STOREBASE path and the text of the path shared between
-#       the macOS host and the docker VM.
+#       Explicitly set the STOREBASE dir to <storeBase>. This is the remote ChRIS
+#       filesystem where plugins get their input data and create their output data.
 #
 #   -i
 #
@@ -77,29 +84,29 @@ source ./cparse.sh
 declare -i STEP=0
 ORCHESTRATOR=swarm
 HERE=$(pwd)
-echo "Starting script in dir $HERE"
 
 print_usage () {
-    echo "Usage: ./make.sh [-i] [-s] [-U] [-S <storeBase>] [-O <swarm|kubernetes>] [local|fnndsc[:dev]]"
+    echo "Usage: ./make.sh [-h] [-i] [-s] [-U] [-S <storeBase>] [-O <swarm|kubernetes>] [local|fnndsc[:dev]]"
     exit 1
 }
 
-while getopts ":siUS:O:" opt; do
+while getopts ":hsiUO:S:" opt; do
     case $opt in
+        h) print_usage
+           ;;
         s) b_skipIntro=1
           ;;
         i) b_norestartinteractive_pman_dev=1
           ;;
         U) b_skipUnitTests=1
           ;;
-        S) b_storeBase=1
-           STOREBASE=$OPTARG
-           ;;
         O) ORCHESTRATOR=$OPTARG
            if ! [[ "$ORCHESTRATOR" =~ ^(swarm|kubernetes)$ ]]; then
               echo "Invalid value for option -- O"
               print_usage
            fi
+           ;;
+        S) STOREBASE=$OPTARG
            ;;
         \?) echo "Invalid option -- $OPTARG"
             print_usage
@@ -129,13 +136,15 @@ declare -a A_CONTAINER=(
 )
 
 title -d 1 "Setting global exports..."
-    if (( ! b_storeBase )) ; then
-        if [[ ! -d FS/remote ]] ; then
-            mkdir -p FS/remote
+    if [ -z ${STOREBASE+x} ]; then
+        if [[ ! -d CHRIS_REMOTE_FS ]] ; then
+            mkdir CHRIS_REMOTE_FS
         fi
-        cd FS/remote
-        STOREBASE=$(pwd)
-        cd $HERE
+        STOREBASE=$HERE/CHRIS_REMOTE_FS
+    else
+        if [[ ! -d $STOREBASE ]] ; then
+            mkdir -p $STOREBASE
+        fi
     fi
     echo -e "exporting STOREBASE=$STOREBASE "                      | ./boxes.sh
     export STOREBASE=$STOREBASE
@@ -160,34 +169,33 @@ if (( ! b_skipIntro )) ; then
     windowBottom
 fi
 
-title -d 1 "Changing permissions to 755 on" "$(pwd)"
+title -d 1 "Changing permissions to 755 on" "$HERE"
     cd $HERE
-    echo "chmod -R 755 $(pwd)"                                      | ./boxes.sh
-    chmod -R 755 $(pwd)
+    echo "chmod -R 755 $HERE"                                      | ./boxes.sh
+    chmod -R 755 $HERE
 windowBottom
 
-title -d 1 "Checking that FS directory tree is empty..."
-    mkdir -p FS/remote
-    chmod -R 777 FS
+title -d 1 "Checking that STOREBASE directory" "$STOREBASE is empty..."
+    chmod -R 777 $STOREBASE
     b_FSOK=1
     type -all tree >/dev/null 2>/dev/null
     if (( ! $? )) ; then
-        tree FS                                                     | ./boxes.sh
-        report=$(tree FS | tail -n 1)
-        if [[ "$report" != "1 directory, 0 files" ]] ; then
+        tree $STOREBASE                                                    | ./boxes.sh
+        report=$(tree $STOREBASE | tail -n 1)
+        if [[ "$report" != "0 directories, 0 files" ]] ; then
             b_FSOK=0
         fi
     else
-        report=$(find FS 2>/dev/null)
+        report=$(find $STOREBASE 2>/dev/null)
         lines=$(echo "$report" | wc -l)
-        if (( lines != 2 )) ; then
+        if (( lines != 1 )) ; then
             b_FSOK=0
         fi
         echo "lines is $lines"
     fi
     if (( ! b_FSOK )) ; then
-        printf "There should only be 1 directory and no files in the FS tree!\n"    | ./boxes.sh ${Red}
-        printf "Please manually clean/delete the entire FS tree and re-run.\n"      | ./boxes.sh ${Yellow}
+        printf "The STOREBASE directory $STOREBASE must be empty!\n"    | ./boxes.sh ${Red}
+        printf "Please manually clean it and re-run.\n"      | ./boxes.sh ${Yellow}
         printf "\nThis script will now exit with code '1'.\n\n"                     | ./boxes.sh ${Yellow}
         exit 1
     fi

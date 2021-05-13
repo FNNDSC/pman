@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: docker build -t fnndsc/pman .
-      - uses: FNNDSC/cube-integration-action@v4
+      - uses: FNNDSC/cube-integration-action@v5
 
 
   build:
