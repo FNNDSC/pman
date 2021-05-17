@@ -219,7 +219,7 @@ class JobListResource(Resource):
              
             
             # Schedule the job    
-            job = self.get_openshift_manager().schedule(str_image, cmd, job_id, \
+            job = self.get_openshift_manager().schedule_job(str_image, cmd, job_id, \
                                          number_of_workers or compute_data['number_of_workers'],\
                                          cpu_limit,\
                                          memory_limit, \
@@ -341,33 +341,27 @@ class JobResource(Resource):
             
     def get(self, job_id):
     
-        container_env = app.config.get('CONTAINER_ENV')
-        
-        job_logs = ''
-        job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
-                    'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
+        job_id = job_id.lstrip('/')
 
-        if container_env == 'swarm':
-            swarm_mgr = SwarmManager()
-            logger.info(f'Getting job {job_id} status from the Swarm cluster')
-            try:
-                service = swarm_mgr.get_service(job_id)
-            except docker.errors.NotFound as e:
-                abort(404, message=str(e))
-            except docker.errors.APIError as e:
-                status_code = e.response.status_code
-                status_code = 503 if status_code == 500 else status_code
-                abort(status_code, message=str(e))
-            except docker.errors.InvalidVersion as e:
-                abort(400, message=str(e))
-            job_info = swarm_mgr.get_service_task_info(service)
-            logger.info(f'Successful job {job_id} status response from Swarm: '
-                        f'{job_info}')
-            job_logs = swarm_mgr.get_service_logs(service)
+        logger.info(f'Getting job {job_id} status from the {self.container_env} '
+                    f'cluster')
+        try:
+            job = self.compute_mgr.get_job(job_id)
+        except ManagerException as e:
+            abort(e.status_code, message=str(e))
+        job_info = self.compute_mgr.get_job_info(job)
+        logger.info(f'Successful job {job_id} status response from '
+                    f'{self.container_env}: {job_info}')
+        job_logs = self.compute_mgr.get_job_logs(job)
 
-            if job_info['status'] in ('undefined', 'finishedWithError',
-                                      'finishedSuccessfully'):
-                service.remove()  # remove job from swarm cluster
+        return {
+            'jid': job_id,
+            'image': job_info['image'],
+            'cmd': job_info['cmd'],
+            'status': job_info['status'],
+            'message': job_info['message'],
+            'timestamp': job_info['timestamp'],
+            'logs': job_logs
                 
         if container_env == 'openshift':
             logger.info(f'Getting job {job_id} status from the Openshift cluster')
