@@ -174,8 +174,8 @@ if [[ "$COMMAND" == 'up' ]]; then
 
     title -d 1 "Starting pman containerized prod environment on $ORCHESTRATOR"
     if [[ $ORCHESTRATOR == swarm ]]; then
-        echo "docker stack deploy -c swarm/prod_deployments/docker-compose.yml pman_stack"   | ./boxes.sh ${LightCyan}
-        docker stack deploy -c swarm/prod_deployments/docker-compose.yml pman_stack
+        echo "docker stack deploy -c swarm/prod/docker-compose.yml pman_stack"   | ./boxes.sh ${LightCyan}
+        docker stack deploy -c swarm/prod/docker-compose.yml pman_stack
     elif [[ $ORCHESTRATOR == kubernetes ]]; then
         echo "kubectl create namespace $NAMESPACE"   | ./boxes.sh ${LightCyan}
         namespace=$(kubectl get namespaces $NAMESPACE --no-headers -o custom-columns=:metadata.name 2> /dev/null)
@@ -184,8 +184,8 @@ if [[ "$COMMAND" == 'up' ]]; then
         else
             echo "$NAMESPACE namespace already exists, skipping creation"
         fi
-        echo "kubectl kustomize kubernetes/prod_deployments | envsubst | kubectl apply -f -"  | ./boxes.sh ${LightCyan}
-        kubectl kustomize kubernetes/prod_deployments | envsubst | kubectl apply -f -
+        echo "kubectl kustomize kubernetes/prod | envsubst | kubectl apply -f -"  | ./boxes.sh ${LightCyan}
+        kubectl kustomize kubernetes/prod | envsubst | kubectl apply -f -
     fi
     windowBottom
 fi
@@ -197,8 +197,8 @@ if [[ "$COMMAND" == 'down' ]]; then
         echo "docker stack rm pman_stack"                               | ./boxes.sh ${LightCyan}
         docker stack rm pman_stack
     elif [[ $ORCHESTRATOR == kubernetes ]]; then
-        echo "kubectl kustomize kubernetes/prod_deployments | envsubst | kubectl delete -f -"  | ./boxes.sh ${LightCyan}
-        kubectl kustomize kubernetes/prod_deployments | envsubst | kubectl delete -f -
+        echo "kubectl kustomize kubernetes/prod | envsubst | kubectl delete -f -"  | ./boxes.sh ${LightCyan}
+        kubectl kustomize kubernetes/prod | envsubst | kubectl delete -f -
     fi
     windowBottom
 fi
