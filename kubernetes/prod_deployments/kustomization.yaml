@@ -1,0 +1,10 @@
+kind: Kustomization
+
+namespace: ${NAMESPACE}
+
+configMapGenerator:
+- name: pman-config
+  env: secrets/.pman.env
+
+resources:
+- resources/pman.yaml

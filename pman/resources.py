@@ -71,7 +71,8 @@ class JobListResource(Resource):
                           'gpu_limit': args.gpu_limit,
                           }
         share_dir = None
-        if app.config.get('STORAGE_TYPE') == 'host':
+        storage_type = app.config.get('STORAGE_TYPE')
+        if storage_type in ('host', 'nfs'):
             storebase = app.config.get('STOREBASE')
             share_dir = os.path.join(storebase, 'key-' + job_id)
 
