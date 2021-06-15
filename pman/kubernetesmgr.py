@@ -130,19 +130,25 @@ class KubernetesManager(AbstractManager):
             ),
             resources=k_client.V1ResourceRequirements(limits=limits, requests=requests),
             volume_mounts=[k_client.V1VolumeMount(mount_path='/share',
-                                                  name='shared-volume')]
+                                                  name='storebase')]
         )
         # configure pod template's spec
-        volumes = []
-        if self.config.get('STORAGE_TYPE') == 'host':
-            volumes = [k_client.V1Volume(
-                name='shared-volume',
+        storage_type = self.config.get('STORAGE_TYPE')
+        if storage_type == 'host':
+            volume = k_client.V1Volume(
+                name='storebase',
                 host_path=k_client.V1HostPathVolumeSource(path=mountdir)
-            )]
+            )
+        else:
+            volume = k_client.V1Volume(
+                name='storebase',
+                nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
+                                               path=mountdir)
+            )
         template = k_client.V1PodTemplateSpec(
             spec=k_client.V1PodSpec(restart_policy='Never',
                                     containers=[container],
-                                    volumes=volumes)
+                                    volumes=[volume])
         )
         # configure job's spec
         spec = k_client.V1JobSpec(

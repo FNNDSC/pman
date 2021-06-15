@@ -10,7 +10,7 @@ class Config:
     """
     DEBUG = False
     TESTING = False
-    SERVER_VERSION = "3.1.0"
+    SERVER_VERSION = "3.2.0"
 
     def __init__(self):
         # Environment variables
@@ -20,8 +20,10 @@ class Config:
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
         self.STORAGE_TYPE = env('STORAGE_TYPE', 'host')
 
-        if self.STORAGE_TYPE == 'host':
+        if self.STORAGE_TYPE == 'host' or self.STORAGE_TYPE == 'nfs':
             self.STOREBASE = env('STOREBASE')
+            if self.STORAGE_TYPE == 'nfs':
+                self.NFS_SERVER = env('NFS_SERVER')
 
         if self.CONTAINER_ENV == 'swarm':
             docker_host = env('DOCKER_HOST', '')

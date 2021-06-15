@@ -29,7 +29,7 @@ jobs:
       - name: teardown
         run: |
           ./unmake.sh
-          sudo rm -fr ./FS
+          sudo rm -fr ./CHRIS_REMOTE_FS
           docker swarm leave --force
 
   test-cube:
@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: docker build -t fnndsc/pman .
-      - uses: FNNDSC/cube-integration-action@v4
+      - uses: FNNDSC/cube-integration-action@v5
 
 
   build:
