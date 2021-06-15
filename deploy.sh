@@ -154,12 +154,11 @@ title -d 1 "Setting global exports..."
             fi
         fi
     fi
-    echo -e "exporting ORCHESTRATOR=$ORCHESTRATOR"                | ./boxes.sh
-    export ORCHESTRATOR=$ORCHESTRATOR
-    echo -e "exporting STORAGE_TYPE=$STORAGE_TYPE"                  | ./boxes.sh
+    echo -e "ORCHESTRATOR=$ORCHESTRATOR"                          | ./boxes.sh
+    echo -e "exporting STORAGE_TYPE=$STORAGE_TYPE"                | ./boxes.sh
     export STORAGE_TYPE=$STORAGE_TYPE
     if [[ $STORAGE_TYPE == nfs ]]; then
-        echo -e "exporting NFS_SERVER=$NFS_SERVER"              | ./boxes.sh
+        echo -e "exporting NFS_SERVER=$NFS_SERVER"                | ./boxes.sh
         export NFS_SERVER=$NFS_SERVER
     fi
     echo -e "exporting STOREBASE=$STOREBASE"                      | ./boxes.sh
