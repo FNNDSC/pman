@@ -20,21 +20,19 @@ from .swarmmgr import SwarmManager
 logger = logging.getLogger(__name__)
 
 parser = reqparse.RequestParser(bundle_errors=True)
-
-parser.add_argument('json',type = str, dest='json', required=False, default='')
-parser.add_argument('jid', dest='jid', required=False)
-parser.add_argument('cmd_args', dest='cmd_args', required=False)
-parser.add_argument('cmd_path_flags', dest='cmd_path_flags', required=False)
-parser.add_argument('auid', dest='auid', required=False)
-parser.add_argument('number_of_workers', dest='number_of_workers', required=False)
-parser.add_argument('cpu_limit', dest='cpu_limit', required=False)
-parser.add_argument('memory_limit', dest='memory_limit', required=False)
-parser.add_argument('gpu_limit', dest='gpu_limit', required=False)
-parser.add_argument('image', dest='image', required=False)
-parser.add_argument('selfexec', dest='selfexec', required=False)
-parser.add_argument('selfpath', dest='selfpath', required=False)
-parser.add_argument('execshell', dest='execshell', required=False)
-parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=False)
+parser.add_argument('jid', dest='jid', required=True)
+parser.add_argument('cmd_args', dest='cmd_args', required=True)
+parser.add_argument('cmd_path_flags', dest='cmd_path_flags', required=True)
+parser.add_argument('auid', dest='auid', required=True)
+parser.add_argument('number_of_workers', dest='number_of_workers', required=True)
+parser.add_argument('cpu_limit', dest='cpu_limit', required=True)
+parser.add_argument('memory_limit', dest='memory_limit', required=True)
+parser.add_argument('gpu_limit', dest='gpu_limit', required=True)
+parser.add_argument('image', dest='image', required=True)
+parser.add_argument('selfexec', dest='selfexec', required=True)
+parser.add_argument('selfpath', dest='selfpath', required=True)
+parser.add_argument('execshell', dest='execshell', required=True)
+parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=True)
 
 
 
@@ -78,76 +76,48 @@ class JobListResource(Resource):
 
         job_id = args.jid.lstrip('/')
 
+        if self.container_env == 'openshift' :
+          
         
-        # Declare local variables
-        str_image = ''
-        number_of_workers=0
-        cpu_limit=''
-        memory_limit=''
-        gpu_limit=0
-        
-        # Check if a json is passed, then parse each of the json fields 
-        # Add condition for additional json fields
-        
-        if len(args.json) > 0 :
-            # json decoding
-            json_payload = json.loads(args.json)
-        
-            if 'jid' in json_payload:
-                job_id = json_payload['jid']
-                
-            if 'cmd_args' in json_payload:
-                cmd_args = json_payload['cmd_args']
-            
-            if 'cmd_path_flags' in json_payload:
-                cmd_path_flags = json_payload['cmd_path_flags']
-                
-            if 'number_of_workers' in json_payload:
-                number_of_workers = json_payload['number_of_workers']
-                
-            if 'auid' in json_payload:
-                auid = json_payload['auid']
-                
-            if 'cpu_limit' in json_payload:
-                cpu_limit = json_payload['cpu_limit']
-                
-            if 'memory_limit' in json_payload:
-                memory_limit = json_payload['memory_limit']
-                
-            if 'gpu_limit' in json_payload:
-                gpu_limit = json_payload['gpu_limit']
-                
-            if 'image' in json_payload:
-                image = json_payload['image']
-                str_image = image
-                
-            if 'selfexec' in json_payload:
-                selfexec = json_payload['selfexec']
-                
-            if 'selfpath' in json_payload:
-                selfpath = json_payload['selfpath']
-                
-            if 'execshell' in json_payload:
-                execshell = json_payload['execshell']
-                
-            if 'type' in json_payload:
-                type = json_payload['type']
-                
             outputdir = self.str_app_container_outputdir
-            exec = os.path.join(selfpath, selfexec)
+            exec = os.path.join(args.selfpath, args.selfexec)
+            execshell=args.execshell
+            cmd_args=args.cmd_args
             cmd = f'{execshell} {exec}'
             if type == 'ds':
                 inputdir = self.str_app_container_inputdir
                 cmd = cmd + f' {cmd_args} {inputdir} {outputdir}'
             elif type in ('fs', 'ts'):
                 cmd = cmd + f' {cmd_args} {outputdir}'
+            # If the container env is Openshift
+            logger.info(f'Scheduling job {job_id} on the Openshift cluster')
+            # Create the Persistent Volume Claim
+            if os.environ.get('STORAGE_TYPE') == 'swift':
+                self.get_openshift_manager().create_pvc(job_id)
                 
-        else :
-            # Parse the arguments from the parameters
+            # Set some variables
+            incoming_dir = self.str_app_container_inputdir 
+            outgoing_dir = self.str_app_container_outputdir
+            
+            # Ensure that the limits are specified before scheduling a job
+            # Remove this if CUBE passes correct limits in future
+
+            cpu_limit = args.cpu_limit + 'm'
+            memory_limit = args.memory_limit + 'Mi'
+             
+            
+            # Schedule the job    
+            job = self.get_openshift_manager().schedule_job(args.image, cmd, job_id, \
+                                         args.number_of_workers ,\
+                                         cpu_limit,\
+                                         memory_limit, \
+                                         args.gpu_limit , \
+                                         incoming_dir, outgoing_dir)
+            return {'job_details': str(job)}
+        
                 
-                
-            job_id = args.jid.lstrip('/')
-            compute_data = {
+        
+        compute_data = {
                 'cmd_args': args.cmd_args,
                 'cmd_path_flags': args.cmd_path_flags,
                 'auid': args.auid,
@@ -160,9 +130,9 @@ class JobListResource(Resource):
                 'selfpath': args.selfpath,
                 'execshell': args.execshell,
                 'type': args.type,
-            }
-            cmd = self.build_app_cmd(compute_data)
-            str_image = compute_data['image']
+        }
+        cmd = self.build_app_cmd(compute_data)
+        str_image = compute_data['image']
             
         job_logs = ''
         job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
@@ -201,32 +171,7 @@ class JobListResource(Resource):
         job_logs = compute_mgr.get_job_logs(job)
            
             
-        if self.container_env == 'openshift' :
-            # If the container env is Openshift
-            logger.info(f'Scheduling job {job_id} on the Openshift cluster')
-            # Create the Persistent Volume Claim
-            if os.environ.get('STORAGE_TYPE') == 'swift':
-                self.get_openshift_manager().create_pvc(job_id)
-                
-            # Set some variables
-            incoming_dir = self.str_app_container_inputdir 
-            outgoing_dir = self.str_app_container_outputdir
-            
-            # Ensure that the limits are specified before scheduling a job
-            # Remove this if CUBE passes correct limits in future
-
-            cpu_limit = (cpu_limit or compute_data['cpu_limit']) + 'm'
-            memory_limit = (memory_limit or compute_data['memory_limit']) + 'Mi'
-             
-            
-            # Schedule the job    
-            job = self.get_openshift_manager().schedule_job(str_image, cmd, job_id, \
-                                         number_of_workers or compute_data['number_of_workers'],\
-                                         cpu_limit,\
-                                         memory_limit, \
-                                         gpu_limit or compute_data['gpu_limit'], \
-                                         incoming_dir, outgoing_dir)
-            return {'job_details': str(job)}
+        
 
 
         return {
@@ -346,25 +291,7 @@ class JobResource(Resource):
 
         logger.info(f'Getting job {job_id} status from the {self.container_env} '
                     f'cluster')
-        try:
-            job = self.compute_mgr.get_job(job_id)
-        except ManagerException as e:
-            abort(e.status_code, message=str(e))
-        job_info = self.compute_mgr.get_job_info(job)
-        logger.info(f'Successful job {job_id} status response from '
-                    f'{self.container_env}: {job_info}')
-        job_logs = self.compute_mgr.get_job_logs(job)
-
-        return {
-            'jid': job_id,
-            'image': job_info['image'],
-            'cmd': job_info['cmd'],
-            'status': job_info['status'],
-            'message': job_info['message'],
-            'timestamp': job_info['timestamp'],
-            'logs': job_logs
-                
-        if container_env == 'openshift':
+        if self.container_env == 'openshift':
             logger.info(f'Getting job {job_id} status from the Openshift cluster')
             try:
                 d_containerStatus       =   self.t_status_process_openshift(job_id)
@@ -410,7 +337,14 @@ class JobResource(Resource):
 
             }
 
-
+        try:
+            job = self.compute_mgr.get_job(job_id)
+        except ManagerException as e:
+            abort(e.status_code, message=str(e))
+        job_info = self.compute_mgr.get_job_info(job)
+        logger.info(f'Successful job {job_id} status response from '
+                    f'{self.container_env}: {job_info}')
+        job_logs = self.compute_mgr.get_job_logs(job)
 
         return {
             'jid': job_id,
@@ -420,7 +354,7 @@ class JobResource(Resource):
             'message': job_info['message'],
             'timestamp': job_info['timestamp'],
             'logs': job_logs
-        }
+                }
 
 
     def delete(self, job_id):

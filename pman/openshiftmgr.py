@@ -76,6 +76,8 @@ class OpenShiftManager(object):
                                 ],
                                 "name": name,
                                 "image": image,
+                                "imagePullSecrets":"regcred",
+                                "imagePullPolicy": "IfNotPresent",
                                 "command": command.split(" "),
                                 "resources": {
                                     "limits": {
@@ -134,6 +136,8 @@ class OpenShiftManager(object):
                 {
                     "name": "init-storage",
                     "image": "fnndsc/pman-swift-publisher",
+                    "imagePullPolicy": "IfNotPresent",
+                    "imagePullSecrets":"regcred",
                     "env": [
                         {
                             "name": "SWIFT_KEY",
@@ -183,6 +187,8 @@ class OpenShiftManager(object):
             d_job['spec']['template']['spec']['containers'].append({
                 "name": "publish",
                 "image": "fnndsc/pman-swift-publisher",
+                "imagePullPolicy": "IfNotPresent",
+                "imagePullSecrets":"regcred",
                 "env": [
                     {
                         "name": "SWIFT_KEY",

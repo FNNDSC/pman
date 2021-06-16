@@ -67,7 +67,8 @@
                   "readOnly": true
                 }
               ],
-              "image": "fnndsc/pman:flask",
+              "image": "sandip117/pman",
+              "imagePullSecrets":"regcred",
               "imagePullPolicy": "Always",
               "name": "pman",
               "ports": [{
@@ -100,6 +101,10 @@
                 {
                   "name": "CONTAINER_ENV",
                   "value": "openshift"
+                },
+                {
+                  "name":"APPLICATION_MODE",
+                  "value":"local"
                 }
               ]
             }],
@@ -113,6 +118,12 @@
                 "name": "swift-credentials",
                 "secret": {
                   "secretName": "swift-credentials"
+                }
+              },
+              {
+                "name": "regcred",
+                "secret": {
+                  "secretName": "regcred"
                 }
               },
               {
