@@ -77,69 +77,7 @@ class JobListResource(Resource):
         args = parser.parse_args()
 
         job_id = args.jid.lstrip('/')
-
-        if self.container_env == 'openshift' :
-          
-        
-            outputdir = self.str_app_container_outputdir
-            exec = os.path.join(args.selfpath, args.selfexec)
-            execshell=args.execshell
-            cmd_args=args.cmd_args
-            cmd = f'{execshell} {exec}'
-            if args.type == 'ds':
-                inputdir = self.str_app_container_inputdir
-                cmd = cmd + f' {cmd_args} {inputdir} {outputdir}'
-            elif args.type in ('fs', 'ts'):
-                cmd = cmd + f' {cmd_args} {outputdir}'
-            # If the container env is Openshift
-            logger.info(f'Scheduling job {job_id} on the Openshift cluster')
-            # Create the Persistent Volume Claim
-            if os.environ.get('STORAGE_TYPE') == 'swift':
-                self.get_openshift_manager().create_pvc(job_id)
                 
-            # Set some variables
-            incoming_dir = self.str_app_container_inputdir 
-            outgoing_dir = self.str_app_container_outputdir
-            
-            # Ensure that the limits are specified before scheduling a job
-            # Remove this if CUBE passes correct limits in future
-
-            cpu_limit = args.cpu_limit + 'm'
-            memory_limit = args.memory_limit + 'Mi'
-             
-            
-            # Schedule the job    
-            job = self.get_openshift_manager().schedule_job(args.image, cmd, job_id, \
-                                         args.number_of_workers ,\
-                                         cpu_limit,\
-                                         memory_limit, \
-                                         args.gpu_limit , \
-                                         incoming_dir, outgoing_dir)
-            return {'job_details': str(job)}
-        
-                
-        
-        compute_data = {
-                'cmd_args': args.cmd_args,
-                'cmd_path_flags': args.cmd_path_flags,
-                'auid': args.auid,
-                'number_of_workers': args.number_of_workers,
-                'cpu_limit': args.cpu_limit,
-                'memory_limit': args.memory_limit,
-                'gpu_limit': args.gpu_limit,
-                'image': args.image,
-                'selfexec': args.selfexec,
-                'selfpath': args.selfpath,
-                'execshell': args.execshell,
-                'type': args.type,
-        }
-        cmd = self.build_app_cmd(compute_data)
-        str_image = compute_data['image']
-            
-        job_logs = ''
-        job_info = {'id': '', 'image': '', 'cmd': '', 'timestamp': '', 'message': '',
-                    'status': 'undefined', 'containerid': '', 'exitcode': '', 'pid': ''}
-
 
         cmd = self.build_app_cmd(args.cmd_args, args.cmd_path_flags, args.selfpath,
                                  args.selfexec, args.execshell, args.type)
@@ -184,7 +122,7 @@ class JobListResource(Resource):
             'message': job_info['message'],
             'timestamp': job_info['timestamp'],
             'logs': job_logs
-        }, 201
+        }
 
     def build_app_cmd(self, cmd_args, cmd_path_flags, selfpath, selfexec, execshell,
                       plugin_type):
