@@ -381,7 +381,7 @@ spec:
         """
         Remove a previously scheduled job
         """
-        self.remove_pvc(name)
+        #self.remove_pvc(name)
         body = k_client.V1DeleteOptions(propagation_policy='Background')
         self.kube_v1_batch_client.delete_namespaced_job(name, body=body, namespace=self.project)
 
