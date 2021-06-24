@@ -34,7 +34,7 @@ class OpenShiftManagerTests(unittest.TestCase):
     def test_schedule(self, mock_create):
         mock_create.return_value = kubernetes.client.models.v1_job.V1Job()
         job = self.manager.schedule_job(self.image, self.command, self.job_name,
-                                    self.resorce_dict,self.share_dir)
+                                    self.resources_dict,self.share_dir)
                                     
         self.assertIsInstance(job, kubernetes.client.models.v1_job.V1Job)
         #mock_create.assert_called_once() Available in 3.6
