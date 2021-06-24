@@ -120,7 +120,7 @@ class JobListResource(Resource):
             'message': job_info['message'],
             'timestamp': job_info['timestamp'],
             'logs': job_logs
-        }
+        },201
 
     def build_app_cmd(self, cmd_args, cmd_path_flags, selfpath, selfexec, execshell,
                       plugin_type):
