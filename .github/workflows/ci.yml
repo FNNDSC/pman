@@ -25,7 +25,7 @@ jobs:
           docker build --build-arg ENVIRONMENT=local -t fnndsc/pman:dev .
           ./make.sh -s -U -i
       - name: nosetests
-        run: docker exec $(docker ps -f name=pman_dev_stack_pman.1 -q) nosetests --exe tests
+        run: docker exec $(docker ps -f label=org.chrisproject.role=pman -q | head -n 1) nosetests --exe tests
       - name: teardown
         run: |
           ./unmake.sh
