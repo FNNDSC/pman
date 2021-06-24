@@ -51,7 +51,7 @@ class OpenShiftManagerTests(unittest.TestCase):
     def test_remove_job(self, mock_delete):
         job = self.manager.remove_job(self.job_name)
         mock_delete.assert_called_once()
-        #mock_delete.assert_any_call(self.job_name, self.project, {})
+        mock_delete.assert_any_call(self.job_name, self.project, {})
 
     @patch('kubernetes.client.CoreV1Api.delete_namespaced_pod')
     def test_remove_pod(self, mock_delete):
