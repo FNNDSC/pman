@@ -335,6 +335,10 @@ spec:
         return self.kube_v1_batch_client.read_namespaced_job(name, self.project)
         
     def get_job_info(self,job):
+    
+        """
+        Get job info from previously scheduled job
+        """
         message = None
         state = None
         reason = None
