@@ -6,3 +6,5 @@ kubernetes==12.0.1
 python-keystoneclient==4.2.0
 pfmisc==2.2.4
 environs==9.3.2
+emoji==1.2.0
+

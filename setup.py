@@ -16,7 +16,7 @@ setup(
     packages         =   find_packages(),
 
     install_requires =   ['pudb', 'pfmisc', 'docker', 'openshift', 'kubernetes',
-                          'python-keystoneclient', 'Flask', 'Flask_RESTful', 'environs','psutil','emoji'],
+                          'python-keystoneclient', 'Flask', 'Flask_RESTful', 'environs'],
     test_suite       =   'nose.collector',
     tests_require    =   ['nose'],
     scripts          =   ['bin/pman'],

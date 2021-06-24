@@ -93,7 +93,6 @@ class DevConfig(Config):
         
         self.CONTAINER_ENV = os.environ.get('CONTAINER_ENV') if os.environ.get('CONTAINER_ENV') is not None \
                              else env('CONTAINER_ENV', 'swarm')
-        self.STOREBASE = env('STOREBASE') if self.CONTAINER_ENV == 'swarm' else None
 
 
 
