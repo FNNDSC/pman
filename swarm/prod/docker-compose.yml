@@ -37,6 +37,7 @@ services:
     labels:
       name: "pman"
       role: "pman service"
+      org.chrisproject.role: "pman"
 
 networks:
   remote:

@@ -219,7 +219,7 @@ title -d 1 "Waiting until pman container is running on $ORCHESTRATOR"
     for i in {1..30}; do
         sleep 5
         if [[ $ORCHESTRATOR == swarm ]]; then
-            pman_dev=$(docker ps -f name=pman_dev_stack_pman.1 -q)
+            pman_dev=$(docker ps -f label=org.chrisproject.role=pman -q | head -n 1)
         elif [[ $ORCHESTRATOR == kubernetes ]]; then
             pman_dev=$(kubectl get pods --selector="app=pman,env=development" --field-selector=status.phase=Running --output=jsonpath='{.items[*].metadata.name}')
         fi
