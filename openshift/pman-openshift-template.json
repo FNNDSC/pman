@@ -67,7 +67,7 @@
                   "readOnly": true
                 }
               ],
-              "image": "sandip117/pman",
+              "image": "ghcr.io/sandip117/pman:flask",
               "imagePullSecrets":"regcred",
               "imagePullPolicy": "Always",
               "name": "pman",

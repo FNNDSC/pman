@@ -43,6 +43,8 @@ def get_compute_mgr(container_env):
         compute_mgr = SwarmManager(app.config)
     elif container_env == 'kubernetes':
         compute_mgr = KubernetesManager(app.config)
+    elif container_env == 'openshift':
+        compute_mgr = OpenShiftManager()
     return compute_mgr
 
 
@@ -84,10 +86,10 @@ class JobListResource(Resource):
             execshell=args.execshell
             cmd_args=args.cmd_args
             cmd = f'{execshell} {exec}'
-            if type == 'ds':
+            if args.type == 'ds':
                 inputdir = self.str_app_container_inputdir
                 cmd = cmd + f' {cmd_args} {inputdir} {outputdir}'
-            elif type in ('fs', 'ts'):
+            elif args.type in ('fs', 'ts'):
                 cmd = cmd + f' {cmd_args} {outputdir}'
             # If the container env is Openshift
             logger.info(f'Scheduling job {job_id} on the Openshift cluster')
@@ -227,63 +229,12 @@ class JobResource(Resource):
         self.container_env = app.config.get('CONTAINER_ENV')
         self.compute_mgr = get_compute_mgr(self.container_env)
 
-    def get(self, job_id):
-        job_id = job_id.lstrip('/')
-
-        logger.info(f'Getting job {job_id} status from the {self.container_env} '
-                    f'cluster')
-        try:
-            job = self.compute_mgr.get_job(job_id)
-        except ManagerException as e:
-            abort(e.status_code, message=str(e))
-        job_info = self.compute_mgr.get_job_info(job)
-        logger.info(f'Successful job {job_id} status response from '
-                    f'{self.container_env}: {job_info}')
-        job_logs = self.compute_mgr.get_job_logs(job)
-
     
     # Initiate an openshiftmgr instance
     def get_openshift_manager(self):
         self.openshiftmgr = OpenShiftManager()
         return self.openshiftmgr
         
-    # Get the status of a running jon on Openshift
-    def t_status_process_openshift(self, jid):
-        """
-        Determine the status of a job scheduled using the openshift manager.
-        PRECONDITIONS:
-        o   Only call this method if a container structure exists
-            in the relevant job tree!
-        POSTCONDITIONS:
-        o   If the job is completed, then shutdown the container cluster
-            service.
-        """
-        
-        str_logs = ''
-        # Get job-id from request
-        #jid = self.jid
-
-        # Query OpenShift API to get job state
-        d_json  = self.get_openshift_manager().state(jid)
-        
-        print (d_json)
-        print (jid)
-
-        if d_json['Status']['Message'] == 'finished':
-            pod_names = self.get_openshift_manager().get_pod_names_in_job(jid)
-            for _, pod_name in enumerate(pod_names):
-                str_logs += self.get_openshift_manager().get_job_pod_logs(pod_name, jid)
-        else:
-            str_logs = d_json['Status']['Message']
-
-        status  = d_json['Status']
-        currentState =  d_json['Status']['Message']
-
-        return {
-            'status':           status,
-            'logs':             str_logs,
-            'currentState':     [currentState]
-        }
             
     def get(self, job_id):
     
@@ -291,52 +242,7 @@ class JobResource(Resource):
 
         logger.info(f'Getting job {job_id} status from the {self.container_env} '
                     f'cluster')
-        if self.container_env == 'openshift':
-            logger.info(f'Getting job {job_id} status from the Openshift cluster')
-            try:
-                d_containerStatus       =   self.t_status_process_openshift(job_id)
-                status                  =   d_containerStatus['status']
-                logs                    =   d_containerStatus['logs']
-                currentState            =   d_containerStatus['currentState']
-            except Exception as e:
-                if isinstance(e, ApiException) and e.reason == 'Not Found':
-                    status = logs = currentState = e.reason
-                else:
-                    raise e
-
-            d_ret = {
-                'description':   str(status),
-                'l_logs':     str(logs),
-                'l_status': currentState
-            }
-            if 'finished' in str(currentState) :
-                job_status = 'finishedSuccessfully'
-                
-                # Also delete the job pod and related pvc
-                try:
-                    job = self.get_openshift_manager().get_job(job_id)
-                    self.get_openshift_manager().remove_pvc(job_id)
-                    self.get_openshift_manager().remove_job(job_id)
-                except Exception as err:
-                    logger.info(f'Error deleting pvc/job: {err}')
-                    
-            else :
-                job_status = str(currentState)
-                
-            return {
-                    'jid': job_id,
-                    'image': '',
-                    'cmd': '',
-                    'status': job_status,
-                    'message': str(status),
-                    'timestamp': '',
-                    'containerid': '',
-                    'exitcode': '0',
-                    'pid': '0',
-                    'logs': str(logs)
-
-            }
-
+        
         try:
             job = self.compute_mgr.get_job(job_id)
         except ManagerException as e:
@@ -345,7 +251,7 @@ class JobResource(Resource):
         logger.info(f'Successful job {job_id} status response from '
                     f'{self.container_env}: {job_info}')
         job_logs = self.compute_mgr.get_job_logs(job)
-
+        
         return {
             'jid': job_id,
             'image': job_info['image'],

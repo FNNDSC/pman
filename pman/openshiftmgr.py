@@ -10,12 +10,13 @@ from kubernetes import client as k_client, config
 from kubernetes.client.rest import ApiException
 from .abstractmgr import AbstractManager, ManagerException
 
-class OpenShiftManager(object):
+class OpenShiftManager(AbstractManager):
 
-    def __init__(self, project=None):
+    def __init__(self, config_dict=None):
+        super().__init__(config_dict)
         self.kube_client = None
         self.kube_v1_batch_client = None
-        self.project = project or os.environ.get('OPENSHIFTMGR_PROJECT') or 'myproject'
+        self.project = os.environ.get('OPENSHIFTMGR_PROJECT') or 'myproject'
 
         # init the openshift client
         self.init_openshift_client()
@@ -320,30 +321,13 @@ spec:
             log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
         return log
 
-    def get_job(self, name):
+    def get_job_object(self, name):
         """
         Get the previously scheduled job object
         """
         return self.kube_v1_batch_client.read_namespaced_job(name, self.project)
-
-    def remove_job(self, name):
-        """
-        Remove a previously scheduled job
-        """
-        body = k_client.V1DeleteOptions(propagation_policy='Background')
-        self.kube_v1_batch_client.delete_namespaced_job(name, body=body, namespace=self.project)
-
-    def remove_pod(self, name):
-        """
-        Remove a previously scheduled pod
-        """
-        self.kube_client.delete_namespaced_pod(name, self.project, {})
-
-    def state(self, name):
-        """
-        Return the state of a previously scheduled job
-        """
-        job = self.get_job(name)
+        
+    def get_job_info(self,job):
         message = None
         state = None
         reason = None
@@ -364,15 +348,66 @@ spec:
             else:
                 message = 'inactive'
                 state = 'inactive'
+             
+        if 'finished' in str(message):
+            message = 'finishedSuccessfully'
 
-        return {'Status': {'Message': message,
+        return  {'Status': {'Message': message,
                                     'State': state,
                                     'Reason': reason,
                                     'Active': job.status.active,
                                     'Failed': job.status.failed,
                                     'Succeeded': job.status.succeeded,
                                     'StartTime': job.status.start_time,
-                                    'CompletionTime': job.status.completion_time}}
+                                    'CompletionTime': job.status.completion_time},
+                 'image':'',
+                 'cmd':'',
+                 'status':message,
+                 'message':message,
+                 'timestamp':job.status.start_time.isoformat()}
+
+    def remove_job(self, name):
+        """
+        Remove a previously scheduled job
+        """
+        body = k_client.V1DeleteOptions(propagation_policy='Background')
+        self.kube_v1_batch_client.delete_namespaced_job(name, body=body, namespace=self.project)
+
+    def remove_pod(self, name):
+        """
+        Remove a previously scheduled pod
+        """
+        self.kube_client.delete_namespaced_pod(name, self.project, {})
+
+    def get_job(self, name):
+        """
+        Return the state of a previously scheduled job
+        """
+        job = self.get_job_object(name)
+        return job
+        
+                                    
+    def get_job_logs(self,job):
+        d_json = self.get_job_info(job)
+        str_logs = ''
+        
+        if d_json['Status']['Message'] == 'finished':
+            pod_names = self.get_pod_names_in_job(name)
+            for _, pod_name in enumerate(pod_names):
+                str_logs += self.get_job_pod_logs(pod_name, name)
+        else:
+            str_logs = d_json['Status']['Message']
+
+        status  = d_json['Status']
+        currentState =  d_json['Status']['Message']
+
+        logs= {
+            'status':           status,
+            'logs':             str_logs,
+            'currentState':     [currentState]
+        }
+        
+        return str(logs)
    
 
     def get_job_pod_logs(self, pod_name, jid):
