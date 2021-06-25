@@ -40,10 +40,10 @@ class OpenShiftManager(AbstractManager):
         """
         if os.environ.get('STORAGE_TYPE') == 'swift':
             self.create_pvc(name)
-        number_of_workers = resource_dict['number_of_workers']
-        memory_limit = resource_dict['memory_limit']+ 'Mi'
-        cpu_limit = resource_dict['cpu_limit'] + 'm'
-        gpu_limit = resource_dict['gpu_limit'] 
+        number_of_workers = str(resource_dict['number_of_workers'])
+        memory_limit = str(resource_dict['memory_limit'])+ 'Mi'
+        cpu_limit = str(resource_dict['cpu_limit']) + 'm'
+        gpu_limit = str(resource_dict['gpu_limit'])
         incoming_dir='/share/incoming'
         outgoing_dir='/share/outgoing'
         d_job = {
@@ -339,6 +339,41 @@ spec:
         """
         Get job info from previously scheduled job
         """
+        info = super().get_job_info(job)
+        status = 'notstarted'
+        message = 'task not available yet'
+        conditions = job.status.conditions
+        failed = job.status.failed
+        succeeded = job.status.succeeded
+        completion_time = job.status.completion_time
+
+        if not (conditions is None and failed is None and succeeded is None):
+            if conditions:
+                for condition in conditions:
+                    if condition.type == 'Failed' and condition.status == 'True':
+                        message = condition.message
+                        status = 'finishedWithError'
+                        break
+            if status == 'notstarted':
+                if completion_time and succeeded:
+                    message = 'finished'
+                    status = 'finishedSuccessfully'
+                elif job.status.active:
+                    message = 'running'
+                    status = 'started'
+                else:
+                    message = 'inactive'
+                    status = 'undefined'
+
+        info['name'] = job.metadata.name
+        info['image'] = job.spec.template.spec.containers[0].image
+        info['cmd'] = ' '.join(job.spec.template.spec.containers[0].command)
+        if completion_time is not None:
+            info['timestamp'] = completion_time.isoformat()
+        info['message'] = message
+        info['status'] = status
+        return info
+        """
         message = None
         state = None
         reason = None
@@ -376,6 +411,7 @@ spec:
                  'status':message,
                  'message':message,
                  'timestamp':''}
+                 """
 
     def remove_job(self, name):
         """
@@ -400,27 +436,16 @@ spec:
         
                                     
     def get_job_logs(self,job):
-        d_json = self.get_job_info(job)
+        return ''
+        name = job.metadata.name
         str_logs = ''
         
-        if d_json['Status']['Message'] == 'finished':
-            pod_names = self.get_pod_names_in_job(name)
-            for _, pod_name in enumerate(pod_names):
-                str_logs += self.get_job_pod_logs(pod_name, name)
-        else:
-            str_logs = d_json['Status']['Message']
+        pod_names = self.get_pod_names_in_job(name)
+        for _, pod_name in enumerate(pod_names):
+            str_logs += self.get_job_pod_logs(pod_name, name)
 
-        status  = d_json['Status']
-        currentState =  d_json['Status']['Message']
-
-        logs= {
-            'status':           status,
-            'logs':             str_logs,
-            'currentState':     [currentState]
-        }
+        return str_logs
         
-        return ''
-   
 
     def get_job_pod_logs(self, pod_name, jid):
         """

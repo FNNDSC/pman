@@ -76,6 +76,8 @@ class TestJobListResource(ResourceTests):
         }
         # make the POST request
         response = self.client.post(self.url, json=data)
+        print('error is', self.url)
+       
         self.assertEqual(response.status_code, 201)
         self.assertIn('status', response.json)
 

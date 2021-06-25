@@ -5,8 +5,7 @@ from flask import Flask
 from flask_restful import Api
 
 from .config import DevConfig, ProdConfig
-from pman.resources import JobListResource, JobResource, Hello
-
+from pman.resources import JobListResource, JobResource
 
 
 def create_app(config_dict=None):
@@ -25,7 +24,5 @@ def create_app(config_dict=None):
     # url mappings
     api.add_resource(JobListResource, '/', endpoint='api.joblist')
     api.add_resource(JobResource, '/<string:job_id>/', endpoint='api.job')
-    api.add_resource(Hello, '/hello/', endpoint='api.hello')
-
 
     return app
