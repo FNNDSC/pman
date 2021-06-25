@@ -36,6 +36,8 @@ def get_compute_mgr(container_env):
         compute_mgr = SwarmManager(app.config)
     elif container_env == 'kubernetes':
         compute_mgr = KubernetesManager(app.config)
+    elif container_env == 'openshift':
+        compute_mgr = OpenShiftManager()
     return compute_mgr
 
 
@@ -100,7 +102,7 @@ class JobListResource(Resource):
             'message': job_info['message'],
             'timestamp': job_info['timestamp'],
             'logs': job_logs
-        }, 201
+        },201
 
     def build_app_cmd(self, cmd_args, cmd_path_flags, selfpath, selfexec, execshell,
                       plugin_type):
