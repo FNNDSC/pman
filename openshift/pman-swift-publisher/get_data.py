@@ -18,7 +18,8 @@ def getData(**kwargs):
     """
     Gets the data from the Swift storage, zips and/or encodes it and sends it to the client
     """
-
+    return true
+    
     b_delete = False
     configPath = "/etc/swift/swift-credentials.cfg"
 
@@ -78,6 +79,27 @@ def getData(**kwargs):
         os.makedirs(outgoing_dir)
 
 if __name__ == "__main__":
+
+    with fasteners.InterProcessLock("/share/.lockfile"):
+        if not os.path.exists('/share/.download-succeeded'):
+            print("Lock acquired. Downloading data from Swift...")
+            if not os.path.exists('/share/.download-succeeded'):
+                f = open("/share/demofile2.txt", "a")
+                f.write("""Now the file has more content!
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+                qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq""")
+                f.close()
+                #os.mknod('/local/.download-pod')
+                os.mknod('/share/.download-succeeded')
+    
+    """
+    return True
     incoming_dir = os.environ.get("INCOMING_DIR")
     # The init-storage container in all the pods should acquire the lock
     with fasteners.InterProcessLock("/share/.lockfile"):
@@ -104,3 +126,4 @@ if __name__ == "__main__":
             # Create a success file, if download completed successfully
             os.mknod("/share/.download-succeeded")
     print("Data downloaded!")
+    """

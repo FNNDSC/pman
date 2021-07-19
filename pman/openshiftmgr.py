@@ -40,6 +40,7 @@ class OpenShiftManager(AbstractManager):
         """
         if os.environ.get('STORAGE_TYPE') == 'swift':
             self.create_pvc(name)
+        command = command.replace("/share",share_dir)
         number_of_workers = str(resource_dict['number_of_workers'])
         memory_limit = str(resource_dict['memory_limit'])+ 'Mi'
         cpu_limit = str(resource_dict['cpu_limit']) + 'm'
@@ -56,7 +57,7 @@ class OpenShiftManager(AbstractManager):
                 "ttlSecondsAfterFinished": 20,
                 "parallelism": number_of_workers,
                 "completions": number_of_workers,
-                "activeDeadlineSeconds": 3600,
+                "activeDeadlineSeconds": 36000,
                 "template": {
                     "metadata": {
                          "labels":{
@@ -99,8 +100,8 @@ class OpenShiftManager(AbstractManager):
                                 },
                                 "volumeMounts": [
                                     {
-                                        "mountPath": "/share",
-                                        "name": "shared-volume"
+                                        "mountPath": "/tmp/",
+                                        "name": "gluster-vol1"
                                     }
                                 ]
                             }
@@ -143,8 +144,8 @@ class OpenShiftManager(AbstractManager):
             d_job['spec']['template']['spec']['initContainers'] = [
                 {
                     "name": "init-storage",
-                    "image": "fnndsc/pman-swift-publisher",
-                    "imagePullPolicy": "IfNotPresent",
+                    "image": "ghcr.io/sandip117/swift-publisher",
+                    "imagePullPolicy": "Always",
                     "imagePullSecrets":"regcred",
                     "env": [
                         {
@@ -194,8 +195,8 @@ class OpenShiftManager(AbstractManager):
 
             d_job['spec']['template']['spec']['containers'].append({
                 "name": "publish",
-                "image": "fnndsc/pman-swift-publisher",
-                "imagePullPolicy": "IfNotPresent",
+                "image": "ghcr.io/sandip117/swift-publisher",
+                "imagePullPolicy": "Always",
                 "imagePullSecrets":"regcred",
                 "env": [
                     {
@@ -281,10 +282,26 @@ class OpenShiftManager(AbstractManager):
         else: # os.environ.get('STORAGE_TYPE') == 'hostPath'
             d_job['spec']['template']['spec']['volumes'] = [
                 {
-                    "name": "shared-volume",
-                    "hostPath": {
-                        "path": "/tmp/share/key-" + name
+                    "name": "gluster-vol1",
+                    "persistentVolumeClaim": {
+                        "claimName": "gluster1"
                     }
+                },
+                {
+                    "name": "swift-credentials",
+                    "secret": {
+                        "secretName": "swift-credentials"
+                    }
+                },
+                {
+                    "name": "kubecfg-volume",
+                    "secret": {
+                        "secretName": "kubecfg"
+                    }
+                },
+                {
+                    "mountPath": "/local",
+                    "name": "local-volume"
                 }
             ]
 
@@ -413,10 +430,11 @@ spec:
                  'timestamp':''}
                  """
 
-    def remove_job(self, name):
+    def remove_job(self, job):
         """
         Remove a previously scheduled job
         """
+        name = job.metadata.name
         #self.remove_pvc(name)
         body = k_client.V1DeleteOptions(propagation_policy='Background')
         self.kube_v1_batch_client.delete_namespaced_job(name, body=body, namespace=self.project)

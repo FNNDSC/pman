@@ -110,16 +110,33 @@ class KubeClient():
         w = watch.Watch()
 
         # Wait until all image processing containers are done.
+        print("Waiting..")
         while True:
+            print("Flag is True")
             if resrc_version is None:
                 # List all pods for given job using the label_selector to only watch the pods created by the job, 
                 # which is defined by job_id
                 stream = w.stream(self.kube_client.list_namespaced_pod, self.namespace, label_selector='job-name='+self.job_id)
             else:
-                stream = w.stream(self.kube_client.list_namespaced_pod, self.namespace, resource_version=resrc_version, label_selector='job-name='+job_id)
+                stream = w.stream(self.kube_client.list_namespaced_pod, self.namespace, resource_version=resrc_version, label_selector='job-name='+self.job_id)
             
             completed_image_plugins = 0
-            for event in stream:
+            print ("This is a stream",stream)
+            flag=True
+            try:
+                self.watch_stream(stream,completed_image_plugins,requested_image_plugins,resrc_version,w)
+            except:
+                self.watch_stream(stream,completed_image_plugins,requested_image_plugins,resrc_version,w)
+                
+                
+                
+            return flag
+                
+            
+
+    def watch_stream(self,stream,completed_image_plugins,requested_image_plugins,resrc_version,w):
+        for event in stream:
+                print("Event:",event)
                 resrc_version = event['raw_object']['metadata']['resourceVersion']
                 if 'containerStatuses' in event['raw_object']['status']:
                     for status in event['raw_object']['status']['containerStatuses']:
@@ -137,8 +154,13 @@ class KubeClient():
                                     print('All image processing containers are done!')
                                     w.stop()
                                     return True
-
+    
     def put_data_back(self):
+        print("Calling..")
+        if os.path.exists("/share/incoming"):
+            print ("path exists")
+    else:
+        print ("path doesn't exist")
         # Pod that downloaded should upload objects to swift.
         if self.check_before_upload():
             storeData(containerName=os.environ.get('SWIFT_KEY'), out_dir=os.environ.get('OUTGOING_DIR'))
