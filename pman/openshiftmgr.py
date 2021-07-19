@@ -390,45 +390,6 @@ spec:
         info['message'] = message
         info['status'] = status
         return info
-        """
-        message = None
-        state = None
-        reason = None
-        if job.status.conditions:
-            for condition in job.status.conditions:
-                if condition.type == 'Failed' and condition.status == 'True':
-                    message = 'started'
-                    reason = condition.reason
-                    state = 'failed'
-                    break
-        if not state:
-            if job.status.completion_time and job.status.succeeded > 0:
-                message = 'finished'
-                state = 'complete'
-            elif job.status.active :
-                message = 'started'
-                state = 'running'
-            else:
-                message = 'inactive'
-                state = 'inactive'
-             
-        if 'finished' in str(message):
-            message = 'finishedSuccessfully'
-
-        return  {'Status': {'Message': message,
-                                    'State': state,
-                                    'Reason': reason,
-                                    'Active': job.status.active,
-                                    'Failed': job.status.failed,
-                                    'Succeeded': job.status.succeeded,
-                                    'StartTime': job.status.start_time,
-                                    'CompletionTime': job.status.completion_time},
-                 'image':job.spec.template.spec.containers[0].image,
-                 'cmd':' '.join(job.spec.template.spec.containers[0].command),
-                 'status':message,
-                 'message':message,
-                 'timestamp':''}
-                 """
 
     def remove_job(self, job):
         """
