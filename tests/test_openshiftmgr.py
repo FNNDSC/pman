@@ -49,7 +49,8 @@ class OpenShiftManagerTests(unittest.TestCase):
 
     @patch('kubernetes.client.apis.batch_v1_api.BatchV1Api.delete_namespaced_job')
     def test_remove_job(self, mock_delete):
-        job = self.manager.remove_job(self.job_name)
+        job = self.manager.get_job(self.job_name)
+        rm_job = self.manager.remove_job(job)
         mock_delete.assert_called_once()
         #mock_delete.assert_any_call(self.job_name, self.project, {})
 
