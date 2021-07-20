@@ -415,7 +415,7 @@ spec:
         
                                     
     def get_job_logs(self,job):
-        return ''
+        #return ''
         name = job.metadata.name
         str_logs = ''
         
