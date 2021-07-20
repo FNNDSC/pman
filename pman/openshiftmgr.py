@@ -333,17 +333,19 @@ spec:
         Get a pod's status
         """
         log = self.kube_client.read_namespaced_pod_status(namespace=self.project, name=name)
-        return log
+        return str(log)
 
     def get_pod_log(self, name, container_name=None):
-        """
-        Get a pod log
-        """
-        if container_name:
-            log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name, container=container_name)
-        else:
-            log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
-        return log
+        flag = True
+        while(flag):
+            try:
+                log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
+                flag = False
+            except:
+                flag = True
+        
+        return str(log)
+       
 
     def get_job_object(self, name):
         """
@@ -436,14 +438,8 @@ spec:
         # TODO: @ravig: Think of a better way to abstract out logs in case of multiple pods running parallelly.
 
         job_container_log = self.get_pod_log(pod_name, jid)
-        try: 
-            init_container_log = self.get_pod_log(pod_name, 'init-storage')
-        except ApiException:
-            # We don't have init container, we assume init-storage and publish containers are not available.
-            return pod_name + ":" + job_container_log
-        publish_container_log = self.get_pod_log(pod_name, 'publish')
-        return pod_name + ":" + "init_container log:" + init_container_log + "plugin_container log:" +\
-               job_container_log + "publish_container log:" + publish_container_log
+        return job_container_log
+        
 
     def get_pod_names_in_job(self, job_id):
         """
