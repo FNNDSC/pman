@@ -3,6 +3,8 @@ Kubernetes cluster manager module that provides functionality to schedule jobs a
 as manage their state in the cluster.
 """
 
+import shlex
+
 from kubernetes import client as k_client
 from kubernetes import config as k_config
 from kubernetes.client.rest import ApiException
@@ -123,7 +125,7 @@ class KubernetesManager(AbstractManager):
             name=name,
             image=image,
             env=env,
-            command=command.split(' '),
+            command=shlex.split(command),
             security_context=k_client.V1SecurityContext(
                 allow_privilege_escalation=False,
                 capabilities=k_client.V1Capabilities(drop=['ALL'])
