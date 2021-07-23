@@ -336,15 +336,15 @@ spec:
         return str(log)
 
     def get_pod_log(self, name, container_name=None):
-        flag = True
-        while(flag):
-            try:
-                log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
-                flag = False
-            except:
-                flag = True
-        
-        return str(log)
+    
+        # Query for pod logs
+        # If container is not started
+        # send default msg
+        try:
+            log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
+            return log
+        except:
+            return (f"Pod {name} is being created. Logs will appear shorly")
        
 
     def get_job_object(self, name):
