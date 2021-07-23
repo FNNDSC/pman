@@ -1,6 +1,7 @@
 
 import os
 import logging
+import shlex
 
 from flask import current_app as app
 from flask_restful import reqparse, abort, Resource
@@ -112,7 +113,7 @@ class JobListResource(Resource):
         if cmd_path_flags:
             # process the argument of any cmd flag that is a 'path'
             path_flags = cmd_path_flags.split(',')
-            args = cmd_args.split()
+            args = shlex.split(cmd_args)
             for i in range(len(args) - 1):
                 if args[i] in path_flags:
                     # each flag value is a string of one or more paths separated by comma

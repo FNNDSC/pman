@@ -4,7 +4,7 @@ manage their state in the cluster.
 """
 
 import yaml
-import json
+import shlex
 import os
 from kubernetes import client as k_client, config
 from kubernetes.client.rest import ApiException
@@ -87,7 +87,7 @@ class OpenShiftManager(AbstractManager):
                                 "image": image,
                                 "imagePullSecrets":"regcred",
                                 "imagePullPolicy": "IfNotPresent",
-                                "command": command.split(" "),
+                                "command": shlex.split(command),
                                 "resources": {
                                     "limits": {
                                         "memory": memory_limit,
