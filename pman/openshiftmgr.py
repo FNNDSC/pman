@@ -38,8 +38,6 @@ class OpenShiftManager(AbstractManager):
         """
         Schedule a new job and returns the job object.
         """
-        if os.environ.get('STORAGE_TYPE') == 'swift':
-            self.create_pvc(name)
         command = command.replace("/share",share_dir)
         number_of_workers = str(resource_dict['number_of_workers'])
         memory_limit = str(resource_dict['memory_limit'])+ 'Mi'
@@ -454,30 +452,6 @@ spec:
             pod_names.append(pod_item.metadata.name)
         return pod_names
 
-    def create_pvc(self, job_id):
-        """
-        Create a Persistent Volume Claim (PVC) with the name 'jid'-storage-claim
-        :param str job_id: job-id of the Openshift job
-        :return:
-        """
-        d_pvc = {
-            "apiVersion": "v1",
-            "kind": "PersistentVolumeClaim",
-            "metadata": {
-                "name": job_id+"-storage-claim"
-            },
-            "spec": {
-                "accessModes": [
-                    "ReadWriteMany"
-                ],
-                "resources": {
-                    "requests": {
-                        "storage": "2Gi"
-                    }
-                }
-            }
-        }
-        return self.kube_client.create_namespaced_persistent_volume_claim(self.project, body=d_pvc)
     
     def remove_pvc(self, job_id):
         """
