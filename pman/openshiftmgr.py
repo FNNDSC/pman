@@ -344,7 +344,7 @@ spec:
             log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
             return log
         except:
-            return (f"Pod {name} is being created. Logs will appear shorly")
+            return (f"Pod {name} is being created. Logs will appear shortly")
        
 
     def get_job_object(self, name):
