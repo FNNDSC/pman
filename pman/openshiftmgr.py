@@ -111,6 +111,8 @@ class OpenShiftManager(AbstractManager):
         if int(gpu_limit) > 0:  # Typecasting before a check
             # The assumption is containers[0] is always image plugin pod as the publish container is appended later.
             # These is specific to 3.9+  Ref: https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
+            d_job['spec']['template']['spec']['containers'][0]['resources']['limits']={}
+            d_job['spec']['template']['spec']['containers'][0]['resources']['requests']={}
             d_job['spec']['template']['spec']['containers'][0]['resources']['limits']['nvidia.com/gpu'] = int(gpu_limit)
             # Add node selector for node.
             # d_job['spec']['template']['spec']['nodeSelector'] = {'accelerator': 'gpu-node'}
@@ -120,24 +122,10 @@ class OpenShiftManager(AbstractManager):
 							"drop": [
 								"ALL"
 							]
-						}
+						},
+						"seLinuxOptions":{
+						    "type": "nvidia_container_t"}
             }
-            env = d_job['spec']['template']['spec']['containers'][0]['env']
-            env.extend(({
-							"name": "NVIDIA_VISIBLE_DEVICES",
-							"value": "all"
-						},
-						{
-							"name": "NVIDIA_DRIVER_CAPABILITIES",
-							"value": "compute,utility"
-						},
-						{
-							"name": "NVIDIA_REQUIRE_CUDA",
-							"value": "cuda>=9.0"
-						}))
-
-
-
         
         d_job['spec']['template']['spec']['volumes'] = [
                 {
