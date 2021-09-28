@@ -65,6 +65,10 @@
                   "name": "pman-config",
                   "mountPath": "/etc/pman/auth",
                   "readOnly": true
+                },
+                {
+                  "name": "localvol",
+                  "mountPath": "/shareDir"
                 }
               ],
               "image": "ghcr.io/sandip117/pman:flask",
@@ -96,7 +100,7 @@
                 },
                 {
                   "name": "STORAGE_TYPE",
-                  "value": "swift"
+                  "value": "host"
                 },
                 {
                   "name": "CONTAINER_ENV",
@@ -105,6 +109,10 @@
                 {
                   "name":"APPLICATION_MODE",
                   "value":"local"
+                },
+                {
+                  "name":"STOREBASE",
+                  "value":"/tmp/"
                 }
               ]
             }],
@@ -130,6 +138,12 @@
                 "name": "pman-config",
                 "secret": {
                   "secretName": "pman-config"
+                }
+              },
+              {
+                "name": "localvol",
+                "host": {
+                  "path": "/share/"
                 }
               }
             ],

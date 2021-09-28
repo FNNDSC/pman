@@ -38,8 +38,7 @@ class OpenShiftManager(AbstractManager):
         """
         Schedule a new job and returns the job object.
         """
-        if os.environ.get('STORAGE_TYPE') == 'swift':
-            self.create_pvc(name)
+        command = command.replace("/share",share_dir)
         number_of_workers = str(resource_dict['number_of_workers'])
         memory_limit = str(resource_dict['memory_limit'])+ 'Mi'
         cpu_limit = str(resource_dict['cpu_limit']) + 'm'
@@ -56,7 +55,7 @@ class OpenShiftManager(AbstractManager):
                 "ttlSecondsAfterFinished": 20,
                 "parallelism": number_of_workers,
                 "completions": number_of_workers,
-                "activeDeadlineSeconds": 3600,
+                "activeDeadlineSeconds": 36000,
                 "template": {
                     "metadata": {
                          "labels":{
@@ -99,8 +98,8 @@ class OpenShiftManager(AbstractManager):
                                 },
                                 "volumeMounts": [
                                     {
-                                        "mountPath": "/share",
-                                        "name": "shared-volume"
+                                        "mountPath": "/tmp/",
+                                        "name": "gluster-vol1"
                                     }
                                 ]
                             }
@@ -112,6 +111,8 @@ class OpenShiftManager(AbstractManager):
         if int(gpu_limit) > 0:  # Typecasting before a check
             # The assumption is containers[0] is always image plugin pod as the publish container is appended later.
             # These is specific to 3.9+  Ref: https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
+            d_job['spec']['template']['spec']['containers'][0]['resources']['limits']={}
+            d_job['spec']['template']['spec']['containers'][0]['resources']['requests']={}
             d_job['spec']['template']['spec']['containers'][0]['resources']['limits']['nvidia.com/gpu'] = int(gpu_limit)
             # Add node selector for node.
             # d_job['spec']['template']['spec']['nodeSelector'] = {'accelerator': 'gpu-node'}
@@ -121,144 +122,16 @@ class OpenShiftManager(AbstractManager):
 							"drop": [
 								"ALL"
 							]
-						}
+						},
+						"seLinuxOptions":{
+						    "type": "nvidia_container_t"}
             }
-            env = d_job['spec']['template']['spec']['containers'][0]['env']
-            env.extend(({
-							"name": "NVIDIA_VISIBLE_DEVICES",
-							"value": "all"
-						},
-						{
-							"name": "NVIDIA_DRIVER_CAPABILITIES",
-							"value": "compute,utility"
-						},
-						{
-							"name": "NVIDIA_REQUIRE_CUDA",
-							"value": "cuda>=9.0"
-						}))
-
-
-
-        if os.environ.get('STORAGE_TYPE') == 'swift':
-            d_job['spec']['template']['spec']['initContainers'] = [
+        
+        d_job['spec']['template']['spec']['volumes'] = [
                 {
-                    "name": "init-storage",
-                    "image": "fnndsc/pman-swift-publisher",
-                    "imagePullPolicy": "IfNotPresent",
-                    "imagePullSecrets":"regcred",
-                    "env": [
-                        {
-                            "name": "SWIFT_KEY",
-                            "value": name
-                        },
-                        {
-                            "name": "INCOMING_DIR",
-                            "value": incoming_dir
-                        },
-                        {
-                            "name": "OUTGOING_DIR",
-                            "value": outgoing_dir
-                        }
-                    ],
-                    "command": [
-                        "python3",
-                        "get_data.py"
-                    ],
-                    "resources": {
-                        "limits": {
-                            "memory": "1024Mi",
-                            "cpu": "2000m"
-                        },
-                        "requests": {
-                            "memory": "150Mi",
-                            "cpu": "250m"
-                        }
-                    },
-                    "volumeMounts": [
-                        {
-                            "mountPath": "/share",
-                            "name": "shared-volume"
-                        },
-                        {
-                            "mountPath": "/etc/swift",
-                            "name": "swift-credentials",
-                            "readOnly": True
-                        },
-                        {
-                            "mountPath": "/local",
-                            "name": "local-volume"
-                        }
-                    ]
-                }
-            ]
-
-            d_job['spec']['template']['spec']['containers'].append({
-                "name": "publish",
-                "image": "fnndsc/pman-swift-publisher",
-                "imagePullPolicy": "IfNotPresent",
-                "imagePullSecrets":"regcred",
-                "env": [
-                    {
-                        "name": "SWIFT_KEY",
-                        "value": name
-                    },
-                    {
-                        "name": "NUMBER_OF_WORKERS",
-                        "value": number_of_workers
-                    },
-                    {
-                        "name": "KUBECFG_PATH",
-                        "value": "/tmp/.kube/config"
-                    },
-                    {
-                        "name": "OPENSHIFTMGR_PROJECT",
-                        "value": self.project
-                    },
-                    {
-                        "name": "OUTGOING_DIR",
-                        "value": outgoing_dir
-                    }
-                ],
-                "command": [
-                    "python3",
-                    "put_data.py"
-                ],
-                "resources": {
-                    "limits": {
-                        "memory": "1024Mi",
-                        "cpu": "2000m"
-                    },
-                    "requests": {
-                        "memory": "150Mi",
-                        "cpu": "250m"
-                    }
-                },
-                "volumeMounts": [
-                    {
-                        "mountPath": "/share",
-                        "name": "shared-volume"
-                    },
-                    {
-                        "mountPath": "/etc/swift",
-                        "name": "swift-credentials",
-                        "readOnly": True
-                    },
-                    {
-                        "name": "kubecfg-volume",
-                        "mountPath": "/tmp/.kube/",
-                        "readOnly": True
-                    },
-                    {
-                        "mountPath": "/local",
-                        "name": "local-volume"
-                    }
-                ]
-            })
-            d_job['spec']['template']['spec']['volumes'] = [
-                {
-                    "name": "shared-volume",
+                    "name": "gluster-vol1",
                     "persistentVolumeClaim": {
-                        "claimName": name + "-storage-claim"
+                        "claimName": "gluster1"
                     }
                 },
                 {
@@ -274,59 +147,32 @@ class OpenShiftManager(AbstractManager):
                     }
                 },
                 {
-                    "name": "local-volume",
-                    "emptyDir": {}
-                }
-            ]
-        else: # os.environ.get('STORAGE_TYPE') == 'hostPath'
-            d_job['spec']['template']['spec']['volumes'] = [
-                {
-                    "name": "shared-volume",
-                    "hostPath": {
-                        "path": "/tmp/share/key-" + name
-                    }
+                    "mountPath": "/local",
+                    "name": "local-volume"
                 }
             ]
 
         job = self.kube_v1_batch_client.create_namespaced_job(namespace=self.project, body=d_job)
         return job
 
-    def create_pod(self, image, name, command):
-        """
-        Create a pod
-        """
-        pod_str = """
-apiVersion: v1
-kind: Pod
-metadata:
-    name: {name}
-spec:
-    restartPolicy: Never
-    containers:
-    - name: {name}
-      image: {image}
-      command: {command}  
-""".format(name=name, image=image, command=command)
-        pod_yaml = yaml.load(pod_str)
-        pod = self.kube_client.create_namespaced_pod(namespace=self.project, body=pod_yaml)
-        return pod
-
     def get_pod_status(self, name):
         """
         Get a pod's status
         """
         log = self.kube_client.read_namespaced_pod_status(namespace=self.project, name=name)
-        return log
+        return str(log)
 
     def get_pod_log(self, name, container_name=None):
-        """
-        Get a pod log
-        """
-        if container_name:
-            log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name, container=container_name)
-        else:
+    
+        # Query for pod logs
+        # If container is not started
+        # send default msg
+        try:
             log = self.kube_client.read_namespaced_pod_log(namespace=self.project, name=name)
-        return log
+            return log
+        except:
+            return (f"Pod {name} is being created. Logs will appear shortly")
+       
 
     def get_job_object(self, name):
         """
@@ -373,50 +219,12 @@ spec:
         info['message'] = message
         info['status'] = status
         return info
-        """
-        message = None
-        state = None
-        reason = None
-        if job.status.conditions:
-            for condition in job.status.conditions:
-                if condition.type == 'Failed' and condition.status == 'True':
-                    message = 'started'
-                    reason = condition.reason
-                    state = 'failed'
-                    break
-        if not state:
-            if job.status.completion_time and job.status.succeeded > 0:
-                message = 'finished'
-                state = 'complete'
-            elif job.status.active :
-                message = 'started'
-                state = 'running'
-            else:
-                message = 'inactive'
-                state = 'inactive'
-             
-        if 'finished' in str(message):
-            message = 'finishedSuccessfully'
 
-        return  {'Status': {'Message': message,
-                                    'State': state,
-                                    'Reason': reason,
-                                    'Active': job.status.active,
-                                    'Failed': job.status.failed,
-                                    'Succeeded': job.status.succeeded,
-                                    'StartTime': job.status.start_time,
-                                    'CompletionTime': job.status.completion_time},
-                 'image':job.spec.template.spec.containers[0].image,
-                 'cmd':' '.join(job.spec.template.spec.containers[0].command),
-                 'status':message,
-                 'message':message,
-                 'timestamp':''}
-                 """
-
-    def remove_job(self, name):
+    def remove_job(self, job):
         """
         Remove a previously scheduled job
         """
+        name = job.metadata.name
         #self.remove_pvc(name)
         body = k_client.V1DeleteOptions(propagation_policy='Background')
         self.kube_v1_batch_client.delete_namespaced_job(name, body=body, namespace=self.project)
@@ -436,7 +244,7 @@ spec:
         
                                     
     def get_job_logs(self,job):
-        return ''
+        #return ''
         name = job.metadata.name
         str_logs = ''
         
@@ -457,14 +265,8 @@ spec:
         # TODO: @ravig: Think of a better way to abstract out logs in case of multiple pods running parallelly.
 
         job_container_log = self.get_pod_log(pod_name, jid)
-        try: 
-            init_container_log = self.get_pod_log(pod_name, 'init-storage')
-        except ApiException:
-            # We don't have init container, we assume init-storage and publish containers are not available.
-            return pod_name + ":" + job_container_log
-        publish_container_log = self.get_pod_log(pod_name, 'publish')
-        return pod_name + ":" + "init_container log:" + init_container_log + "plugin_container log:" +\
-               job_container_log + "publish_container log:" + publish_container_log
+        return job_container_log
+        
 
     def get_pod_names_in_job(self, job_id):
         """
@@ -479,30 +281,6 @@ spec:
             pod_names.append(pod_item.metadata.name)
         return pod_names
 
-    def create_pvc(self, job_id):
-        """
-        Create a Persistent Volume Claim (PVC) with the name 'jid'-storage-claim
-        :param str job_id: job-id of the Openshift job
-        :return:
-        """
-        d_pvc = {
-            "apiVersion": "v1",
-            "kind": "PersistentVolumeClaim",
-            "metadata": {
-                "name": job_id+"-storage-claim"
-            },
-            "spec": {
-                "accessModes": [
-                    "ReadWriteMany"
-                ],
-                "resources": {
-                    "requests": {
-                        "storage": "2Gi"
-                    }
-                }
-            }
-        }
-        return self.kube_client.create_namespaced_persistent_volume_claim(self.project, body=d_pvc)
     
     def remove_pvc(self, job_id):
         """
