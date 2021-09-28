@@ -30,6 +30,7 @@ class OpenShiftManagerTests(unittest.TestCase):
                           'gpu_limit': self.gpu_limit,
                           }
 
+
     @patch('kubernetes.client.apis.batch_v1_api.BatchV1Api.create_namespaced_job')
     def test_schedule(self, mock_create):
         mock_create.return_value = kubernetes.client.models.v1_job.V1Job()
@@ -46,13 +47,6 @@ class OpenShiftManagerTests(unittest.TestCase):
         #mock_get.assert_called_once() Available in 3.6
         mock_get.assert_any_call(self.job_name, self.project)
         self.assertIsInstance(job, kubernetes.client.models.v1_job.V1Job)
-
-    @patch('kubernetes.client.apis.batch_v1_api.BatchV1Api.delete_namespaced_job')
-    def test_remove_job(self, mock_delete):
-        job = self.manager.get_job(self.job_name)
-        rm_job = self.manager.remove_job(job)
-        mock_delete.assert_called_once()
-        #mock_delete.assert_any_call(self.job_name, self.project, {})
 
     @patch('kubernetes.client.CoreV1Api.delete_namespaced_pod')
     def test_remove_pod(self, mock_delete):
