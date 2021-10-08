@@ -163,3 +163,14 @@ Delete the job
 .. code-block:: bash
 
     $> http DELETE http://localhost:30010/api/v1/chris-jid-1/
+
+
+Troubleshooting
+===============
+
+`pman` writes logs to the file `/tmp/debug.log` inside of the container's filesystem.
+Assuming the docker container ID of pman is `$pman`, you can dump this log by
+
+.. code-block:: bash
+
+    $> docker exec $pman cat /tmp/debug.log
