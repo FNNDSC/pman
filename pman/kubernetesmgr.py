@@ -7,11 +7,12 @@ import shlex
 
 from kubernetes import client as k_client
 from kubernetes import config as k_config
+from kubernetes.client.models.v1_job import V1Job
 from kubernetes.client.rest import ApiException
-from .abstractmgr import AbstractManager, ManagerException
+from .abstractmgr import AbstractManager, ManagerException, JobInfo, JobStatus
 
 
-class KubernetesManager(AbstractManager):
+class KubernetesManager(AbstractManager[V1Job]):
 
     def __init__(self, config_dict=None):
         super().__init__(config_dict)
@@ -20,7 +21,7 @@ class KubernetesManager(AbstractManager):
         self.kube_client = k_client.CoreV1Api()
         self.kube_v1_batch_client = k_client.BatchV1Api()
 
-    def schedule_job(self, image, command, name, resources_dict, mountdir=None):
+    def schedule_job(self, image, command, name, resources_dict, mountdir=None) -> V1Job:
         """
         Schedule a new job and return the job object.
         """
@@ -28,7 +29,7 @@ class KubernetesManager(AbstractManager):
         job = self.submit_job(job_instance)
         return job
 
-    def get_job(self, name):
+    def get_job(self, name) -> V1Job:
         """
         Get a previously scheduled job object.
         """
@@ -53,12 +54,11 @@ class KubernetesManager(AbstractManager):
             logs += self.get_pod_log(pod_name)
         return logs
 
-    def get_job_info(self, job):
+    def get_job_info(self, job) -> JobInfo:
         """
         Get the job's info dictionary for a previously scheduled job object.
         """
-        info = super().get_job_info(job)
-        status = 'notstarted'
+        status = JobStatus.notstarted
         message = 'task not available yet'
         conditions = job.status.conditions
         failed = job.status.failed
@@ -70,27 +70,27 @@ class KubernetesManager(AbstractManager):
                 for condition in conditions:
                     if condition.type == 'Failed' and condition.status == 'True':
                         message = condition.message
-                        status = 'finishedWithError'
+                        status = JobStatus.finishedWithError
                         break
             if status == 'notstarted':
                 if completion_time and succeeded:
                     message = 'finished'
-                    status = 'finishedSuccessfully'
+                    status = JobStatus.finishedSuccessfully
                 elif job.status.active:
                     message = 'running'
-                    status = 'started'
+                    status = JobStatus.started
                 else:
                     message = 'inactive'
-                    status = 'undefined'
+                    status = JobStatus.undefined
 
-        info['name'] = job.metadata.name
-        info['image'] = job.spec.template.spec.containers[0].image
-        info['cmd'] = ' '.join(job.spec.template.spec.containers[0].command)
-        if completion_time is not None:
-            info['timestamp'] = completion_time.isoformat()
-        info['message'] = message
-        info['status'] = status
-        return info
+        return JobInfo(
+            name=job.metadata.name,
+            image=job.spec.template.spec.containers[0].image,
+            cmd=' '.join(job.spec.template.spec.containers[0].command),
+            timestamp=completion_time.isoformat() if completion_time is not None else '',
+            message=message,
+            status=status
+        )
 
     def remove_job(self, job):
         """
@@ -101,7 +101,7 @@ class KubernetesManager(AbstractManager):
         self.kube_v1_batch_client.delete_namespaced_job(job.metadata.name, body=body,
                                                         namespace=job_namespace)
 
-    def create_job(self, image, command, name, resources_dict, mountdir=None):
+    def create_job(self, image, command, name, resources_dict, mountdir=None) -> V1Job:
         """
         Create and return a new job instance.
         """

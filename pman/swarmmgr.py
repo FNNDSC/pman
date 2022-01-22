@@ -4,10 +4,11 @@ jobs (short-lived services) as well as manage their state in the cluster.
 """
 
 import docker
-from .abstractmgr import AbstractManager, ManagerException
+from docker.models.services import Service
+from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image
 
 
-class SwarmManager(AbstractManager):
+class SwarmManager(AbstractManager[Service]):
 
     def __init__(self, config_dict=None):
         super().__init__(config_dict)
@@ -17,7 +18,7 @@ class SwarmManager(AbstractManager):
         else:
             self.docker_client = docker.from_env(environment=self.config)
 
-    def schedule_job(self, image, command, name, resources_dict, mountdir=None):
+    def schedule_job(self, image, command, name, resources_dict, mountdir=None) -> Service:
         """
         Schedule a new job and return the job (swarm service) object.
         """
@@ -36,7 +37,7 @@ class SwarmManager(AbstractManager):
             raise ManagerException(str(e), status_code=status_code)
         return job
 
-    def get_job(self, name):
+    def get_job(self, name) -> Service:
         """
         Get a previously scheduled job object.
         """
@@ -57,35 +58,39 @@ class SwarmManager(AbstractManager):
         """
         return ''.join([l.decode() for l in job.logs(stdout=True, stderr=True)])
 
-    def get_job_info(self, job):
+    def get_job_info(self, job: Service) -> JobInfo:
         """
         Get the job's info for a previously scheduled job object.
         """
-        info = super().get_job_info(job)
-        info['status'] = 'notstarted'
-        info['message'] = 'task not available yet'
-
         task = self.get_job_task(job)
-        if task:
-            status = 'undefined'
-            state = task['Status']['State']
-            if state in ('new', 'pending', 'assigned', 'accepted', 'preparing',
-                         'starting'):
-                status = 'notstarted'
-            elif state == 'running':
-                status = 'started'
-            elif state == 'failed':
-                status = 'finishedWithError'
-            elif state == 'complete':
-                status = 'finishedSuccessfully'
+        if not task:
+            return JobInfo(
+                name='', image=Image(''), cmd='', timestamp='',
+                message='task not available yet',
+                status=JobStatus.notstarted
+            )
 
-            info['name'] = job.name
-            info['image'] = task['Spec']['ContainerSpec']['Image']
-            info['cmd'] = ' '.join(task['Spec']['ContainerSpec']['Command'])
-            info['timestamp'] = task['Status']['Timestamp']
-            info['message'] = task['Status']['Message']
-            info['status'] = status
-        return info
+        return JobInfo(
+            name=job.name,
+            image=task['Spec']['ContainerSpec']['Image'],
+            cmd=' '.join(task['Spec']['ContainerSpec']['Command']),
+            timestamp=task['Status']['Timestamp'],
+            message=task['Status']['Message'],
+            status=self.__state2status(task['Status']['State'])
+        )
+
+    @staticmethod
+    def __state2status(state: str) -> JobStatus:
+        if state in ('new', 'pending', 'assigned', 'accepted', 'preparing',
+                     'starting'):
+            return JobStatus.notstarted
+        elif state == 'running':
+            return JobStatus.started
+        elif state == 'failed':
+            return JobStatus.finishedWithError
+        elif state == 'complete':
+            return JobStatus.finishedSuccessfully
+        return JobStatus.undefined
 
     def remove_job(self, job):
         """
