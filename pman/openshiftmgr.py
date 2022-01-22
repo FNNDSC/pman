@@ -8,7 +8,7 @@ import shlex
 import os
 from kubernetes import client as k_client, config
 from kubernetes.client.rest import ApiException
-from .abstractmgr import AbstractManager, ManagerException
+from .abstractmgr import AbstractManager, ManagerException, JobInfo, JobStatus
 
 class OpenShiftManager(AbstractManager):
 
@@ -180,13 +180,11 @@ class OpenShiftManager(AbstractManager):
         """
         return self.kube_v1_batch_client.read_namespaced_job(name, self.project)
         
-    def get_job_info(self,job):
-    
+    def get_job_info(self,job) -> JobInfo:
         """
         Get job info from previously scheduled job
         """
-        info = super().get_job_info(job)
-        status = 'notstarted'
+        status: JobStatus = JobStatus.notstarted
         message = 'task not available yet'
         conditions = job.status.conditions
         failed = job.status.failed
@@ -198,27 +196,27 @@ class OpenShiftManager(AbstractManager):
                 for condition in conditions:
                     if condition.type == 'Failed' and condition.status == 'True':
                         message = condition.message
-                        status = 'finishedWithError'
+                        status = JobStatus.finishedWithError
                         break
-            if status == 'notstarted':
+            if status == JobStatus.notstarted:
                 if completion_time and succeeded:
                     message = 'finished'
-                    status = 'finishedSuccessfully'
+                    status = JobStatus.finishedSuccessfully
                 elif job.status.active:
                     message = 'running'
-                    status = 'started'
+                    status = JobStatus.started
                 else:
                     message = 'inactive'
-                    status = 'undefined'
+                    status = JobStatus.undefined
 
-        info['name'] = job.metadata.name
-        info['image'] = job.spec.template.spec.containers[0].image
-        info['cmd'] = ' '.join(job.spec.template.spec.containers[0].command)
-        if completion_time is not None:
-            info['timestamp'] = completion_time.isoformat()
-        info['message'] = message
-        info['status'] = status
-        return info
+        return JobInfo(
+            name=job.metadata.name,
+            image=job.spec.template.spec.containers[0].image,
+            cmd=' '.join(job.spec.template.spec.containers[0].command),
+            timestamp=completion_time.isoformat() if completion_time is not None else '',
+            message=message,
+            status=status
+        )
 
     def remove_job(self, job):
         """

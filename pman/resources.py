@@ -97,13 +97,13 @@ class JobListResource(Resource):
 
         return {
             'jid': job_id,
-            'image': job_info['image'],
-            'cmd': job_info['cmd'],
-            'status': job_info['status'],
-            'message': job_info['message'],
-            'timestamp': job_info['timestamp'],
+            'image': job_info.image,
+            'cmd': job_info.cmd,
+            'status': str(job_info.status),
+            'message': job_info.message,
+            'timestamp': job_info.timestamp,
             'logs': job_logs
-        },201
+        }, 201
 
     def build_app_cmd(self, cmd_args, cmd_path_flags, selfpath, selfexec, execshell,
                       plugin_type):
@@ -163,11 +163,11 @@ class JobResource(Resource):
 
         return {
             'jid': job_id,
-            'image': job_info['image'],
-            'cmd': job_info['cmd'],
-            'status': job_info['status'],
-            'message': job_info['message'],
-            'timestamp': job_info['timestamp'],
+            'image': job_info.image,
+            'cmd': job_info.cmd,
+            'status': job_info.status,
+            'message': job_info.message,
+            'timestamp': job_info.timestamp,
             'logs': job_logs
         }
 
