@@ -99,7 +99,7 @@ class JobListResource(Resource):
             'jid': job_id,
             'image': job_info.image,
             'cmd': job_info.cmd,
-            'status': str(job_info.status),
+            'status': job_info.status.value,
             'message': job_info.message,
             'timestamp': job_info.timestamp,
             'logs': job_logs
@@ -165,7 +165,7 @@ class JobResource(Resource):
             'jid': job_id,
             'image': job_info.image,
             'cmd': job_info.cmd,
-            'status': str(job_info.status),
+            'status': job_info.status.value,
             'message': job_info.message,
             'timestamp': job_info.timestamp,
             'logs': job_logs
