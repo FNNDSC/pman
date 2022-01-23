@@ -5,7 +5,7 @@ jobs (short-lived services) as well as manage their state in the cluster.
 
 import docker
 from docker.models.services import Service
-from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, TimeStamp
+from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, TimeStamp, JobName
 
 
 class SwarmManager(AbstractManager[Service]):
@@ -65,13 +65,13 @@ class SwarmManager(AbstractManager[Service]):
         task = self.get_job_task(job)
         if not task:
             return JobInfo(
-                name='', image=Image(''), cmd='', timestamp=TimeStamp(''),
+                name=JobName(''), image=Image(''), cmd='', timestamp=TimeStamp(''),
                 message='task not available yet',
                 status=JobStatus.notstarted
             )
 
         return JobInfo(
-            name=job.name,
+            name=JobName(job.name),
             image=task['Spec']['ContainerSpec']['Image'],
             cmd=' '.join(task['Spec']['ContainerSpec']['Command']),
             timestamp=TimeStamp(task['Status']['Timestamp']),

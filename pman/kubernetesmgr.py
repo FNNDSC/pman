@@ -9,7 +9,7 @@ from kubernetes import client as k_client
 from kubernetes import config as k_config
 from kubernetes.client.models.v1_job import V1Job
 from kubernetes.client.rest import ApiException
-from .abstractmgr import AbstractManager, ManagerException, JobInfo, JobStatus, TimeStamp
+from .abstractmgr import AbstractManager, ManagerException, JobInfo, JobStatus, TimeStamp, JobName
 
 
 class KubernetesManager(AbstractManager[V1Job]):
@@ -84,7 +84,7 @@ class KubernetesManager(AbstractManager[V1Job]):
                     status = JobStatus.undefined
 
         return JobInfo(
-            name=job.metadata.name,
+            name=JobName(job.metadata.name),
             image=job.spec.template.spec.containers[0].image,
             cmd=' '.join(job.spec.template.spec.containers[0].command),
             timestamp=TimeStamp(completion_time.isoformat() if completion_time is not None else ''),
