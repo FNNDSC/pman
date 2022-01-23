@@ -20,7 +20,8 @@ class JobStatus(Enum):
 
 JobName = NewType('JobName', str)
 Image = NewType('Image', str)
-
+TimeStamp = NewType('TimeStamp', str)
+"""A time and date in ISO format."""
 
 J = TypeVar('J')
 """
@@ -34,9 +35,11 @@ Jobs must at least be identifiable by name from the engine.
 @dataclass(frozen=True)
 class JobInfo:
     name: str
+    """A name which ``pman`` can be queried for to retrieve this job."""
     image: Image
     cmd: str
-    timestamp: str
+    timestamp: TimeStamp
+    """Time of completion."""
     message: str
     status: JobStatus
 
