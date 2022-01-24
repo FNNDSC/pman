@@ -4,7 +4,7 @@ Data definitions for Cromwell API responses.
 from enum import Enum
 from serde import deserialize
 from typing import NewType, List, Dict, Optional
-from pman.abstractmgr import TimeStamp, Image
+from pman.abstractmgr import TimeStamp
 from pathlib import Path
 
 
@@ -129,7 +129,7 @@ class WorkflowMetadataResponse:
     """
     https://cromwell.readthedocs.io/en/stable/api/RESTAPI/#workflowmetadataresponse
     """
-    calls: Optional[dict[str, list[CallMetadata]]]
+    calls: Optional[Dict[str, list[CallMetadata]]]
     end: Optional[TimeStamp]
     failures: Optional[List[CausedFailure]]
     id: WorkflowId
