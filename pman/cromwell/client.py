@@ -75,7 +75,7 @@ class CromwellClient:
         """
         This method is not available in upstream cromwell-tools.
         """
-        uri = path.join(self.auth.url, '/api/workflows/v1', uuid, '/logs')
+        uri = path.join(self.auth.url, 'api/workflows/v1', uuid, 'logs')
         res = requests.get(uri)
         res.raise_for_status()
         return res.json()
