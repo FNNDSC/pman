@@ -90,7 +90,7 @@ class CallMetadata:
     backendStatus: Optional[str]
     end: Optional[TimeStamp]
     executionStatus: WorkflowStatus
-    failures: Optional[FailureMessage]
+    failures: Optional[List[FailureMessage]]
     inputs: dict
     jobId: Optional[str]
     returnCode: Optional[int]
@@ -114,7 +114,7 @@ class WorkflowMetadataResponse:
     """
     calls: Optional[dict[str, list[CallMetadata]]]
     end: Optional[TimeStamp]
-    failures: Optional[FailureMessage]
+    failures: Optional[List[FailureMessage]]
     id: WorkflowId
     inputs: Optional[dict]
     outputs: Optional[dict]
