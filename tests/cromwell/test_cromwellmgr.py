@@ -1,12 +1,12 @@
 import io
 import json
 import unittest
-from unittest.mock import Mock, patch, ANY
+from unittest.mock import Mock, patch, ANY, call
 from pman.abstractmgr import Image, JobName
 from pman.cromwellmgr import CromwellManager, CromwellException, WorkflowId
 import tests.cromwell.examples.metadata as metadata_example
 import tests.cromwell.examples.query as query_example
-from tests.cromwell.helpers import patch_cromwell_api
+from tests.cromwell.helpers import patch_cromwell_api, create_404_response
 
 
 class CromwellTestCase(unittest.TestCase):
@@ -15,20 +15,53 @@ class CromwellTestCase(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.manager = CromwellManager({'CROMWELL_URL': 'https://example.com/'})
 
+    @patch('time.sleep')
     @patch('pman.cromwellmgr.inflate_wdl')
-    @patch_cromwell_api('submit', r'{"id": "donut", "status": "Submitted"}')
-    def test_submit(self, mock_submit: Mock, mock_inflate_wdl: Mock):
+    @patch('cromwell_tools.cromwell_api.CromwellAPI.status')
+    @patch('cromwell_tools.cromwell_api.CromwellAPI.submit')
+    def test_submit(self, mock_submit: Mock, mock_status: Mock,
+                    mock_inflate: Mock, mock_sleep: Mock):
+        # mock WDL template
         fake_wdl = 'fake wdl'
-        mock_inflate_wdl.return_value = fake_wdl
+        mock_inflate.return_value = fake_wdl
+
+        # Workflow does not immediately appear in Cromwell after being submitted,
+        # but pman wants to get job info, so we need to poll Cromwell a few times.
+        ok_res = Mock()
+        ok_res.status_code = 200
+        ok_res.text = r'{"id": "example-jid-4567", "status": "Submitted"}'
+        status_responses = [
+            create_404_response('example-jid-4567'),
+            create_404_response('example-jid-4567'),
+            create_404_response('example-jid-4567'),
+            ok_res
+        ]
+        mock_status.side_effect = status_responses
+
+        mock_submit.return_value = Mock()
+        mock_submit.return_value.text = r'{"id": "example-jid-4567", "status": "Submitted"}'
+
         self.manager.schedule_job(
             Image('fnndsc/pl-simpledsapp'), 'simpledsapp /in /out',
             JobName('example-jid-4567'), {}, '/storeBase/whatever'
         )
+
+        # assert submitted with correct data
         mock_submit.assert_called_once()
         self.assertBytesIOEqual(fake_wdl, mock_submit.call_args.kwargs['wdl_file'])
         self.assertBytesIOEqualDict(
             {CromwellManager.PMAN_CROMWELL_LABEL: 'example-jid-4567'},
             mock_submit.call_args.kwargs['label_file']
+        )
+
+        # assert polling worked
+        mock_status.assert_has_calls(
+            # check that status was polled
+            [call(uuid='example-jid-4567', auth=ANY, raise_for_status=True)] * len(status_responses)
+        )
+        mock_sleep.assert_has_calls(
+            # first sleep is a bit longer
+            [call(i) for i in [0.5, 0.2, 0.2, 0.2]]
         )
 
     def assertBytesIOEqual(self, expected: str, actual: io.BytesIO):

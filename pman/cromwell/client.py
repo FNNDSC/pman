@@ -34,6 +34,18 @@ class CromwellClient:
         )
         return from_json(WorkflowIdAndStatus, res.text)
 
+    def status(self, uuid: WorkflowId) -> Optional[WorkflowIdAndStatus]:
+        """
+        https://cromwell.readthedocs.io/en/stable/api/RESTAPI/#retrieves-the-current-state-for-a-workflow
+
+        :return: workflow ID and status, or None if workflow not found
+        """
+        res = CromwellAPI.status(uuid=uuid, auth=self.auth, raise_for_status=True)
+        if res.status_code == 404:
+            return None
+        res.raise_for_status()
+        return from_json(WorkflowIdAndStatus, res.text)
+
     def query(self, label: Optional[Dict[str, str]] = None) -> WorkflowQueryResponse:
         query_dict = {}
         if label:

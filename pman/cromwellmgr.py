@@ -6,6 +6,7 @@ TODO: another microservice to fill functionality not provided by Cromwell
 
 """
 
+import time
 from typing import Optional, Tuple
 from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, JobName
 from .cromwell.models import (
@@ -58,8 +59,9 @@ class CromwellManager(AbstractManager[WorkflowId]):
                      resources_dict: dict, mountdir: Optional[str] = None) -> WorkflowId:
         wdl = inflate_wdl(image, command, resources_dict, mountdir)
         res = self.__submit(wdl, name)
-        if not res.status == WorkflowStatus.Submitted:
-            raise CromwellException(f'Response from submit was not "Submitted": {res}')
+        # Submission does not appear in Cromwell immediately, but pman wants to
+        # get job info, so we need to wait for Cromwell to catch up.
+        self.__must_be_submitted(res)
         return res.id
 
     def __submit(self, wdl: StrWdl, name: JobName) -> WorkflowIdAndStatus:
@@ -72,8 +74,30 @@ class CromwellManager(AbstractManager[WorkflowId]):
         """
 
         res = self.__client.submit(wdl, label={self.PMAN_CROMWELL_LABEL: name})
-        # FIXME wait for cromwell to register by polling for metadata
-        return res
+        self.__must_be_submitted(res)
+        time.sleep(0.5)
+        if (polled_res := self.__block_until_submitted(res.id)) is None:
+            raise CromwellException('Workflow was submitted, but timed out waiting for it '
+                                    f'to appear in Cromwell: {res.id}')
+        return polled_res
+
+    @staticmethod
+    def __must_be_submitted(res: WorkflowIdAndStatus):
+        if res.status != WorkflowStatus.Submitted:
+            raise CromwellException(f'Workflow status is not "Submitted": {res}')
+
+    def __block_until_submitted(self, uuid: WorkflowId, tries=20, interval=0.2) -> Optional[WorkflowIdAndStatus]:
+        """
+        Poll for a workflow's status until it shows up in Cromwell.
+
+        :return: workflow status, or None if it never appears in Cromwell
+        """
+        if tries <= 0:
+            return None
+        if (res := self.__client.status(uuid)) is not None:
+            return res
+        time.sleep(interval)
+        return self.__block_until_submitted(uuid, tries - 1, interval)
 
     def get_job(self, name: JobName) -> WorkflowId:
         job = self.__query_by_name(name)
