@@ -64,16 +64,22 @@ class CromwellManager(AbstractManager[WorkflowId]):
 
     def __submit(self, wdl: StrWdl, name: JobName) -> WorkflowIdAndStatus:
         """
-        Schedule a WDL file to be executed.
+        Schedule a WDL file to be executed, and then wait for Cromwell to register it.
 
         :param wdl: WDL
         :param name: ID which pman can be queried for to retrieve the submitted workflow
         :return: response from Cromwell
         """
-        return self.__client.submit(wdl, label={self.PMAN_CROMWELL_LABEL: name})
+
+        res = self.__client.submit(wdl, label={self.PMAN_CROMWELL_LABEL: name})
+        # FIXME wait for cromwell to register by polling for metadata
+        return res
 
     def get_job(self, name: JobName) -> WorkflowId:
-        return self.__query_by_name(name).id
+        job = self.__query_by_name(name)
+        if job:
+            return job.id
+        raise CromwellException(f'No job found for name="{name}"', status_code=404)
 
     def get_job_logs(self, job: WorkflowId) -> str:
         # cromwell_tools.utilities.download
@@ -106,7 +112,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
         call = res.calls['ChRISJob.plugin_instance'][0]
         return call, deserialize_runtime_attributes(call.runtimeAttributes)
 
-    def __query_by_name(self, name: JobName) -> WorkflowQueryResult:
+    def __query_by_name(self, name: JobName) -> Optional[WorkflowQueryResult]:
         """
         Get a single job by name.
 
@@ -114,7 +120,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
         """
         res = self.__client.query({self.PMAN_CROMWELL_LABEL: name})
         if res.totalResultsCount < 1:
-            raise CromwellException(f'Job not found: "{name}"')
+            return None
         if res.totalResultsCount > 1:
             raise CromwellException(f'Multiple jobs found for name="{name}"\n{str(res)}')
         return res.results[0]
