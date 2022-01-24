@@ -115,6 +115,16 @@ class CallMetadata:
 
 
 @deserialize
+class SubmittedFiles:
+    workflow: StrWdl
+    root: str
+    options: str
+    inputs: str
+    workflowUrl: str
+    labels: str
+
+
+@deserialize
 class WorkflowMetadataResponse:
     """
     https://cromwell.readthedocs.io/en/stable/api/RESTAPI/#workflowmetadataresponse
@@ -130,3 +140,4 @@ class WorkflowMetadataResponse:
     submission: TimeStamp
     # these fields are undocumented
     labels: Dict[str, str]
+    submittedFiles: Optional[SubmittedFiles]

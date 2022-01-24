@@ -6,17 +6,18 @@ TODO: another microservice to fill functionality not provided by Cromwell
 
 """
 
+import json
 import logging
 import time
-from typing import Optional, Tuple
-from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, JobName
+from typing import Optional
+from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, JobName, TimeStamp
 from .cromwell.models import (
     WorkflowId, StrWdl,
-    WorkflowStatus, WorkflowIdAndStatus, WorkflowQueryResult, WorkflowQueryResponse,
-    CallMetadata, WorkflowMetadataResponse
+    WorkflowStatus, WorkflowIdAndStatus, WorkflowQueryResult,
+    WorkflowMetadataResponse
 )
 from .cromwell.client import CromwellAuth, CromwellClient
-from .e2_wdl import inflate_wdl, SlurmRuntimeAttributes, deserialize_runtime_attributes
+from .e2_wdl import ChRISJob, SlurmRuntimeAttributes
 
 
 STATUS_MAP = {
@@ -60,7 +61,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
 
     def schedule_job(self, image: Image, command: str, name: JobName,
                      resources_dict: dict, mountdir: Optional[str] = None) -> WorkflowId:
-        wdl = inflate_wdl(image, command, resources_dict, mountdir)
+        wdl = ChRISJob(image, command, mountdir, resources_dict).to_wdl()
         res = self.__submit(wdl, name)
         # Submission does not appear in Cromwell immediately, but pman wants to
         # get job info, so we need to wait for Cromwell to catch up.
@@ -78,7 +79,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
 
         res = self.__client.submit(wdl, label={self.PMAN_CROMWELL_LABEL: name})
         self.__must_be_submitted(res)
-        if not self.__block_until_called(res.id):
+        if not self.__block_until_metadata_available(res.id):
             raise CromwellException('Workflow was submitted, but timed out waiting for '
                                     f'Cromwell to produce a call on: {res.id}')
         return res
@@ -88,7 +89,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
         if res.status != WorkflowStatus.Submitted:
             raise CromwellException(f'Workflow status is not "Submitted": {res}')
 
-    def __block_until_called(self, uuid: WorkflowId, tries=20, interval=2) -> bool:
+    def __block_until_metadata_available(self, uuid: WorkflowId, tries=20, interval=1) -> bool:
         """
         Poll for a workflow's metadata until a call has been produced by Cromwell.
 
@@ -96,29 +97,17 @@ class CromwellManager(AbstractManager[WorkflowId]):
         Cromwell, and then it takes a little bit more for it to be parsed, processed,
         and then finally scheduled.
 
+        :param uuid: workflow UUID
+        :param tries: number of metadata request attempts
+        :param interval: seconds to wait between attempts
         :return: True if a call has been made before timeout, otherwise False
         """
         if tries <= 0:
             return False
         time.sleep(interval)
-        if self.__call_is_ok(self.__client.metadata(uuid)):
+        if self._check_job_info(uuid) is not None:
             return True
-        return self.__block_until_called(uuid, tries - 1, interval)
-
-    @staticmethod
-    def __call_is_ok(res: Optional[WorkflowMetadataResponse]) -> bool:
-        """
-        :return: True if workflow emtadata exists, has a call, and all calls have a commandLine
-        """
-        if res is None:
-            return False
-        # FIXME instead of waiting for a call to be made, parse the submitted
-        # WDL file for this information instead.
-        # This code should be reused between get_job_info
-        if len(res.calls) == 0:
-            return False
-        calls = [c for task_calls in res.calls.values() for c in task_calls]
-        return all(c.commandLine is not None for c in calls)
+        return self.__block_until_metadata_available(uuid, tries - 1, interval)
 
     def get_job(self, name: JobName) -> WorkflowId:
         job = self.__query_by_name(name)
@@ -131,10 +120,48 @@ class CromwellManager(AbstractManager[WorkflowId]):
         return 'Logs from the Cromwell backend not yet implemented.'
 
     def get_job_info(self, job: WorkflowId) -> JobInfo:
-        res = self.__client.metadata(job)
-        call, attrs = self.__get_task_from(res)
+        info = self._check_job_info(job)
+        if info is None:
+            raise CromwellException(f'Info not available for WorkflowId={job}', status_code=404)
+        return info
+
+    def _check_job_info(self, uuid: WorkflowId) -> Optional[JobInfo]:
+        """
+        Get job info from Cromwell metadata if available.
+        """
+        res = self.__client.metadata(uuid)
+        if res is None:
+            return None
+        if self.__is_complete_call(res):
+            return self.__info_from_complete_call(res)
+        if res.submittedFiles is not None:
+            return self.__info_from_early_submission(res)
+        return None
+
+    @staticmethod
+    def __is_complete_call(res: WorkflowMetadataResponse) -> bool:
+        """
+        :return: True if metadata shows that Cromwell has picked up and processed the workflow
+        """
+        return (
+                'ChRISJob.plugin_instance' in res.calls
+                and len(res.calls['ChRISJob.plugin_instance']) >= 1
+                and res.calls['ChRISJob.plugin_instance'][0].commandLine is not None
+        )
+
+    @classmethod
+    def __info_from_complete_call(cls, res: WorkflowMetadataResponse) -> JobInfo:
+        """
+        Get info from a workflow which was picked up and processed by Cromwell.
+        """
+        if len(res.calls['ChRISJob.plugin_instance']) > 1:
+            logger.warning('Task "ChRISJob.plugin_instance" has multiple calls: %s', str(res))
+
+        call = res.calls['ChRISJob.plugin_instance'][0]
+        attrs = SlurmRuntimeAttributes.deserialize(call.runtimeAttributes)
+
         return JobInfo(
-            name=JobName(res.labels[self.PMAN_CROMWELL_LABEL]),
+            name=JobName(res.labels[cls.PMAN_CROMWELL_LABEL]),
             image=attrs.docker,
             cmd=call.commandLine,
             timestamp=res.end if res.end is not None else '',
@@ -142,20 +169,26 @@ class CromwellManager(AbstractManager[WorkflowId]):
             status=STATUS_MAP[res.status]
         )
 
-    @staticmethod
-    def __get_task_from(res: WorkflowMetadataResponse) -> Tuple[CallMetadata, SlurmRuntimeAttributes]:
+    @classmethod
+    def __info_from_early_submission(cls, res: WorkflowMetadataResponse) -> JobInfo:
         """
-        Select the task call metadata object along with SLURM job attributes
-        from a Cromwell metadata response.
+        Get info from a workflow by parsing its submittedFiles.
         """
-        if len(res.calls) != 1:
-            raise CromwellException(f'Number of tasks in this workflow != 1.\n{res}')
-        if 'ChRISJob.plugin_instance' not in res.calls:
-            raise CromwellException(f'Hard-coded task "ChRISJob.plugin_instance" not found in: {res}')
-        if len(res.calls['ChRISJob.plugin_instance']) != 1:
-            raise CromwellException(f'Number of calls for task "ChRISJob.plugin_instance" != 1: {res}')
-        call = res.calls['ChRISJob.plugin_instance'][0]
-        return call, deserialize_runtime_attributes(call.runtimeAttributes)
+        job_details = ChRISJob.from_wdl(res.submittedFiles.workflow)
+        labels = json.loads(res.submittedFiles.labels)
+
+        message = 'Waiting to be picked up by Cromwell'
+        if 'ChRISJob.plugin_instance' in res.calls and len(res.calls['ChRISJob.plugin_instance']) >= 1:
+            message = res.calls['ChRISJob.plugin_instance'][0].executionStatus
+
+        return JobInfo(
+            name=labels[cls.PMAN_CROMWELL_LABEL],
+            image=job_details.image,
+            cmd=job_details.command,
+            timestamp=TimeStamp(''),
+            message=message,
+            status=JobStatus.notstarted
+        )
 
     def __query_by_name(self, name: JobName) -> Optional[WorkflowQueryResult]:
         """

@@ -1,5 +1,6 @@
 from pman.cromwell.models import WorkflowId, WorkflowStatus
 from pman.abstractmgr import JobInfo, JobStatus, Image, TimeStamp, JobName
+from pman.e2_wdl import ChRISJob
 
 workflow_uuid = WorkflowId('4165ed81-c121-4a8d-b284-a6dda9ef0aa8')
 
@@ -25,7 +26,7 @@ response_running = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "version 1.0\n\ntask plugin_instance {\n    command {\n        office_convert /share/incoming /share/outgoing\n    }\n    runtime {\n        docker: 'docker.io/fnndsc/pl-office-convert:0.0.1'\n        sharedir: '/mounted/storebase/example-jid-1234'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}\n",
+    "workflow": "version 1.0\n\ntask plugin_instance {\n    command {\n        office_convert /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'docker.io/fnndsc/pl-office-convert:0.0.1'\n        sharedir: '/mounted/storebase/example-jid-1234'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}\n",
     "workflowType": "WDL",
     "root": "",
     "workflowTypeVersion": "1.0",
@@ -114,7 +115,7 @@ response_failed = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    }\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/mounted/storebase/key-wont-work'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/mounted/storebase/key-wont-work'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
@@ -243,7 +244,7 @@ response_done = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    }\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/mounted/storebase/key-done-and-dusted'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/mounted/storebase/key-done-and-dusted'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
@@ -337,15 +338,21 @@ response_done = r"""
 """
 
 
+expected_notstarted = ChRISJob(
+    image=Image('ghcr.io/fnndsc/pl-salute-the-sun:latest'),
+    command='/usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing',
+    sharedir='/storebase/key-vitamin-d'
+)
+
 response_notstarted = r"""
 {
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    }\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/storebase/key-example-job'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-salute-the-sun:latest'\n        sharedir: '/storebase/key-vitamin-d'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
     "workflowUrl": "",
-    "labels": "{\"org.chrisproject.pman.name\": \"example-job\"}"
+    "labels": "{\"org.chrisproject.pman.name\": \"vitamin-d\"}"
   },
   "calls": {},
   "outputs": {},
@@ -353,13 +360,18 @@ response_notstarted = r"""
   "inputs": {},
   "labels": {
     "cromwell-workflow-id": "cromwell-70d639fc-d99c-4af9-9d90-519f32a3dc9d",
-    "org.chrisproject.pman.name": "example-job"
+    "org.chrisproject.pman.name": "vitamin-d"
   },
   "submission": "2022-01-24T07:23:47.397Z",
   "status": "Submitted"
 }
 """
 
+expected_queued = ChRISJob(
+    image=Image('internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'),
+    command='/usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing',
+    sharedir='/storebase/key-fruity-fruit'
+)
 
 response_queued = r"""
 {
@@ -374,12 +386,12 @@ response_queued = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    }\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/storebase/key-example-job'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'\n        sharedir: '/storebase/key-fruity-fruit'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
     "workflowUrl": "",
-    "labels": "{\"org.chrisproject.pman.name\": \"example-job\"}"
+    "labels": "{\"org.chrisproject.pman.name\": \"fruity-fruit\"}"
   },
   "calls": {
     "ChRISJob.plugin_instance": [
@@ -399,7 +411,7 @@ response_queued = r"""
   "inputs": {},
   "labels": {
     "cromwell-workflow-id": "cromwell-70d639fc-d99c-4af9-9d90-519f32a3dc9d",
-    "org.chrisproject.pman.name": "example-job"
+    "org.chrisproject.pman.name": "fruity-fruit"
   },
   "submission": "2022-01-24T07:23:47.397Z",
   "status": "Running",

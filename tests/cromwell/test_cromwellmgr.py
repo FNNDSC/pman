@@ -16,7 +16,7 @@ class CromwellTestCase(unittest.TestCase):
         cls.manager = CromwellManager({'CROMWELL_URL': 'https://example.com/'})
 
     @patch('time.sleep')
-    @patch('pman.cromwellmgr.inflate_wdl')
+    @patch('pman.e2_wdl.ChRISJob.to_wdl')
     @patch('cromwell_tools.cromwell_api.CromwellAPI.metadata')
     @patch('cromwell_tools.cromwell_api.CromwellAPI.submit')
     def test_submit(self, mock_submit: Mock, mock_metadata: Mock,
@@ -29,7 +29,7 @@ class CromwellTestCase(unittest.TestCase):
         # but pman wants to get job info, so we need to poll Cromwell a few times.
         ok_res = Mock()
         ok_res.status_code = 200
-        ok_res.text = metadata_example.response_running
+        ok_res.text = metadata_example.response_notstarted
         status_responses = [
             create_404_response('example-jid-4567'),
             create_404_response('example-jid-4567'),
@@ -59,7 +59,7 @@ class CromwellTestCase(unittest.TestCase):
             # check that status was polled
             [call(uuid='example-jid-4567', auth=ANY, raise_for_status=False)] * len(status_responses)
         )
-        mock_sleep.assert_has_calls([call(2)] * 4)
+        mock_sleep.assert_has_calls([call(1)] * 4)
 
     def assertBytesIOEqual(self, expected: str, actual: io.BytesIO):
         self.assertEqual(expected, self.__bytesIO2str(actual))
