@@ -70,13 +70,20 @@ class WorkflowQueryResponse:
     totalResultsCount: int
 
 
+# doesn't seem correct
+# @deserialize
+# class FailureMessage:
+#     """
+#     https://cromwell.readthedocs.io/en/stable/api/RESTAPI/#failuremessage
+#     """
+#     failure: str
+#     timestamp: TimeStamp
+
 @deserialize
-class FailureMessage:
-    """
-    https://cromwell.readthedocs.io/en/stable/api/RESTAPI/#failuremessage
-    """
-    failure: str
-    timestamp: TimeStamp
+class CausedFailure:
+    message: str
+    causedBy: List  # is actually a List['CausedFailure'],
+    # but pyserde does not support circular data definition
 
 
 @deserialize
@@ -89,8 +96,8 @@ class CallMetadata:
     backendLogs: Optional[dict]
     backendStatus: Optional[str]
     end: Optional[TimeStamp]
-    executionStatus: WorkflowStatus
-    failures: Optional[List[FailureMessage]]
+    executionStatus: str
+    failures: Optional[List[CausedFailure]]
     inputs: dict
     jobId: Optional[str]
     returnCode: Optional[int]
@@ -114,7 +121,7 @@ class WorkflowMetadataResponse:
     """
     calls: Optional[dict[str, list[CallMetadata]]]
     end: Optional[TimeStamp]
-    failures: Optional[List[FailureMessage]]
+    failures: Optional[List[CausedFailure]]
     id: WorkflowId
     inputs: Optional[dict]
     outputs: Optional[dict]

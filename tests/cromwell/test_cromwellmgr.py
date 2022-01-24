@@ -87,7 +87,7 @@ class CromwellTestCase(unittest.TestCase):
         job_info = self.manager.get_job_info(metadata_example.workflow_uuid)
         mock_metadata.assert_called_once_with(uuid=metadata_example.workflow_uuid,
                                               auth=ANY, raise_for_status=True)
-        self.assertEqual(metadata_example.expected_info, job_info)
+        self.assertEqual(metadata_example.expected_running, job_info)
 
     @patch_cromwell_api('query', query_example.response_text)
     def test_get_job(self, mock_query: Mock):
