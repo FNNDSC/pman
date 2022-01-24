@@ -6,3 +6,5 @@ Dockerfile
 .git
 LICENSE
 CHRIS_REMOTE_FS
+venv/
+

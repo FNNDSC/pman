@@ -10,7 +10,7 @@ from .abstractmgr import ManagerException
 from .openshiftmgr import OpenShiftManager
 from .kubernetesmgr import KubernetesManager
 from .swarmmgr import SwarmManager
-
+from .cromwellmgr import CromwellManager
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,8 @@ def get_compute_mgr(container_env):
         compute_mgr = KubernetesManager(app.config)
     elif container_env == 'openshift':
         compute_mgr = OpenShiftManager()
+    elif container_env == 'cromwell':
+        compute_mgr = CromwellManager(app.config)
     return compute_mgr
 
 
