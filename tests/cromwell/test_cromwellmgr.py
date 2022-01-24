@@ -57,7 +57,7 @@ class CromwellTestCase(unittest.TestCase):
         # assert polling worked
         mock_status.assert_has_calls(
             # check that status was polled
-            [call(uuid='example-jid-4567', auth=ANY, raise_for_status=True)] * len(status_responses)
+            [call(uuid='example-jid-4567', auth=ANY, raise_for_status=False)] * len(status_responses)
         )
         mock_sleep.assert_has_calls(
             # first sleep is a bit longer

@@ -40,7 +40,7 @@ class CromwellClient:
 
         :return: workflow ID and status, or None if workflow not found
         """
-        res = CromwellAPI.status(uuid=uuid, auth=self.auth, raise_for_status=True)
+        res = CromwellAPI.status(uuid=uuid, auth=self.auth, raise_for_status=False)
         if res.status_code == 404:
             return None
         res.raise_for_status()
