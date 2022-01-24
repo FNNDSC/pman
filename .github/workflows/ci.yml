@@ -22,8 +22,8 @@ jobs:
       - name: provision local services
         run: |
           docker swarm init --advertise-addr 127.0.0.1
-          docker build --build-arg ENVIRONMENT=local -t fnndsc/pman:dev .
-          ./make.sh -s -U -i
+          docker build --build-arg ENVIRONMENT=local -t local/pman:dev .
+          ./make.sh -s -U -i local:dev
       - name: nosetests
         run: docker exec $(docker ps -f label=org.chrisproject.role=pman -q | head -n 1) nosetests --exe tests
       - name: teardown
