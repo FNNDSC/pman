@@ -6,6 +6,7 @@ TODO: another microservice to fill functionality not provided by Cromwell
 
 """
 
+import logging
 import time
 from typing import Optional, Tuple
 from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, JobName
@@ -27,6 +28,8 @@ STATUS_MAP = {
     WorkflowStatus.Succeeded: JobStatus.finishedSuccessfully,
     WorkflowStatus.Failed: JobStatus.finishedWithError
 }
+
+logger = logging.getLogger(__name__)
 
 
 class CromwellManager(AbstractManager[WorkflowId]):
@@ -146,7 +149,8 @@ class CromwellManager(AbstractManager[WorkflowId]):
         if res.totalResultsCount < 1:
             return None
         if res.totalResultsCount > 1:
-            raise CromwellException(f'Multiple jobs found for name="{name}"\n{str(res)}')
+            logger.warning('More than one job where name="%s" found in: %s', name, str(res))
+            # we will return the first one in the list, which is probably the most recent
         return res.results[0]
 
     def remove_job(self, job: WorkflowId):
