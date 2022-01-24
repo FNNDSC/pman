@@ -78,29 +78,47 @@ class CromwellManager(AbstractManager[WorkflowId]):
 
         res = self.__client.submit(wdl, label={self.PMAN_CROMWELL_LABEL: name})
         self.__must_be_submitted(res)
-        time.sleep(0.5)
-        if (polled_res := self.__block_until_submitted(res.id)) is None:
-            raise CromwellException('Workflow was submitted, but timed out waiting for it '
-                                    f'to appear in Cromwell: {res.id}')
-        return polled_res
+        if not self.__block_until_called(res.id):
+            raise CromwellException('Workflow was submitted, but timed out waiting for '
+                                    f'Cromwell to produce a call on: {res.id}')
+        return res
 
     @staticmethod
     def __must_be_submitted(res: WorkflowIdAndStatus):
         if res.status != WorkflowStatus.Submitted:
             raise CromwellException(f'Workflow status is not "Submitted": {res}')
 
-    def __block_until_submitted(self, uuid: WorkflowId, tries=20, interval=0.2) -> Optional[WorkflowIdAndStatus]:
+    def __block_until_called(self, uuid: WorkflowId, tries=20, interval=2) -> bool:
         """
-        Poll for a workflow's status until it shows up in Cromwell.
+        Poll for a workflow's metadata until a call has been produced by Cromwell.
 
-        :return: workflow status, or None if it never appears in Cromwell
+        After submitting a workflow, it take a little while for it to register in
+        Cromwell, and then it takes a little bit more for it to be parsed, processed,
+        and then finally scheduled.
+
+        :return: True if a call has been made before timeout, otherwise False
         """
         if tries <= 0:
-            return None
-        if (res := self.__client.status(uuid)) is not None:
-            return res
+            return False
         time.sleep(interval)
-        return self.__block_until_submitted(uuid, tries - 1, interval)
+        if self.__call_is_ok(self.__client.metadata(uuid)):
+            return True
+        return self.__block_until_called(uuid, tries - 1, interval)
+
+    @staticmethod
+    def __call_is_ok(res: Optional[WorkflowMetadataResponse]) -> bool:
+        """
+        :return: True if workflow emtadata exists, has a call, and all calls have a commandLine
+        """
+        if res is None:
+            return False
+        # FIXME instead of waiting for a call to be made, parse the submitted
+        # WDL file for this information instead.
+        # This code should be reused between get_job_info
+        if len(res.calls) == 0:
+            return False
+        calls = [c for task_calls in res.calls.values() for c in task_calls]
+        return all(c.commandLine is not None for c in calls)
 
     def get_job(self, name: JobName) -> WorkflowId:
         job = self.__query_by_name(name)

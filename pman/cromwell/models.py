@@ -98,15 +98,15 @@ class CallMetadata:
     end: Optional[TimeStamp]
     executionStatus: str
     failures: Optional[List[CausedFailure]]
-    inputs: dict
+    inputs: Optional[dict]
     jobId: Optional[str]
     returnCode: Optional[int]
     start: Optional[TimeStamp]
     stderr: Optional[Path]
     stdout: Optional[Path]
     # these fields are not documented, yet they are very important
-    commandLine: str
-    runtimeAttributes: RuntimeAttributes
+    commandLine: Optional[str]
+    runtimeAttributes: Optional[RuntimeAttributes]
     attempt: Optional[int]
     # and these, we don't care about
     # compressedDockerSize: int

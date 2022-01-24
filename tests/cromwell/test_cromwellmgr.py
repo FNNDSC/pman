@@ -17,9 +17,9 @@ class CromwellTestCase(unittest.TestCase):
 
     @patch('time.sleep')
     @patch('pman.cromwellmgr.inflate_wdl')
-    @patch('cromwell_tools.cromwell_api.CromwellAPI.status')
+    @patch('cromwell_tools.cromwell_api.CromwellAPI.metadata')
     @patch('cromwell_tools.cromwell_api.CromwellAPI.submit')
-    def test_submit(self, mock_submit: Mock, mock_status: Mock,
+    def test_submit(self, mock_submit: Mock, mock_metadata: Mock,
                     mock_inflate: Mock, mock_sleep: Mock):
         # mock WDL template
         fake_wdl = 'fake wdl'
@@ -29,14 +29,14 @@ class CromwellTestCase(unittest.TestCase):
         # but pman wants to get job info, so we need to poll Cromwell a few times.
         ok_res = Mock()
         ok_res.status_code = 200
-        ok_res.text = r'{"id": "example-jid-4567", "status": "Submitted"}'
+        ok_res.text = metadata_example.response_running
         status_responses = [
             create_404_response('example-jid-4567'),
             create_404_response('example-jid-4567'),
             create_404_response('example-jid-4567'),
             ok_res
         ]
-        mock_status.side_effect = status_responses
+        mock_metadata.side_effect = status_responses
 
         mock_submit.return_value = Mock()
         mock_submit.return_value.text = r'{"id": "example-jid-4567", "status": "Submitted"}'
@@ -55,14 +55,11 @@ class CromwellTestCase(unittest.TestCase):
         )
 
         # assert polling worked
-        mock_status.assert_has_calls(
+        mock_metadata.assert_has_calls(
             # check that status was polled
             [call(uuid='example-jid-4567', auth=ANY, raise_for_status=False)] * len(status_responses)
         )
-        mock_sleep.assert_has_calls(
-            # first sleep is a bit longer
-            [call(i) for i in [0.5, 0.2, 0.2, 0.2]]
-        )
+        mock_sleep.assert_has_calls([call(2)] * 4)
 
     def assertBytesIOEqual(self, expected: str, actual: io.BytesIO):
         self.assertEqual(expected, self.__bytesIO2str(actual))
@@ -86,7 +83,7 @@ class CromwellTestCase(unittest.TestCase):
     def test_get_job_info(self, mock_metadata: Mock):
         job_info = self.manager.get_job_info(metadata_example.workflow_uuid)
         mock_metadata.assert_called_once_with(uuid=metadata_example.workflow_uuid,
-                                              auth=ANY, raise_for_status=True)
+                                              auth=ANY, raise_for_status=False)
         self.assertEqual(metadata_example.expected_running, job_info)
 
     @patch_cromwell_api('query', query_example.response_text)

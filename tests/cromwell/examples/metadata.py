@@ -335,3 +335,74 @@ response_done = r"""
   "start": "2022-01-24T06:16:35.381Z"
 }
 """
+
+
+response_notstarted = r"""
+{
+  "submittedFiles": {
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    }\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/storebase/key-example-job'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "root": "",
+    "options": "{\n\n}",
+    "inputs": "{}",
+    "workflowUrl": "",
+    "labels": "{\"org.chrisproject.pman.name\": \"example-job\"}"
+  },
+  "calls": {},
+  "outputs": {},
+  "id": "70d639fc-d99c-4af9-9d90-519f32a3dc9d",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-70d639fc-d99c-4af9-9d90-519f32a3dc9d",
+    "org.chrisproject.pman.name": "example-job"
+  },
+  "submission": "2022-01-24T07:23:47.397Z",
+  "status": "Submitted"
+}
+"""
+
+
+response_queued = r"""
+{
+  "workflowName": "ChRISJob",
+  "workflowProcessingEvents": [
+    {
+      "cromwellId": "cromid-01f0ee2",
+      "description": "PickedUp",
+      "timestamp": "2022-01-24T07:23:59.398Z",
+      "cromwellVersion": "74-10892f4"
+    }
+  ],
+  "actualWorkflowLanguageVersion": "1.0",
+  "submittedFiles": {
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing\n    }\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-office-convert:0.0.2'\n        sharedir: '/storebase/key-example-job'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "root": "",
+    "options": "{\n\n}",
+    "inputs": "{}",
+    "workflowUrl": "",
+    "labels": "{\"org.chrisproject.pman.name\": \"example-job\"}"
+  },
+  "calls": {
+    "ChRISJob.plugin_instance": [
+      {
+        "executionStatus": "QueuedInCromwell",
+        "shardIndex": -1,
+        "backend": "SLURM",
+        "attempt": 1,
+        "start": "2022-01-24T07:24:00.451Z"
+      }
+    ]
+  },
+  "outputs": {},
+  "workflowRoot": "/cromwell-executions/ChRISJob/70d639fc-d99c-4af9-9d90-519f32a3dc9d",
+  "actualWorkflowLanguage": "WDL",
+  "id": "70d639fc-d99c-4af9-9d90-519f32a3dc9d",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-70d639fc-d99c-4af9-9d90-519f32a3dc9d",
+    "org.chrisproject.pman.name": "example-job"
+  },
+  "submission": "2022-01-24T07:23:47.397Z",
+  "status": "Running",
+  "start": "2022-01-24T07:23:59.400Z"
+}
+"""

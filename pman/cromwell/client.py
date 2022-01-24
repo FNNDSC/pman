@@ -54,9 +54,12 @@ class CromwellClient:
                                 auth=self.auth, raise_for_status=True)
         return from_json(WorkflowQueryResponse, res.text)
 
-    def metadata(self, uuid: WorkflowId) -> WorkflowMetadataResponse:
+    def metadata(self, uuid: WorkflowId) -> Optional[WorkflowMetadataResponse]:
         res = CromwellAPI.metadata(uuid=uuid,
-                                   auth=self.auth, raise_for_status=True)
+                                   auth=self.auth, raise_for_status=False)
+        if res.status_code == 404:
+            return None
+        res.raise_for_status()
         return from_json(WorkflowMetadataResponse, res.text)
 
     def abort(self, uuid: WorkflowId) -> WorkflowIdAndStatus:
