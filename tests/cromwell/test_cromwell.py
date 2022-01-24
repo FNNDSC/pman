@@ -86,6 +86,13 @@ class CromwellTestCase(unittest.TestCase):
             auth=ANY, raise_for_status=True
         )
 
+    @patch_cromwell_api('query', r'{"results": [], "totalResultsCount": 0}')
+    def test_get_job_not_found(self, mock_query: Mock):
+        with self.assertRaises(CromwellException) as e:
+            self.manager.get_job(JobName('sushi'))
+        self.assertEqual(404, e.exception.status_code,
+                         msg='Should have Exception with status_code=404 when job not found')
+
     @patch_cromwell_api('abort', r'{"id": "tbh didnt actually try this one", "status": "Aborting"}')
     def test_abort(self, mock_abort: Mock):
         w = WorkflowId('remove-me')
