@@ -117,7 +117,12 @@ class CromwellManager(AbstractManager[WorkflowId]):
 
     def get_job_logs(self, job: WorkflowId) -> str:
         # cromwell_tools.utilities.download
-        return 'Logs from the Cromwell backend not yet implemented.'
+        data = self.__client.logs_idc(job)
+        return (
+            'Logs not yet supported for Cromwell backend. '
+            'They can be read manually from here:\n'
+            + json.dumps(data, indent=2)
+        )
 
     def get_job_info(self, job: WorkflowId) -> JobInfo:
         info = self._check_job_info(job)

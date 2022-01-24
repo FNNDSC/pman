@@ -8,6 +8,8 @@ from .models import (
 )
 from cromwell_tools.cromwell_api import CromwellAPI, CromwellAuth
 from serde.json import from_json
+from os import path
+import requests
 
 
 @dataclass
@@ -68,6 +70,15 @@ class CromwellClient:
         """
         res = CromwellAPI.abort(uuid=uuid, auth=self.auth, raise_for_status=True)
         return from_json(WorkflowIdAndStatus, res.text)
+
+    def logs_idc(self, uuid: WorkflowId) -> dict:
+        """
+        This method is not available in upstream cromwell-tools.
+        """
+        uri = path.join(self.auth.url, '/api/workflows/v1', uuid, '/logs')
+        res = requests.get(uri)
+        res.raise_for_status()
+        return res.json()
 
     @classmethod
     def __create_label(cls, d: Dict[str, str]) -> io.BytesIO:
