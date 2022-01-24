@@ -129,7 +129,7 @@ class WorkflowMetadataResponse:
     """
     https://cromwell.readthedocs.io/en/stable/api/RESTAPI/#workflowmetadataresponse
     """
-    calls: Optional[Dict[str, list[CallMetadata]]]
+    calls: Optional[Dict[str, List[CallMetadata]]]
     end: Optional[TimeStamp]
     failures: Optional[List[CausedFailure]]
     id: WorkflowId
