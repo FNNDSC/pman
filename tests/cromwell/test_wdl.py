@@ -1,5 +1,5 @@
 import unittest
-from pman.slurmwdl import SlurmJob
+from pman.cromwell.slurm.wdl import SlurmJob
 from pman.cromwell.models import WorkflowMetadataResponse
 import tests.cromwell.examples.metadata as mexamples
 import tests.cromwell.examples.wdl as wexamples

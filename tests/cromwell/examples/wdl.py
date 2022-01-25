@@ -1,5 +1,5 @@
 from collections import namedtuple
-from pman.slurmwdl import SlurmJob, Image, StrWdl
+from pman.cromwell.slurm.wdl import SlurmJob, Image, StrWdl
 
 Example = namedtuple('Example', ['wdl', 'info'])
 

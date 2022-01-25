@@ -1,8 +1,6 @@
 """
 WDL template for running a *ChRIS* plugin on SLURM.
 
-TODO pass resources_dict (requested CPU, mem, GPU, ...) into the WDL task runtime
-
 Maybe it would be nice to set a workflow name instead of just "ChrisPlugin"
 but it doesn't really matter.
 """
@@ -11,7 +9,7 @@ from typing import Optional, Tuple
 
 from serde import from_dict, deserialize
 from jinja2 import Environment
-from .abstractmgr import Image, Resources
+from pman.abstractmgr import Image, Resources
 from pman.cromwell.models import StrWdl, RuntimeAttributes
 from dataclasses import dataclass
 
@@ -86,15 +84,44 @@ class SlurmRuntimeAttributes:
     These fields are custom to how Cromwell is configured to speak with BCH E2 SLURM.
     """
     runtime_minutes: int
-    queue: str
-    requested_memory_mb_per_core: int
-    failOnStderr: bool
-    sharedir: str
-    continueOnReturnCode: int
-    docker: Image
-    maxRetries: int
+    """
+    Execution time limit in minutes
+
+    https://slurm.schedmd.com/sbatch.html#OPT_time
+    """
+    requested_memory: int
+    """
+    Memory request in MB
+
+    https://slurm.schedmd.com/sbatch.html#OPT_mem
+    """
     cpus: int
-    account: str
+    """
+    Number of CPUs.
+
+    https://slurm.schedmd.com/sbatch.html#OPT_cpus-per-task
+    """
+    slurm_partition: str
+    """
+    SLURM partition name
+    
+    https://slurm.schedmd.com/sbatch.html#OPT_partition
+    """
+    slurm_account: str
+    """
+    SLURM account name
+
+    https://slurm.schedmd.com/sbatch.html#OPT_account
+    """
+
+    # pman-specific
+    sharedir: str
+    docker: Image
+
+    # Cromwell-specific
+    failOnStderr: bool
+    continueOnReturnCode: int
+    maxRetries: int
 
     @classmethod
     def deserialize(cls, _a: RuntimeAttributes) -> 'SlurmRuntimeAttributes':

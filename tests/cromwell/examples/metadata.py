@@ -1,6 +1,6 @@
 from pman.cromwell.models import WorkflowId, WorkflowStatus
 from pman.abstractmgr import JobInfo, JobStatus, Image, TimeStamp, JobName
-from pman.slurmwdl import SlurmJob
+from pman.cromwell.slurm.wdl import SlurmJob
 
 workflow_uuid = WorkflowId('4165ed81-c121-4a8d-b284-a6dda9ef0aa8')
 
@@ -46,15 +46,15 @@ response_running = r"""
         "shardIndex": -1,
         "runtimeAttributes": {
           "runtime_minutes": "5",
-          "queue": "my-slurm-partition",
-          "requested_memory_mb_per_core": "4000",
+          "slurm_partition": "my-slurm-partition",
+          "requested_memory": "4000",
           "failOnStderr": "false",
           "sharedir": "/mounted/storebase/example-jid-1234",
           "continueOnReturnCode": "0",
           "docker": "docker.io/fnndsc/pl-office-convert:0.0.1",
           "maxRetries": "0",
           "cpus": "2",
-          "account": "fnndsc"
+          "slurm_account": "fnndsc"
         },
         "callCaching": {
           "allowResultReuse": false,
@@ -133,15 +133,15 @@ response_failed = r"""
         "shardIndex": -1,
         "runtimeAttributes": {
           "runtime_minutes": "5",
-          "queue": "soloq",
-          "requested_memory_mb_per_core": "4000",
+          "slurm_partition": "soloq",
+          "requested_memory": "4000",
           "failOnStderr": "false",
           "sharedir": "/mounted/storebase/key-wont-work",
           "continueOnReturnCode": "0",
           "docker": "ghcr.io/fnndsc/pl-office-convert:0.0.2",
           "maxRetries": "0",
           "cpus": "2",
-          "account": "faker"
+          "slurm_account": "faker"
         },
         "callCaching": {
           "allowResultReuse": false,
@@ -262,15 +262,15 @@ response_done = r"""
         "outputs": {},
         "runtimeAttributes": {
           "runtime_minutes": "5",
-          "queue": "toplane",
-          "requested_memory_mb_per_core": "4000",
+          "slurm_partition": "toplane",
+          "requested_memory": "4000",
           "failOnStderr": "false",
           "sharedir": "/mounted/storebase/key-done-and-dusted",
           "continueOnReturnCode": "0",
           "docker": "ghcr.io/fnndsc/pl-office-convert:0.0.2",
           "maxRetries": "0",
           "cpus": "2",
-          "account": "kled"
+          "slurm_account": "kled"
         },
         "callCaching": {
           "allowResultReuse": false,

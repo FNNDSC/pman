@@ -17,7 +17,7 @@ from .cromwell.models import (
     WorkflowMetadataResponse
 )
 from .cromwell.client import CromwellAuth, CromwellClient
-from .slurmwdl import SlurmJob, SlurmRuntimeAttributes
+from pman.cromwell.slurm.wdl import SlurmJob, SlurmRuntimeAttributes
 
 
 STATUS_MAP = {
