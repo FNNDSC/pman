@@ -10,7 +10,7 @@ import json
 import logging
 import time
 from typing import Optional
-from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, JobName, TimeStamp
+from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, JobName, TimeStamp, Resources
 from .cromwell.models import (
     WorkflowId, StrWdl,
     WorkflowStatus, WorkflowIdAndStatus, WorkflowQueryResult,
@@ -60,8 +60,8 @@ class CromwellManager(AbstractManager[WorkflowId]):
         self.__client = CromwellClient(auth)
 
     def schedule_job(self, image: Image, command: str, name: JobName,
-                     resources_dict: dict, mountdir: Optional[str] = None) -> WorkflowId:
-        wdl = SlurmJob(image, command, mountdir, resources_dict).to_wdl()
+                     resources_dict: Resources, mountdir: Optional[str] = None) -> WorkflowId:
+        wdl = SlurmJob(image, command, mountdir, None, resources_dict).to_wdl()
         res = self.__submit(wdl, name)
         # Submission does not appear in Cromwell immediately, but pman wants to
         # get job info, so we need to wait for Cromwell to catch up.
