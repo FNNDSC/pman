@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, NewType, Optional
+from typing import Generic, TypeVar, NewType, Optional, TypedDict
 from dataclasses import dataclass
 from enum import Enum
 
@@ -46,6 +46,31 @@ class JobInfo:
     status: JobStatus
 
 
+class Resources(TypedDict):
+    number_of_workers: int
+    """
+    Number of workers for multi-node parallelism.
+    """
+    cpu_limit: int
+    """
+    CPU resource in millicores.
+    
+    For example, 1000 represents "1000m" or 1.0 CPU cores.
+    
+    https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu
+    """
+    memory_limit: int
+    """
+    Memory requirement in mebibytes.
+    
+    For example, 1000 represents "1000Mi" = "1049M" = 1.049e+9 bytes
+    """
+    gpu_limit: int
+    """
+    GPU requirement in number of GPUs.
+    """
+
+
 class AbstractManager(ABC, Generic[J]):
     """
     An ``AbstractManager`` is an API to a service which can schedule
@@ -60,7 +85,7 @@ class AbstractManager(ABC, Generic[J]):
 
     @abstractmethod
     def schedule_job(self, image: Image, command: str, name: JobName,
-                     resources_dict: dict, mountdir: Optional[str] = None) -> J:
+                     resources_dict: Resources, mountdir: Optional[str] = None) -> J:
         """
         Schedule a new job and return the job object.
         """
