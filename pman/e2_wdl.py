@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 
 from serde import from_dict, deserialize
 from jinja2 import Environment
-from .abstractmgr import Image
+from .abstractmgr import Image, Resources
 from pman.cromwell.models import StrWdl, RuntimeAttributes
 from dataclasses import dataclass
 
@@ -43,7 +43,7 @@ class ChRISJob:
     image: Image
     command: str
     sharedir: str
-    resources_dict: Optional[dict] = None
+    resources_dict: Optional[Resources] = None
 
     def to_wdl(self) -> StrWdl:
         """
