@@ -1,5 +1,5 @@
 """
-WDL template for running a *ChRIS* plugin on the BCH *E2* SLURM.
+WDL template for running a *ChRIS* plugin on SLURM.
 
 TODO pass resources_dict (requested CPU, mem, GPU, ...) into the WDL task runtime
 
@@ -26,6 +26,9 @@ task plugin_instance {
     runtime {
         docker: '{{ docker }}'
         sharedir: '{{ sharedir }}'
+        {%- if partition %}
+        slurm_partition: '{{ partition }}'
+        {%- endif %}
     }
 }
 
@@ -36,13 +39,15 @@ workflow ChRISJob {
 
 
 @dataclass
-class ChRISJob:
+class SlurmJob:
     """
     Represents a ChRIS plugin instance which runs on E2.
     """
     image: Image
     command: str
     sharedir: str
+    partition: Optional[str] = None
+    """https://slurm.schedmd.com/sbatch.html#OPT_partition"""
     resources_dict: Optional[dict] = None
 
     def to_wdl(self) -> StrWdl:
@@ -50,22 +55,27 @@ class ChRISJob:
         :return: a WDL wrapper for a *ChRIS* plugin instance
         """
         return StrWdl(template.render(
-            cmd=self.command, docker=self.image, sharedir=self.sharedir
+            cmd=self.command, docker=self.image,
+            partition=self.partition, sharedir=self.sharedir
         ))
 
     @classmethod
-    def from_wdl(cls, wdl: StrWdl) -> 'ChRISJob':
+    def from_wdl(cls, wdl: StrWdl) -> 'SlurmJob':
         command, end = cls._get_between(wdl, 'command {\n', '    } #ENDCOMMAND\n', 35)
         image, end = cls._get_between(wdl, "docker: '", "'\n", end)
-        sharedir, _ = cls._get_between(wdl, "sharedir: '", "'\n", end)
-        return cls(Image(image), command.strip(), sharedir)
+        sharedir, end = cls._get_between(wdl, "sharedir: '", "'\n", end)
+        partition, _ = cls._get_between(wdl, "slurm_partition: '", "'\n", end)
+        return cls(Image(image), command.strip(), sharedir, partition)
 
     @staticmethod
-    def _get_between(data: str, lookahead: str, lookbehind: str, start: int = 0) -> Tuple[str, int]:
+    def _get_between(data: str, lookahead: str, lookbehind: str, start: int = 0) -> Tuple[Optional[str], int]:
         """
         Some light parsing because miniwdl is not mini at all, and regex is ugly.
         """
-        beginning = data.index(lookahead, start) + len(lookahead)
+        beginning = data.find(lookahead, start)
+        if beginning == -1:
+            return None, start
+        beginning += len(lookahead)
         end = data.index(lookbehind, beginning)
         return data[beginning:end], end
 

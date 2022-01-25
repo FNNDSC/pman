@@ -17,7 +17,7 @@ from .cromwell.models import (
     WorkflowMetadataResponse
 )
 from .cromwell.client import CromwellAuth, CromwellClient
-from .e2_wdl import ChRISJob, SlurmRuntimeAttributes
+from .slurmwdl import SlurmJob, SlurmRuntimeAttributes
 
 
 STATUS_MAP = {
@@ -61,7 +61,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
 
     def schedule_job(self, image: Image, command: str, name: JobName,
                      resources_dict: dict, mountdir: Optional[str] = None) -> WorkflowId:
-        wdl = ChRISJob(image, command, mountdir, resources_dict).to_wdl()
+        wdl = SlurmJob(image, command, mountdir, resources_dict).to_wdl()
         res = self.__submit(wdl, name)
         # Submission does not appear in Cromwell immediately, but pman wants to
         # get job info, so we need to wait for Cromwell to catch up.
@@ -179,7 +179,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
         """
         Get info from a workflow by parsing its submittedFiles.
         """
-        job_details = ChRISJob.from_wdl(res.submittedFiles.workflow)
+        job_details = SlurmJob.from_wdl(res.submittedFiles.workflow)
         labels = json.loads(res.submittedFiles.labels)
 
         message = 'Waiting to be picked up by Cromwell'

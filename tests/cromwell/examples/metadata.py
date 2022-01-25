@@ -1,6 +1,6 @@
 from pman.cromwell.models import WorkflowId, WorkflowStatus
 from pman.abstractmgr import JobInfo, JobStatus, Image, TimeStamp, JobName
-from pman.e2_wdl import ChRISJob
+from pman.slurmwdl import SlurmJob
 
 workflow_uuid = WorkflowId('4165ed81-c121-4a8d-b284-a6dda9ef0aa8')
 
@@ -338,7 +338,7 @@ response_done = r"""
 """
 
 
-expected_notstarted = ChRISJob(
+expected_notstarted = SlurmJob(
     image=Image('ghcr.io/fnndsc/pl-salute-the-sun:latest'),
     command='/usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing',
     sharedir='/storebase/key-vitamin-d'
@@ -367,7 +367,7 @@ response_notstarted = r"""
 }
 """
 
-expected_queued = ChRISJob(
+expected_queued = SlurmJob(
     image=Image('internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'),
     command='/usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing',
     sharedir='/storebase/key-fruity-fruit'
