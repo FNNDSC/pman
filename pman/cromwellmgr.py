@@ -1,5 +1,5 @@
 """
-TODO: another microservice to fill functionality not provided by Cromwell
+TODO: get_job_logs and remove_job
 
 - manager.get_job_logs --> return stdout
 - manager.remove_job --> remove files
@@ -56,12 +56,13 @@ class CromwellManager(AbstractManager[WorkflowId]):
 
     def __init__(self, config_dict=None):
         super().__init__(config_dict)
+        self.__timelimit = config_dict['TIMELIMIT_MINUTES']
         auth = CromwellAuth(config_dict['CROMWELL_URL'])
         self.__client = CromwellClient(auth)
 
     def schedule_job(self, image: Image, command: str, name: JobName,
                      resources_dict: Resources, mountdir: Optional[str] = None) -> WorkflowId:
-        wdl = SlurmJob(image, command, mountdir, None, resources_dict).to_wdl()
+        wdl = SlurmJob(image, command, mountdir, resources_dict, self.__timelimit).to_wdl()
         res = self.__submit(wdl, name)
         # Submission does not appear in Cromwell immediately, but pman wants to
         # get job info, so we need to wait for Cromwell to catch up.

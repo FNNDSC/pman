@@ -44,6 +44,7 @@ class Config:
 
         if self.CONTAINER_ENV == 'cromwell':
             self.CROMWELL_URL = env('CROMWELL_URL')
+            self.TIMELIMIT_MINUTES = env.int('TIMELIMIT_MINUTES')
 
         self.env = env
 

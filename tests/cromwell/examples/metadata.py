@@ -1,8 +1,22 @@
 from pman.cromwell.models import WorkflowId, WorkflowStatus
-from pman.abstractmgr import JobInfo, JobStatus, Image, TimeStamp, JobName
+from pman.abstractmgr import JobInfo, JobStatus, Image, TimeStamp, JobName, Resources
 from pman.cromwell.slurm.wdl import SlurmJob
 
 workflow_uuid = WorkflowId('4165ed81-c121-4a8d-b284-a6dda9ef0aa8')
+
+job_running = SlurmJob(
+    image=Image('docker.io/fnndsc/pl-office-convert:0.0.1'),
+    command='office_convert /share/incoming /share/outgoing',
+    sharedir='/mounted/storebase/example-jid-1234',
+    timelimit=5,
+    partition='my-slurm-partition',
+    resources_dict=Resources(
+        number_of_workers=1,
+        cpu_limit=2000,
+        memory_limit=4000,
+        gpu_limit=0
+    )
+)
 
 expected_running = JobInfo(
     name=JobName('example-jid-1234'),
@@ -26,7 +40,7 @@ response_running = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "version 1.0\n\ntask plugin_instance {\n    command {\n        office_convert /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'docker.io/fnndsc/pl-office-convert:0.0.1'\n        sharedir: '/mounted/storebase/example-jid-1234'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}\n",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        office_convert /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'docker.io/fnndsc/pl-office-convert:0.0.1'\n        sharedir: '/mounted/storebase/example-jid-1234'\n        cpu: '2'\n        memory: '4195M'\n        gpus_per_task: '0'\n        number_of_workers: '1'\n        timelimit: '5'\n        slurm_partition: 'my-slurm-partition'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "workflowType": "WDL",
     "root": "",
     "workflowTypeVersion": "1.0",
@@ -45,16 +59,16 @@ response_running = r"""
         "commandLine": "office_convert /share/incoming /share/outgoing",
         "shardIndex": -1,
         "runtimeAttributes": {
-          "runtime_minutes": "5",
+          "timelimit": "5",
           "slurm_partition": "my-slurm-partition",
-          "requested_memory": "4000",
+          "memory": "4000M",
           "failOnStderr": "false",
           "sharedir": "/mounted/storebase/example-jid-1234",
           "continueOnReturnCode": "0",
           "docker": "docker.io/fnndsc/pl-office-convert:0.0.1",
           "maxRetries": "0",
-          "cpus": "2",
-          "slurm_account": "fnndsc"
+          "cpu": "2",
+          "number_of_workers": "1"
         },
         "callCaching": {
           "allowResultReuse": false,
@@ -132,16 +146,15 @@ response_failed = r"""
         "commandLine": "/usr/local/bin/python /usr/local/bin/office_convert  /share/incoming /share/outgoing",
         "shardIndex": -1,
         "runtimeAttributes": {
-          "runtime_minutes": "5",
+          "timelimit": "5",
           "slurm_partition": "soloq",
-          "requested_memory": "4000",
+          "memory": "4000",
           "failOnStderr": "false",
           "sharedir": "/mounted/storebase/key-wont-work",
           "continueOnReturnCode": "0",
           "docker": "ghcr.io/fnndsc/pl-office-convert:0.0.2",
           "maxRetries": "0",
-          "cpus": "2",
-          "slurm_account": "faker"
+          "cpu": "2"
         },
         "callCaching": {
           "allowResultReuse": false,
@@ -261,16 +274,15 @@ response_done = r"""
         "shardIndex": -1,
         "outputs": {},
         "runtimeAttributes": {
-          "runtime_minutes": "5",
+          "timelimit": "5",
           "slurm_partition": "toplane",
-          "requested_memory": "4000",
+          "memory": "4000",
           "failOnStderr": "false",
           "sharedir": "/mounted/storebase/key-done-and-dusted",
           "continueOnReturnCode": "0",
           "docker": "ghcr.io/fnndsc/pl-office-convert:0.0.2",
           "maxRetries": "0",
-          "cpus": "2",
-          "slurm_account": "kled"
+          "cpu": "2"
         },
         "callCaching": {
           "allowResultReuse": false,
@@ -341,13 +353,20 @@ response_done = r"""
 expected_notstarted = SlurmJob(
     image=Image('ghcr.io/fnndsc/pl-salute-the-sun:latest'),
     command='/usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing',
-    sharedir='/storebase/key-vitamin-d'
+    sharedir='/storebase/key-vitamin-d',
+    timelimit=50,
+    resources_dict=Resources(
+        number_of_workers=1,
+        cpu_limit=2000,
+        memory_limit=5678,
+        gpu_limit=2
+    )
 )
 
 response_notstarted = r"""
 {
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-salute-the-sun:latest'\n        sharedir: '/storebase/key-vitamin-d'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-salute-the-sun:latest'\n        sharedir: '/storebase/key-vitamin-d'\n        cpu: '2'\n        memory: '5954M'\n        gpus_per_task: '2'\n        number_of_workers: '1'\n        timelimit: '50'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
@@ -370,7 +389,14 @@ response_notstarted = r"""
 expected_queued = SlurmJob(
     image=Image('internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'),
     command='/usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing',
-    sharedir='/storebase/key-fruity-fruit'
+    sharedir='/storebase/key-fruity-fruit',
+    timelimit=70,
+    resources_dict=Resources(
+        number_of_workers=3,
+        cpu_limit=1000,
+        memory_limit=789,
+        gpu_limit=0
+    )
 )
 
 response_queued = r"""
@@ -386,7 +412,7 @@ response_queued = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'\n        sharedir: '/storebase/key-fruity-fruit'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'\n        sharedir: '/storebase/key-fruity-fruit'\n        cpu: '1'\n        memory: '828M'\n        gpus_per_task: '0'\n        number_of_workers: '3'\n        timelimit: '70'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
