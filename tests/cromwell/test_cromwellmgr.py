@@ -13,10 +13,15 @@ class CromwellTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.manager = CromwellManager({'CROMWELL_URL': 'https://example.com/'})
+        cls.manager = CromwellManager({
+            'CROMWELL_URL': 'https://example.com/',
+            'TIMELIMIT_MINUTES': 30
+        })
+
+        cls.example_resources = metadata_example.job_running.resources_dict
 
     @patch('time.sleep')
-    @patch('pman.e2_wdl.ChRISJob.to_wdl')
+    @patch('pman.cromwell.slurm.wdl.SlurmJob.to_wdl')
     @patch('cromwell_tools.cromwell_api.CromwellAPI.metadata')
     @patch('cromwell_tools.cromwell_api.CromwellAPI.submit')
     def test_submit(self, mock_submit: Mock, mock_metadata: Mock,
@@ -43,7 +48,9 @@ class CromwellTestCase(unittest.TestCase):
 
         self.manager.schedule_job(
             Image('fnndsc/pl-simpledsapp'), 'simpledsapp /in /out',
-            JobName('example-jid-4567'), {}, '/storeBase/whatever'
+            JobName('example-jid-4567'),
+            self.example_resources,
+            '/storeBase/whatever'
         )
 
         # assert submitted with correct data
@@ -76,7 +83,8 @@ class CromwellTestCase(unittest.TestCase):
         with self.assertRaises(CromwellException):
             self.manager.schedule_job(
                 Image('fnndsc/pl-simpledsapp'), 'simpledsapp /in /out',
-                JobName('example-jid-4567'), {}, '/storeBase/whatever'
+                JobName('example-jid-4567'), self.example_resources,
+                '/storeBase/whatever'
             )
 
     @patch_cromwell_api('metadata', metadata_example.response_running)
