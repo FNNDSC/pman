@@ -110,7 +110,7 @@ class SlurmJob:
         return int(int(_m[:-1]) * 0.95367432)
 
     @classmethod
-    def _get_resource(cls, wdl: StrWdl, name: str, end: int) -> tuple[str, int]:
+    def _get_resource(cls, wdl: StrWdl, name: str, end: int) -> Tuple[str, int]:
         return cls._get_between(wdl, f"{name}: '", "'\n", end)
 
     @classmethod
