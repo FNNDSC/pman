@@ -28,7 +28,7 @@ task plugin_instance {
         sharedir: '{{ sharedir }}'
         cpu: '{{ (cpu_limit / 1000)|round(method='ceil')|int }}'
         memory: '{{ (memory_limit * 1.048576)|round(method='ceil')|int }}M'
-        gpus_per_task: '{{ gpu_limit }}'
+        gpu_limit: '{{ gpu_limit }}'
         number_of_workers: '{{ number_of_workers }}'
         timelimit: '{{ timelimit }}'
         {%- if partition %}
@@ -81,7 +81,7 @@ class SlurmJob:
         sharedir, end = cls._get_resource(wdl, 'sharedir', end)
         cpu, end = cls._get_resource(wdl, 'cpu', end)
         memory, end = cls._get_resource(wdl, 'memory', end)
-        gpus_per_task, end = cls._get_resource(wdl, 'gpus_per_task', end)
+        gpu_limit, end = cls._get_resource(wdl, 'gpu_limit', end)
         number_of_workers, end = cls._get_resource(wdl, 'number_of_workers', end)
         timelimit, end = cls._get_resource(wdl, 'timelimit', end)
         partition, _ = cls._find_between(wdl, "slurm_partition: '", "'\n", end)
@@ -89,7 +89,7 @@ class SlurmJob:
             number_of_workers=int(number_of_workers),
             cpu_limit=cls.__serialize_cpu(cpu),
             memory_limit=cls.__serialize_mem(memory),
-            gpu_limit=int(gpus_per_task)
+            gpu_limit=int(gpu_limit)
         )
         return cls(Image(image), command.strip(), sharedir, r, int(timelimit), partition)
 

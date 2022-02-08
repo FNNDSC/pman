@@ -19,7 +19,7 @@ task plugin_instance {
         sharedir: '/location/of/bribe'
         cpu: '2'
         memory: '5954M'
-        gpus_per_task: '0'
+        gpu_limit: '0'
         number_of_workers: '9'
         timelimit: '12'
     }
@@ -70,7 +70,7 @@ task plugin_instance {
         sharedir: '/neuroimaging/data'
         cpu: '7'
         memory: '10356M'
-        gpus_per_task: '6'
+        gpu_limit: '6'
         number_of_workers: '5'
         timelimit: '300'
         slurm_partition: 'has-gpu'

@@ -40,7 +40,7 @@ response_running = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        office_convert /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'docker.io/fnndsc/pl-office-convert:0.0.1'\n        sharedir: '/mounted/storebase/example-jid-1234'\n        cpu: '2'\n        memory: '4195M'\n        gpus_per_task: '0'\n        number_of_workers: '1'\n        timelimit: '5'\n        slurm_partition: 'my-slurm-partition'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        office_convert /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'docker.io/fnndsc/pl-office-convert:0.0.1'\n        sharedir: '/mounted/storebase/example-jid-1234'\n        cpu: '2'\n        memory: '4195M'\n        gpu_limit: '0'\n        number_of_workers: '1'\n        timelimit: '5'\n        slurm_partition: 'my-slurm-partition'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "workflowType": "WDL",
     "root": "",
     "workflowTypeVersion": "1.0",
@@ -366,7 +366,7 @@ expected_notstarted = SlurmJob(
 response_notstarted = r"""
 {
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-salute-the-sun:latest'\n        sharedir: '/storebase/key-vitamin-d'\n        cpu: '2'\n        memory: '5954M'\n        gpus_per_task: '2'\n        number_of_workers: '1'\n        timelimit: '50'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/whatsgood --day sunny  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'ghcr.io/fnndsc/pl-salute-the-sun:latest'\n        sharedir: '/storebase/key-vitamin-d'\n        cpu: '2'\n        memory: '5954M'\n        gpu_limit: '2'\n        number_of_workers: '1'\n        timelimit: '50'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
@@ -412,7 +412,7 @@ response_queued = r"""
   ],
   "actualWorkflowLanguageVersion": "1.0",
   "submittedFiles": {
-    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'\n        sharedir: '/storebase/key-fruity-fruit'\n        cpu: '1'\n        memory: '828M'\n        gpus_per_task: '0'\n        number_of_workers: '3'\n        timelimit: '70'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
+    "workflow": "\nversion 1.0\n\ntask plugin_instance {\n    command {\n        /usr/local/bin/python /usr/local/bin/fruit_machine --salad orange  /share/incoming /share/outgoing\n    } #ENDCOMMAND\n    runtime {\n        docker: 'internal.gitlab:5678/fnndsc/pl-fruit:1.2.3'\n        sharedir: '/storebase/key-fruity-fruit'\n        cpu: '1'\n        memory: '828M'\n        gpu_limit: '0'\n        number_of_workers: '3'\n        timelimit: '70'\n    }\n}\n\nworkflow ChRISJob {\n    call plugin_instance\n}",
     "root": "",
     "options": "{\n\n}",
     "inputs": "{}",
