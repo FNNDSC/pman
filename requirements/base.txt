@@ -1,5 +1,5 @@
 Flask==1.1.4
-Flask-RESTful==0.3.8
+Flask-RESTful==0.3.9
 docker==4.4.4
 openshift==0.12.0
 kubernetes==12.0.1
@@ -9,3 +9,6 @@ environs==9.3.2
 emoji==1.2.0
 cromwell-tools==2.4.1
 pyserde==0.6.0
+
+# https://github.com/pallets/markupsafe/issues/284
+markupsafe>=1.1.1,<2.1.0
