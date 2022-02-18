@@ -41,6 +41,8 @@ class Config:
 
         if self.CONTAINER_ENV == 'kubernetes':
             self.JOB_NAMESPACE = env('JOB_NAMESPACE', 'default')
+            self.SECURITYCONTEXT_RUN_AS_USER = env.int('SECURITYCONTEXT_RUN_AS_USER', None)
+            self.SECURITYCONTEXT_RUN_AS_GROUP = env.int('SECURITYCONTEXT_RUN_AS_GROUP', None)
 
         if self.CONTAINER_ENV == 'cromwell':
             self.CROMWELL_URL = env('CROMWELL_URL')
