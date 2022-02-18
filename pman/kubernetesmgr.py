@@ -72,7 +72,7 @@ class KubernetesManager(AbstractManager[V1Job]):
                         message = condition.message
                         status = JobStatus.finishedWithError
                         break
-            if status == 'notstarted':
+            if status == JobStatus.notstarted:
                 if completion_time and succeeded:
                     message = 'finished'
                     status = JobStatus.finishedSuccessfully
