@@ -174,3 +174,18 @@ Assuming the docker container ID of pman is `$pman`, you can dump this log by
 .. code-block:: bash
 
     $> docker exec $pman cat /tmp/debug.log
+
+***************************
+Special Cases In Production
+***************************
+
+When using NFS for kubernetes volumes, it might be necessary to
+set the container user as someone with permissions to the NFS share.
+
+One solution is to use ``securityContext.runAsUser``. ``pman`` supports
+this option via environmental variables:
+
+.. code-block:: env
+
+    SECURITYCONTEXT_RUN_AS_USER=1234
+    SECURITYCONTEXT_RUN_AS_GROUP=5678

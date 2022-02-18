@@ -121,15 +121,23 @@ class KubernetesManager(AbstractManager[V1Job]):
                    k_client.V1EnvVar(name='NVIDIA_DRIVER_CAPABILITIES',
                                      value='compute,utility'),
                    k_client.V1EnvVar(name='NVIDIA_REQUIRE_CUDA', value='cuda>=9.0')],
+
+        security_context = {
+            'allow_privilege_escalation': False,
+            'capabilities': k_client.V1Capabilities(drop=['ALL'])
+        }
+
+        if self.config['SECURITYCONTEXT_RUN_AS_USER']:
+            security_context['run_as_user'] = self.config['SECURITYCONTEXT_RUN_AS_USER']
+        if self.config['SECURITYCONTEXT_RUN_AS_GROUP']:
+            security_context['run_as_group'] = self.config['SECURITYCONTEXT_RUN_AS_GROUP']
+
         container = k_client.V1Container(
             name=name,
             image=image,
             env=env,
             command=shlex.split(command),
-            security_context=k_client.V1SecurityContext(
-                allow_privilege_escalation=False,
-                capabilities=k_client.V1Capabilities(drop=['ALL'])
-            ),
+            security_context=k_client.V1SecurityContext(**security_context),
             resources=k_client.V1ResourceRequirements(limits=limits, requests=requests),
             volume_mounts=[k_client.V1VolumeMount(mount_path='/share',
                                                   name='storebase')]
