@@ -72,16 +72,16 @@ class KubernetesManager(AbstractManager[V1Job]):
                         message = condition.message
                         status = JobStatus.finishedWithError
                         break
-            if status == JobStatus.notstarted:
-                if completion_time and succeeded:
-                    message = 'finished'
-                    status = JobStatus.finishedSuccessfully
-                elif job.status.active:
-                    message = 'running'
-                    status = JobStatus.started
-                else:
-                    message = 'inactive'
-                    status = JobStatus.undefined
+        if status == JobStatus.notstarted:
+            if completion_time and succeeded:
+                message = 'finished'
+                status = JobStatus.finishedSuccessfully
+            elif job.status.active:
+                message = 'running'
+                status = JobStatus.started
+            else:
+                message = 'inactive'
+                status = JobStatus.undefined
 
         return JobInfo(
             name=JobName(job.metadata.name),
