@@ -56,7 +56,7 @@ class SwarmManager(AbstractManager[Service]):
         """
         Get the logs from a previously scheduled job object.
         """
-        return ''.join([l.decode() for l in job.logs(stdout=True, stderr=True)])
+        return ''.join([l.decode(errors='replace') for l in job.logs(stdout=True, stderr=True)])
 
     def get_job_info(self, job: Service) -> JobInfo:
         """
