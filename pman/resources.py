@@ -95,7 +95,7 @@ class JobListResource(Resource):
         job_info = compute_mgr.get_job_info(job)
         logger.info(f'Successful job {job_id} schedule response from '
                     f'{self.container_env}: {job_info}')
-        job_logs = compute_mgr.get_job_logs(job)
+        job_logs = ''
 
         return {
             'jid': job_id,
