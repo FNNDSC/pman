@@ -20,6 +20,8 @@ class Config:
         env = Env()
         env.read_env()  # also read .env file, if it exists
 
+        self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
+
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
         self.STORAGE_TYPE = env('STORAGE_TYPE', 'host')
 

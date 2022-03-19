@@ -3,6 +3,8 @@ Kubernetes cluster manager module that provides functionality to schedule jobs a
 as manage their state in the cluster.
 """
 
+from typing import AnyStr
+import logging
 import shlex
 
 from kubernetes import client as k_client
@@ -10,6 +12,8 @@ from kubernetes import config as k_config
 from kubernetes.client.models.v1_job import V1Job
 from kubernetes.client.rest import ApiException
 from .abstractmgr import AbstractManager, ManagerException, JobInfo, JobStatus, TimeStamp, JobName
+
+logger = logging.getLogger(__name__)
 
 
 class KubernetesManager(AbstractManager[V1Job]):
@@ -41,17 +45,15 @@ class KubernetesManager(AbstractManager[V1Job]):
             raise ManagerException(str(e), status_code=status_code)
         return job
 
-    def get_job_logs(self, job):
-        """
-        Get the logs string from a previously scheduled job object.
-        """
+    def get_job_logs(self, job: V1Job, tail: int) -> AnyStr:
         # TODO: Think of a better way to abstract out logs in case of multiple pods running parallelly
 
         logs = ''
         pods = self.get_job_pods(job.metadata.name)
         for pod_item in pods.items:
             pod_name = pod_item.metadata.name
-            logs += self.get_pod_log(pod_name)
+            logs += self.get_pod_log(pod_name, tail)
+
         return logs
 
     def get_job_info(self, job) -> JobInfo:
@@ -198,21 +200,17 @@ class KubernetesManager(AbstractManager[V1Job]):
         return self.kube_client.list_namespaced_pod(job_namespace,
                                                     label_selector='job-name='+name)
 
-    def get_pod_log(self, name, container_name=None):
-        """
-        Get a pod log
-        """
+    def get_pod_log(self, pod_name: str, tail: int) -> AnyStr:
         job_namespace = self.config.get('JOB_NAMESPACE')
         try:
-            if container_name:
-                log = self.kube_client.read_namespaced_pod_log(name=name,
-                                                               namespace=job_namespace,
-                                                               container=container_name)
-            else:
-                log = self.kube_client.read_namespaced_pod_log(name=name,
-                                                               namespace=job_namespace)
-        except ApiException:
-            log = ''
+            log = self.kube_client.read_namespaced_pod_log(
+                name=pod_name,
+                namespace=job_namespace,
+                tail_lines=tail
+            )
+        except ApiException as e:
+            log = 'Error: check pman logs.'
+            logger.error('Exception getting logs for pod="%s": %s', pod_name, str(e))
         return log
 
     def get_pod_status(self, name):

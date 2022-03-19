@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, NewType, Optional, TypedDict
+from typing import Generic, TypeVar, NewType, Optional, TypedDict, AnyStr
 from dataclasses import dataclass
 from enum import Enum
 
@@ -99,9 +99,12 @@ class AbstractManager(ABC, Generic[J]):
         ...
 
     @abstractmethod
-    def get_job_logs(self, job: J) -> str:
+    def get_job_logs(self, job: J, tail: int) -> AnyStr:
         """
-        Get the logs string from a previously scheduled job object.
+        Get the logs (combined stdout+stdin) from a previously scheduled job object.
+
+        :param job: the job which to get the logs for
+        :param tail: how many bytes to read from the end of the logs.
         """
         ...
 
