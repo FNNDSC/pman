@@ -148,6 +148,7 @@ class JobResource(Resource):
 
         self.container_env = app.config.get('CONTAINER_ENV')
         self.compute_mgr = get_compute_mgr(self.container_env)
+        self.job_logs_tail = app.config.get('JOB_LOGS_TAIL')
 
     def get(self, job_id):
         job_id = job_id.lstrip('/')
@@ -161,7 +162,9 @@ class JobResource(Resource):
         job_info = self.compute_mgr.get_job_info(job)
         logger.info(f'Successful job {job_id} status response from '
                     f'{self.container_env}: {job_info}')
-        job_logs = self.compute_mgr.get_job_logs(job)
+        job_logs = self.compute_mgr.get_job_logs(job, self.job_logs_tail)
+        if isinstance(job_logs, bytes):
+            job_logs = job_logs.decode(encoding='utf-8', errors='replace')
 
         return {
             'jid': job_id,

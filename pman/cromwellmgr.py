@@ -116,7 +116,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
             return job.id
         raise CromwellException(f'No job found for name="{name}"', status_code=404)
 
-    def get_job_logs(self, job: WorkflowId) -> str:
+    def get_job_logs(self, job: WorkflowId, tail: int) -> str:
         # cromwell_tools.utilities.download
         data = self.__client.logs_idc(job)
         return (

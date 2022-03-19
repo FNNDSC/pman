@@ -241,7 +241,7 @@ class OpenShiftManager(AbstractManager):
         return job
         
                                     
-    def get_job_logs(self,job):
+    def get_job_logs(self, job, tail):
         #return ''
         name = job.metadata.name
         str_logs = ''

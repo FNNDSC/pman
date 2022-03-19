@@ -2,6 +2,7 @@
 Swarm cluster manager module that provides functionality to schedule
 jobs (short-lived services) as well as manage their state in the cluster.
 """
+from typing import AnyStr, Sequence, Iterable
 
 import docker
 from docker.models.services import Service
@@ -52,11 +53,8 @@ class SwarmManager(AbstractManager[Service]):
             raise ManagerException(str(e), status_code=400)
         return job
 
-    def get_job_logs(self, job):
-        """
-        Get the logs from a previously scheduled job object.
-        """
-        return ''.join([l.decode(errors='replace') for l in job.logs(stdout=True, stderr=True)])
+    def get_job_logs(self, job: Service, tail: int) -> AnyStr:
+        return b''.join(job.logs(stdout=True, stderr=True, tail=tail))
 
     def get_job_info(self, job: Service) -> JobInfo:
         """
