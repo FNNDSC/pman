@@ -9,32 +9,32 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Get info
-        id: determine
-        shell: python
-        run: |
-          import os
-          import datetime
-          import itertools
-          import subprocess as sp
-          
-          short_sha = os.getenv('GITHUB_SHA', 'unknown')[:7]
-          build_version = f'unknown.{short_sha}'
-          git_refs = []
-          if os.getenv('GITHUB_REF', '').startswith('refs/tags/next/v'):
-              version_from_tag = os.getenv('GITHUB_REF')[16:]
-              git_refs.append('next-' + version_from_tag)
-              build_version = version_from_tag
-          registries = ['docker.io']
-          repo = os.environ['GITHUB_REPOSITORY'].lower()
-          tags = ['next', short_sha] + git_refs
-          names = ','.join(''.join(c) for c in itertools.product(
-              (r + '/' for r in registries),
-              [repo],
-              (':' + t for t in tags)
-          ))
-          print(f'::set-output name=tags::{names}')
-          print(f'::set-output name=build_version::{build_version}')
+    - name: Get info
+      id: determine
+      shell: python
+      run: |
+        import os
+        import datetime
+        import itertools
+        import subprocess as sp
+
+        short_sha = os.getenv('GITHUB_SHA', 'unknown')[:7]
+        build_version = f'unknown.{short_sha}'
+        git_refs = []
+        if os.getenv('GITHUB_REF', '').startswith('refs/tags/next/v'):
+            version_from_tag = os.getenv('GITHUB_REF')[16:]
+            git_refs.append('next-' + version_from_tag)
+            build_version = version_from_tag
+        registries = ['docker.io']
+        repo = os.environ['GITHUB_REPOSITORY'].lower()
+        tags = ['next', short_sha] + git_refs
+        names = ','.join(''.join(c) for c in itertools.product(
+            (r + '/' for r in registries),
+            [repo],
+            (':' + t for t in tags)
+        ))
+        print(f'::set-output name=tags::{names}')
+        print(f'::set-output name=build_version::{build_version}')
     - uses: docker/setup-buildx-action@v1
       id: buildx
     - name: Cache Docker layers
