@@ -2,4 +2,5 @@
 # production that aren't in development.
 
 -r base.txt # includes the base.txt requirements
-/home/localuser/pman
+
+gunicorn~=20.1.0
