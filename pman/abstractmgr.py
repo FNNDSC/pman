@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, NewType, Optional, TypedDict, AnyStr
+from typing import Generic, TypeVar, NewType, Optional, TypedDict, AnyStr, List
 from dataclasses import dataclass
 from enum import Enum
 
@@ -84,7 +84,7 @@ class AbstractManager(ABC, Generic[J]):
         self.config = config_dict
 
     @abstractmethod
-    def schedule_job(self, image: Image, command: str, name: JobName,
+    def schedule_job(self, image: Image, command: List[str], name: JobName,
                      resources_dict: Resources, mountdir: Optional[str] = None) -> J:
         """
         Schedule a new job and return the job object.

@@ -5,7 +5,6 @@ as manage their state in the cluster.
 
 from typing import AnyStr
 import logging
-import shlex
 
 from kubernetes import client as k_client
 from kubernetes import config as k_config
@@ -138,7 +137,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             name=name,
             image=image,
             env=env,
-            command=shlex.split(command),
+            command=command,
             security_context=k_client.V1SecurityContext(**security_context),
             resources=k_client.V1ResourceRequirements(limits=limits, requests=requests),
             volume_mounts=[k_client.V1VolumeMount(mount_path='/share',

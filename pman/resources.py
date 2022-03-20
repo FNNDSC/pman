@@ -1,7 +1,7 @@
 
 import os
 import logging
-import shlex
+from typing import List, Collection, Literal
 
 from flask import current_app as app
 from flask_restful import reqparse, abort, Resource
@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 parser = reqparse.RequestParser(bundle_errors=True)
 parser.add_argument('jid', dest='jid', required=True)
-parser.add_argument('cmd_args', dest='cmd_args', required=True)
-parser.add_argument('cmd_path_flags', dest='cmd_path_flags')
+parser.add_argument('args', dest='args', type=list, location='json', required=True)
+parser.add_argument('args_path_flags', dest='args_path_flags', type=frozenset, location='json', required=False, default=frozenset())
 parser.add_argument('auid', dest='auid', required=True)
 parser.add_argument('number_of_workers', dest='number_of_workers', type=int,
                     required=True)
@@ -25,9 +25,7 @@ parser.add_argument('cpu_limit', dest='cpu_limit', type=int, required=True)
 parser.add_argument('memory_limit', dest='memory_limit', type=int, required=True)
 parser.add_argument('gpu_limit', dest='gpu_limit', type=int, required=True)
 parser.add_argument('image', dest='image', required=True)
-parser.add_argument('selfexec', dest='selfexec', required=True)
-parser.add_argument('selfpath', dest='selfpath', required=True)
-parser.add_argument('execshell', dest='execshell', required=True)
+parser.add_argument('entrypoint', dest='entrypoint', type=list, location='json', required=True)
 parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=True)
 
 
@@ -67,8 +65,7 @@ class JobListResource(Resource):
         args = parser.parse_args()
         job_id = args.jid.lstrip('/')
 
-        cmd = self.build_app_cmd(args.cmd_args, args.cmd_path_flags, args.selfpath,
-                                 args.selfexec, args.execshell, args.type)
+        cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type)
 
         resources_dict = {'number_of_workers': args.number_of_workers,
                           'cpu_limit': args.cpu_limit,
@@ -107,35 +104,17 @@ class JobListResource(Resource):
             'logs': job_logs
         }, 201
 
-    def build_app_cmd(self, cmd_args, cmd_path_flags, selfpath, selfexec, execshell,
-                      plugin_type):
-        """
-        Build and return the app's cmd string.
-        """
-        if cmd_path_flags:
-            # process the argument of any cmd flag that is a 'path'
-            path_flags = cmd_path_flags.split(',')
-            args = shlex.split(cmd_args)
-            for i in range(len(args) - 1):
-                if args[i] in path_flags:
-                    # each flag value is a string of one or more paths separated by comma
-                    # paths = args[i+1].split(',')
-                    # base_inputdir = self.str_app_container_inputdir
-                    # paths = [os.path.join(base_inputdir, p.lstrip('/')) for p in paths]
-                    # args[i+1] = ','.join(paths)
-
-                    # the next is tmp until CUBE's assumptions about inputdir and path
-                    # parameters are removed
-                    args[i+1] = self.str_app_container_inputdir
-            cmd_args = ' '.join(args)
-        outputdir = self.str_app_container_outputdir
-        exec = os.path.join(selfpath, selfexec)
-        cmd = f'{execshell} {exec}'
+    def build_app_cmd(
+            self,
+            args: List[str],
+            args_path_flags: Collection[str],
+            entrypoint: List[str],
+            plugin_type: Literal['ds', 'fs', 'ts']
+    ) -> List[str]:
+        cmd = entrypoint + localize_path_args(args, args_path_flags, self.str_app_container_inputdir)
         if plugin_type == 'ds':
-            inputdir = self.str_app_container_inputdir
-            cmd = cmd + f' {cmd_args} {inputdir} {outputdir}'
-        elif plugin_type in ('fs', 'ts'):
-            cmd = cmd + f' {cmd_args} {outputdir}'
+            cmd.append(self.str_app_container_inputdir)
+        cmd.append(self.str_app_container_outputdir)
         return cmd
 
 
@@ -187,3 +166,16 @@ class JobResource(Resource):
         self.compute_mgr.remove_job(job)  # remove job from compute cluster
         logger.info(f'Successfully removed job {job_id} from {self.container_env}')
         return '', 204
+
+
+def localize_path_args(args: List[str], path_flags: Collection[str], input_dir: str) -> List[str]:
+    """
+    Replace the strings following path flags with the input directory.
+
+    https://github.com/FNNDSC/CHRIS_docs/blob/7ac85e9ae1070947e6e2cda62747b427028229b0/SPEC.adoc#path-arguments
+    """
+    if len(args) == 0:
+        return args
+    if args[0] in path_flags:
+        return [args[0], input_dir] + localize_path_args(args[2:], path_flags, input_dir)
+    return args[0:1] + localize_path_args(args[1:], path_flags, input_dir)

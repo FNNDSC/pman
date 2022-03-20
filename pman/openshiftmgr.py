@@ -4,7 +4,6 @@ manage their state in the cluster.
 """
 
 import yaml
-import shlex
 import os
 from kubernetes import client as k_client, config
 from kubernetes.client.rest import ApiException
@@ -38,7 +37,7 @@ class OpenShiftManager(AbstractManager):
         """
         Schedule a new job and returns the job object.
         """
-        command = command.replace("/share",share_dir)
+        command = [c.replace("/share",share_dir) for c in command]
         number_of_workers = str(resource_dict['number_of_workers'])
         memory_limit = str(resource_dict['memory_limit'])+ 'Mi'
         cpu_limit = str(resource_dict['cpu_limit']) + 'm'
@@ -85,7 +84,7 @@ class OpenShiftManager(AbstractManager):
                                 "image": image,
                                 "imagePullSecrets":"regcred",
                                 "imagePullPolicy": "IfNotPresent",
-                                "command": shlex.split(command),
+                                "command": command,
                                 "resources": {
                                     "limits": {
                                         "memory": memory_limit,

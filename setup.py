@@ -7,7 +7,7 @@ with open(path.join(path.dirname(path.abspath(__file__)), 'README.rst')) as f:
 
 setup(
     name             =   'pman',
-    version          =   '3.5.4',
+    version          =   '4.0.0.a1',
     description      =   'Process Manager',
     long_description =   readme,
     author           =   'FNNDSC Developers',

@@ -5,7 +5,7 @@ Maybe it would be nice to set a workflow name instead of just "ChrisPlugin"
 but it doesn't really matter.
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from serde import from_dict, deserialize
 from jinja2 import Environment
@@ -16,12 +16,13 @@ from dataclasses import dataclass
 
 # Some of these runtime attributes come from the convention here:
 # https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/
+# TODO command might need to have escape sequences
 template = Environment().from_string(r"""
 version 1.0
 
 task plugin_instance {
     command {
-        {{ cmd }}
+        {{ ' '.join(command) }}
     } #ENDCOMMAND
     runtime {
         docker: '{{ docker }}'
@@ -52,7 +53,7 @@ class SlurmJob:
     milicores to cores, and memory needs to be converted from MiB to MB.
     """
     image: Image
-    command: str
+    command: List[str]
     sharedir: str
     resources_dict: Resources
     timelimit: int
@@ -64,7 +65,7 @@ class SlurmJob:
         :return: a WDL wrapper for a *ChRIS* plugin instance
         """
         return StrWdl(template.render(
-            cmd=self.command, docker=self.image,
+            command=self.command, docker=self.image,
             partition=self.partition, sharedir=self.sharedir,
             timelimit=self.timelimit,
             **self.resources_dict

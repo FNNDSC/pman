@@ -9,7 +9,7 @@ TODO: get_job_logs and remove_job
 import json
 import logging
 import time
-from typing import Optional
+from typing import Optional, List
 from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, JobName, TimeStamp, Resources
 from .cromwell.models import (
     WorkflowId, StrWdl,
@@ -60,7 +60,7 @@ class CromwellManager(AbstractManager[WorkflowId]):
         auth = CromwellAuth(config_dict['CROMWELL_URL'])
         self.__client = CromwellClient(auth)
 
-    def schedule_job(self, image: Image, command: str, name: JobName,
+    def schedule_job(self, image: Image, command: List[str], name: JobName,
                      resources_dict: Resources, mountdir: Optional[str] = None) -> WorkflowId:
         wdl = SlurmJob(image, command, mountdir, resources_dict, self.__timelimit).to_wdl()
         res = self.__submit(wdl, name)
