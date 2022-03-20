@@ -52,7 +52,9 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v2
       with:
-        build-args: ENVIRONMENT=production,BUILD_VERSION=${{ steps.determine.outputs.build_version }}
+        build-args: |
+          ENVIRONMENT=production
+          BUILD_VERSION=${{ steps.determine.outputs.build_version }}
         push: true
         tags: "${{ steps.determine.outputs.tags }}"
         cache-from: type=local,src=/tmp/.buildx-cache
