@@ -23,7 +23,7 @@ jobs:
         git_refs = []
         if os.getenv('GITHUB_REF', '').startswith('refs/tags/next/v'):
             version_from_tag = os.getenv('GITHUB_REF')[16:]
-            git_refs.append('next-' + version_from_tag)
+            git_refs.append('next-' + version_from_tag.replace('+', '.'))
             build_version = version_from_tag
         registries = ['docker.io']
         repo = os.environ['GITHUB_REPOSITORY'].lower()
