@@ -63,6 +63,10 @@ class JobListResource(Resource):
 
     def post(self):
         args = parser.parse_args()
+
+        if len(args.entrypoint) == 0:
+            abort(400, message='"entrypoint" cannot be empty')
+
         job_id = args.jid.lstrip('/')
 
         cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type)
