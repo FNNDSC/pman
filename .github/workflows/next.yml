@@ -1,3 +1,9 @@
+# Build container images.
+# Latest images are always tagged "next." If the build was triggered
+# by a git tag, that git tag will also be used to tag the image,
+# images will be pushed to ghcr.io, and built cross-platform.
+# (To save time, cross-platform is disabled for untagged commits.)
+
 name: next
 
 on:
@@ -26,6 +32,10 @@ jobs:
             git_refs.append('next-' + version_from_tag.replace('+', '.'))
             build_version = version_from_tag
         registries = ['docker.io']
+        arch = 'linux/amd64'
+        if git_refs:
+            registries.append('ghcr.io')
+            arch = 'linux/amd64,linux/arm64,linux/ppc64le'
         repo = os.environ['GITHUB_REPOSITORY'].lower()
         tags = ['next', short_sha] + git_refs
         names = ','.join(''.join(c) for c in itertools.product(
@@ -35,6 +45,9 @@ jobs:
         ))
         print(f'::set-output name=tags::{names}')
         print(f'::set-output name=build_version::{build_version}')
+        print(f'::set-output name=arch::{arch}')
+    - uses: docker/setup-qemu-action@v1
+      if: contains(steps.determine.outputs.arch, ',')
     - uses: docker/setup-buildx-action@v1
       id: buildx
     - name: Cache Docker layers
@@ -55,6 +68,7 @@ jobs:
         build-args: |
           ENVIRONMENT=production
           BUILD_VERSION=${{ steps.determine.outputs.build_version }}
+        platforms: ${{ steps.determine.outputs.arch }}
         push: true
         tags: "${{ steps.determine.outputs.tags }}"
         cache-from: type=local,src=/tmp/.buildx-cache
