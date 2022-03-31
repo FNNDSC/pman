@@ -111,8 +111,12 @@ class KubernetesManager(AbstractManager[V1Job]):
         memory_limit = str(resources_dict.get('memory_limit')) + 'Mi'
         gpu_limit = resources_dict.get('gpu_limit')
 
-        # configure pod's containers
-        requests = {'memory': '150Mi', 'cpu': '250m'}
+        # About requests and limits:
+        # https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+        #
+        # > Note: If a container specifies its own memory limit, but does not specify a memory
+        # > request, Kubernetes automatically assigns a memory request that matches the limit.
+
         limits = {'memory': memory_limit, 'cpu': cpu_limit}
         env = []
         if gpu_limit > 0:
@@ -139,7 +143,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             env=env,
             command=command,
             security_context=k_client.V1SecurityContext(**security_context),
-            resources=k_client.V1ResourceRequirements(limits=limits, requests=requests),
+            resources=k_client.V1ResourceRequirements(limits=limits),
             volume_mounts=[k_client.V1VolumeMount(mount_path='/share',
                                                   name='storebase')]
         )
