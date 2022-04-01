@@ -1,3 +1,18 @@
+# tl;dr
+#
+#     docker build -t localhost/fnndsc/pman .
+#
+# OR
+#
+#     docker build -t localhost/fnndsc/pman:dev --build-arg ENVIRONMENT=local .
+#
+# ARGS
+#
+#     ENVIRONMENT: one of: local, production
+#                  specify which file in requirements/ to install dependencies from
+#     BUILD_VERSION: string
+#
+
 FROM python:3.10.3-bullseye
 
 WORKDIR /usr/local/src/pman
