@@ -7,5 +7,7 @@ Dockerfile
 LICENSE
 CHRIS_REMOTE_FS
 venv/
+
 docker-test-entrypoint.sh
+docker-compose.yml
 

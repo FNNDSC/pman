@@ -11,7 +11,7 @@ services:
         ENVIRONMENT: local
     command: ./docker-test-entrypoint.sh
     ports:
-      - "30010:5010"
+      - "5010:5010"
     volumes:
       - ./:/usr/local/src/pman:ro
       - /var/run/docker.sock:/var/run/docker.sock:rwz
@@ -21,3 +21,4 @@ services:
 
 volumes:
   storebase:
+

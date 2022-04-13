@@ -8,7 +8,7 @@ docker-compose build
 docker stack deploy -c docker-compose.yml pman_dev
 
 for i in {0..4}; do
-  sleep 1
+  sleep 2
   container_id=$(docker ps -f label=org.chrisproject.role=pman-testing -q | head -n 1)
   if [ -n "$container_id" ]; then
     break
