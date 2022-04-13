@@ -41,7 +41,7 @@ class TestJobListResource(ResourceTests):
 
         self.job_id = 'chris-jid-1'
 
-        self.share_dir = os.path.join('/home/localuser/storeBase', 'key-' + self.job_id)
+        self.share_dir = os.path.join('/var/local/storeBase', 'key-' + self.job_id)
         incoming = os.path.join(self.share_dir, 'incoming')
         outgoing = os.path.join(self.share_dir, 'outgoing')
         Path(incoming).mkdir(parents=True, exist_ok=True)
@@ -62,16 +62,14 @@ class TestJobListResource(ResourceTests):
 
         data = {
             'jid': self.job_id,
-            'cmd_args': '--saveinputmeta --saveoutputmeta --dir /share/incoming',
+            'args': ['--saveinputmeta', '--saveoutputmeta', '--dir', '/share/incoming'],
             'auid': 'cube',
             'number_of_workers': '1',
             'cpu_limit': '1000',
             'memory_limit': '200',
             'gpu_limit': '0',
             'image': 'fnndsc/pl-simplefsapp',
-            'selfexec': 'simplefsapp',
-            'selfpath': '/usr/local/bin',
-            'execshell': '/usr/local/bin/python',
+            'entrypoint': ['simplefsapp'],
             'type': 'fs',
         }
         # make the POST request

@@ -2,5 +2,5 @@
 
 -r base.txt
 pudb==2020.1
-nose==1.3.7
 
+pytest

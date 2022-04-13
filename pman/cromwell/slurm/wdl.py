@@ -5,6 +5,7 @@ Maybe it would be nice to set a workflow name instead of just "ChrisPlugin"
 but it doesn't really matter.
 """
 
+import shlex
 from typing import Optional, Tuple, List
 
 from serde import from_dict, deserialize
@@ -92,7 +93,7 @@ class SlurmJob:
             memory_limit=cls.__serialize_mem(memory),
             gpu_limit=int(gpu_limit)
         )
-        return cls(Image(image), command.strip(), sharedir, r, int(timelimit), partition)
+        return cls(Image(image), shlex.split(command.strip()), sharedir, r, int(timelimit), partition)
 
     @staticmethod
     def __serialize_cpu(_c: str) -> int:

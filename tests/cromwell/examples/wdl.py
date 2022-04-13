@@ -30,7 +30,7 @@ workflow ChRISJob {
 }
 """),
     info=SlurmJob(
-        command='whatsup /share/mr /share/president',
+        command=['whatsup', '/share/mr', '/share/president'],
         image=Image('quay.io/fedora/fedora:36'),
         sharedir='/location/of/bribe',
         partition=None,
@@ -43,7 +43,7 @@ workflow ChRISJob {
         )
     ),
     lossy_info=SlurmJob(
-        command='whatsup /share/mr /share/president',
+        command=['whatsup', '/share/mr', '/share/president'],
         image=Image('quay.io/fedora/fedora:36'),
         sharedir='/location/of/bribe',
         partition=None,
@@ -82,7 +82,7 @@ workflow ChRISJob {
 }
 """),
     info=SlurmJob(
-        command='/usr/local/bin/python fastsurfer_inference.py /share/incoming /share/outgoing',
+        command=['/usr/local/bin/python', 'fastsurfer_inference.py', '/share/incoming', '/share/outgoing'],
         image=Image('ghcr.io/fnndsc/pl-fastsurfer_inference:1.2.0'),
         sharedir='/neuroimaging/data',
         partition='has-gpu',
@@ -95,7 +95,7 @@ workflow ChRISJob {
         )
     ),
     lossy_info=SlurmJob(
-        command='/usr/local/bin/python fastsurfer_inference.py /share/incoming /share/outgoing',
+        command=['/usr/local/bin/python', 'fastsurfer_inference.py', '/share/incoming', '/share/outgoing'],
         image=Image('ghcr.io/fnndsc/pl-fastsurfer_inference:1.2.0'),
         sharedir='/neuroimaging/data',
         partition='has-gpu',

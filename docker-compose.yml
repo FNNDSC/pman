@@ -1,0 +1,23 @@
+# Docker swarm configuration for testing pman locally
+
+version: '3.7'
+
+services:
+  pman:
+    image: localhost:5000/fnndsc/pman:dev
+    build:
+      context: .
+      args:
+        ENVIRONMENT: local
+    command: ./docker-test-entrypoint.sh
+    ports:
+      - "30010:5010"
+    volumes:
+      - ./:/usr/local/src/pman:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rwz
+      - storebase:/var/local/storeBase:rw
+    labels:
+      org.chrisproject.role: pman-testing
+
+volumes:
+  storebase:

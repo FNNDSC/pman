@@ -13,8 +13,6 @@ setup(
     install_requires =   ['docker', 'openshift', 'kubernetes', 'cromwell-tools',
                           'python-keystoneclient', 'Flask', 'Flask_RESTful', 'environs',
                           'pyserde', 'jinja2'],
-    test_suite       =   'nose.collector',
-    tests_require    =   ['nose'],
     license          =   'MIT',
     zip_safe         =   False,
     python_requires  =   '>=3.10.2'
