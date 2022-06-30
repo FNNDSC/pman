@@ -25,14 +25,13 @@ jobs:
   test-cube:
     name: tests (integration)
     runs-on: ubuntu-22.04
-    if: false
     steps:
       - uses: actions/checkout@v3
       - run: docker build -t fnndsc/pman .
       - uses: FNNDSC/cube-integration-action@v6
 
   build:
-    # needs: [test-pman, test-cube]
+    needs: [test-pman, test-cube]
     if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     steps:
