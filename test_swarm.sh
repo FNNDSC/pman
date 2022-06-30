@@ -18,6 +18,11 @@ if [ -z "$container_id" ]; then
   echo "pman failed to start."
 fi
 
+# debugging
+if [ "$CI" = "true" ]; then
+  docker logs $container_id
+fi
+
 docker exec $container_id ./docker-test-entrypoint.sh pytest --color=yes --code-highlight=yes
 
 docker stack rm pman_dev
