@@ -3,4 +3,4 @@
 -r base.txt
 pudb==2020.1
 
-pytest
+pytest~=7.1.2
