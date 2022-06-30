@@ -9,92 +9,98 @@ on:
   push:
     branches: [ master ]
     tags:
-      - '**'
-      - '!next/**'
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
   pull_request:
     branches: [ master ]
 
 
 jobs:
   test-pman:
-    name: pman tests
-    runs-on: ubuntu-20.04
+    name: tests (swarm)
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
-      - name: provision local services
-        run: |
-          docker swarm init --advertise-addr 127.0.0.1
-          docker build --build-arg ENVIRONMENT=local -t local/pman:dev .
-          ./make.sh -s -U -i local:dev
-      - name: nosetests
-        run: docker exec $(docker ps -f label=org.chrisproject.role=pman -q | head -n 1) nosetests --exe tests
-      - name: teardown
-        run: |
-          ./unmake.sh
-          sudo rm -fr ./CHRIS_REMOTE_FS
-          docker swarm leave --force
+      - uses: actions/checkout@v3
+      - run: ./test_swarm.sh
 
   test-cube:
-    name: CUBE tests
-    runs-on: ubuntu-20.04
+    name: tests (integration)
+    runs-on: ubuntu-22.04
+    if: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: docker build -t fnndsc/pman .
       - uses: FNNDSC/cube-integration-action@v6
 
-
   build:
-    needs: [test-pman, test-cube]
+    # needs: [test-pman, test-cube]
     if: github.event_name == 'push' || github.event_name == 'release'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-      - name: Get git tag
-        id: git_info
-        if: startsWith(github.ref, 'refs/tags/')
-        run: echo "::set-output name=tag::${GITHUB_REF##*/}"
-      - name: Determine image tags
-        id: determine
-        env:
-          git_tag: ${{ steps.git_info.outputs.tag }}
-        run: |
-          repo="${GITHUB_REPOSITORY,,}"  # to lower case
-          tag="${git_tag:-latest}"  # if build triggered by tag, use tag name
-          echo "::set-output name=repo::$repo"
-          echo "::set-output name=tag::$tag"
-          echo "::set-output name=dock_image::$repo:$tag"
-      - uses: actions/checkout@v2
-      - uses: docker/setup-qemu-action@v1
-      - uses: docker/setup-buildx-action@v1
-        id: buildx
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      -
-        name: Login to GitHub Container Registry
-        uses: docker/login-action@v1 
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: "0"
+    - name: Get build version
+      id: version
+      run: |
+        desc="$(git describe --tags)"
+        echo "Version=$desc"
+        echo "::set-output name=desc::$desc"
+    - name: Get build tags
+      id: info
+      shell: python
+      run: |
+        import os
+        import datetime
+        import itertools
+        import subprocess as sp
 
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          push: true
-          context: .
-          file: ./Dockerfile
-          tags: |
-            ${{ steps.determine.outputs.dock_image }}
-            ghcr.io/${{ steps.determine.outputs.dock_image }}
-          platforms: linux/amd64,linux/ppc64le,linux/arm64
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+        short_sha = os.getenv('GITHUB_SHA', 'unknown')[:7]
+        git_refs = []
+        if os.getenv('GITHUB_REF', '').startswith('refs/tags/v'):
+            version_from_tag = os.getenv('GITHUB_REF')[11:]
+            git_refs.append(version_from_tag.replace('+', '.'))
+        registries = ['docker.io', 'ghcr.io']
+        repo = os.environ['GITHUB_REPOSITORY'].lower()
+        tags = ['latest'] + git_refs
+        names = ','.join(''.join(c) for c in itertools.product(
+            (r + '/' for r in registries),
+            [repo],
+            (':' + t for t in tags)
+        ))
+        print(f'::set-output name=tags::{names}')
+    - uses: docker/setup-qemu-action@v2
+    - uses: docker/setup-buildx-action@v2
+      id: buildx
+    - name: Cache Docker layers
+      uses: actions/cache@v2
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+    -
+      name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v3
+      with:
+        build-args: |
+          ENVIRONMENT=production
+          BUILD_VERSION=${{ steps.version.outputs.desc }}
+        push: true
+        context: .
+        file: ./Dockerfile
+        tags: "${{ steps.info.outputs.tags }}"
+        platforms: linux/amd64,linux/ppc64le,linux/arm64
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache
