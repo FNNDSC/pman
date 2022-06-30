@@ -9,11 +9,12 @@ services:
       context: .
       args:
         ENVIRONMENT: local
-    command: ./docker-test-entrypoint.sh
+    command: /usr/local/src/pman/docker-test-entrypoint.sh
     ports:
       - "5010:5010"
     volumes:
-      - ./:/usr/local/src/pman:ro
+      - ./pman:/usr/local/src/pman/pman:ro
+      - ./docker-test-entrypoint.sh:/usr/local/src/pman/docker-test-entrypoint.sh:ro
       - /var/run/docker.sock:/var/run/docker.sock:rwz
       - storebase:/var/local/storeBase:rw
     labels:
@@ -21,4 +22,3 @@ services:
 
 volumes:
   storebase:
-
