@@ -18,7 +18,7 @@ if [ -z "$container_id" ]; then
   echo "pman failed to start."
 fi
 
-docker exec -it $container_id ./docker-test-entrypoint.sh pytest
+docker exec $container_id ./docker-test-entrypoint.sh pytest --color=yes --code-highlight=yes
 
 docker stack rm pman_dev
 docker swarm leave --force
