@@ -212,9 +212,20 @@ class KubernetesManager(AbstractManager[V1Job]):
                 tail_lines=tail
             )
         except ApiException as e:
-            log = 'Error: check pman logs.'
-            logger.error('Exception getting logs for pod="%s": %s', pod_name, str(e))
+            if self.__is_container_creating_error(e):
+                log = 'Container is being created, please wait...'
+            else:
+                log = 'Error: check pman logs.'
+                logger.error('Exception getting logs for pod="%s": %s', pod_name, str(e))
         return log
+
+    @staticmethod
+    def __is_container_creating_error(e) -> bool:
+        return (
+            isinstnace(e, dict)
+            and 'message' in e
+            and 'ContainerCreating' in e['message']
+        )
 
     def get_pod_status(self, name):
         """
