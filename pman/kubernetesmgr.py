@@ -171,7 +171,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             completions=number_of_workers,
             backoff_limit=1,
             ttl_seconds_after_finished=86400,  # 24h
-            active_deadline_seconds=43200,  # 12h
+            active_deadline_seconds=604800,    # 1 week
             template=template
         )
         # instantiate the job object
