@@ -44,14 +44,15 @@ _pman_ is configured by environment variables.
 Refer to the source code in [pman/config.py](pman/config.py)
 for exactly how it works.
 
-| Environment Variable | Description                                          |
-|----------------------|------------------------------------------------------|
-| `SECRET_KEY`         | [Flask secret key][flask docs]                       |
-| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell"            |
-| `STORAGE_TYPE`       | one of: "host", "nfs"                                |
-| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)    |
-| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs` |
-| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                       |
+| Environment Variable | Description                                           |
+|----------------------|-------------------------------------------------------|
+| `SECRET_KEY`         | [Flask secret key][flask docs]                        |
+| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell"             |
+| `STORAGE_TYPE`       | one of: "host", "nfs"                                 |
+| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)     |
+| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`  |
+| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                        |
+| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug) |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
 

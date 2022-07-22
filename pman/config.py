@@ -25,6 +25,8 @@ class Config:
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
         self.STORAGE_TYPE = env('STORAGE_TYPE', 'host')
 
+        self.REMOVE_JOBS = env('REMOVE_JOBS', 'yes').lower() != 'no'
+
         if self.STORAGE_TYPE == 'host' or self.STORAGE_TYPE == 'nfs':
             self.STOREBASE = env('STOREBASE')
             if self.STORAGE_TYPE == 'nfs':

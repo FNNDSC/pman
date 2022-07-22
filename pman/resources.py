@@ -160,6 +160,11 @@ class JobResource(Resource):
         }
 
     def delete(self, job_id):
+        if not app.config.get('REMOVE_JOBS'):
+            logger.info(f'Deletion request for job {job_id}, '
+                        'doing nothing because config.REMOVE_JOBS=no')
+            return '', 204
+
         job_id = job_id.lstrip('/')
 
         logger.info(f'Deleting job {job_id} from {self.container_env}')
