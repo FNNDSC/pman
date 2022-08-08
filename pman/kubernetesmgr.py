@@ -3,11 +3,12 @@ Kubernetes cluster manager module that provides functionality to schedule jobs a
 as manage their state in the cluster.
 """
 
-from typing import AnyStr
+from typing import AnyStr, Optional
 import logging
 
 from kubernetes import client as k_client
 from kubernetes import config as k_config
+from kubernetes.client import V1Pod
 from kubernetes.client.models.v1_job import V1Job
 from kubernetes.client.rest import ApiException
 from .abstractmgr import AbstractManager, ManagerException, JobInfo, JobStatus, TimeStamp, JobName
@@ -53,7 +54,21 @@ class KubernetesManager(AbstractManager[V1Job]):
             pod_name = pod_item.metadata.name
             logs += self.get_pod_log(pod_name, tail)
 
+            # Bad: if job dies to OOMKilled, add the reason of death to the logs,
+            # and return immediately.
+            term_reason = self.__get_termination_reason(pod_item)
+            if term_reason is not None:
+                if term_reason is not 'Completed':
+                    logs += f'\n{term_reason}'
+                return logs
         return logs
+
+    @staticmethod
+    def __get_termination_reason(pod: V1Pod) -> Optional[str]:
+        termination = pod.status.container_statuses[0].state.terminated
+        if termination is None:
+            return None
+        return termination.reason
 
     def get_job_info(self, job) -> JobInfo:
         """
