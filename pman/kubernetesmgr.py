@@ -169,7 +169,7 @@ class KubernetesManager(AbstractManager[V1Job]):
         spec = k_client.V1JobSpec(
             parallelism=number_of_workers,
             completions=number_of_workers,
-            backoff_limit=1,
+            backoff_limit=0,
             ttl_seconds_after_finished=86400,  # 24h
             active_deadline_seconds=604800,    # 1 week
             template=template
