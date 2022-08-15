@@ -12,7 +12,7 @@ version 1.0
 
 task plugin_instance {
     command {
-        whatsup /share/mr /share/president
+        whatsup --greeting 'I'"'"'m mr. chris' /share/mr /share/president
     } #ENDCOMMAND
     runtime {
         docker: 'quay.io/fedora/fedora:36'
@@ -30,7 +30,7 @@ workflow ChRISJob {
 }
 """),
     info=SlurmJob(
-        command=['whatsup', '/share/mr', '/share/president'],
+        command=['whatsup', '--greeting', "I'm mr. chris", '/share/mr', '/share/president'],
         image=Image('quay.io/fedora/fedora:36'),
         sharedir='/location/of/bribe',
         partition=None,
@@ -43,7 +43,7 @@ workflow ChRISJob {
         )
     ),
     lossy_info=SlurmJob(
-        command=['whatsup', '/share/mr', '/share/president'],
+        command=['whatsup', '--greeting', "I'm mr. chris", '/share/mr', '/share/president'],
         image=Image('quay.io/fedora/fedora:36'),
         sharedir='/location/of/bribe',
         partition=None,

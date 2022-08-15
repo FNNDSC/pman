@@ -23,7 +23,7 @@ version 1.0
 
 task plugin_instance {
     command {
-        {{ ' '.join(command) }}
+        {{ escaped_command }}
     } #ENDCOMMAND
     runtime {
         docker: '{{ docker }}'
@@ -66,11 +66,15 @@ class SlurmJob:
         :return: a WDL wrapper for a *ChRIS* plugin instance
         """
         return StrWdl(template.render(
-            command=self.command, docker=self.image,
+            escaped_command=self._quoted_command, docker=self.image,
             partition=self.partition, sharedir=self.sharedir,
             timelimit=self.timelimit,
             **self.resources_dict
         ))
+
+    @property
+    def _quoted_command(self) -> str:
+        return ' '.join(map(shlex.quote, self.command))
 
     @classmethod
     def from_wdl(cls, wdl: StrWdl) -> 'SlurmJob':
