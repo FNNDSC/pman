@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 parser = reqparse.RequestParser(bundle_errors=True)
 parser.add_argument('jid', dest='jid', required=True)
 parser.add_argument('args', dest='args', type=list, location='json', required=True)
-parser.add_argument('args_path_flags', dest='args_path_flags', type=frozenset, location='json', required=False, default=frozenset())
+parser.add_argument('args_path_flags', dest='args_path_flags', type=frozenset,
+                    location='json', required=False, default=frozenset())
 parser.add_argument('auid', dest='auid', required=True)
 parser.add_argument('number_of_workers', dest='number_of_workers', type=int,
                     required=True)
@@ -25,8 +26,10 @@ parser.add_argument('cpu_limit', dest='cpu_limit', type=int, required=True)
 parser.add_argument('memory_limit', dest='memory_limit', type=int, required=True)
 parser.add_argument('gpu_limit', dest='gpu_limit', type=int, required=True)
 parser.add_argument('image', dest='image', required=True)
-parser.add_argument('entrypoint', dest='entrypoint', type=list, location='json', required=True)
+parser.add_argument('entrypoint', dest='entrypoint', type=list, location='json',
+                    required=True)
 parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=True)
+parser.add_argument('env', dest='env', type=list, location='json', default=[])
 
 
 def get_compute_mgr(container_env):
@@ -67,6 +70,10 @@ class JobListResource(Resource):
         if len(args.entrypoint) == 0:
             abort(400, message='"entrypoint" cannot be empty')
 
+        for s in args.env:
+            if len(s.split('=', 1)) != 2:
+                abort(400, message='"env" must be a list of "key=value" strings')
+
         job_id = args.jid.lstrip('/')
 
         cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type)
@@ -87,7 +94,7 @@ class JobListResource(Resource):
         compute_mgr = get_compute_mgr(self.container_env)
         try:
             job = compute_mgr.schedule_job(args.image, cmd, job_id, resources_dict,
-                                           share_dir)
+                                           args.env, share_dir)
         except ManagerException as e:
             logger.error(f'Error from {self.container_env} while scheduling job '
                          f'{job_id}, detail: {str(e)}')

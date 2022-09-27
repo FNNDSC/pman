@@ -19,7 +19,8 @@ class SwarmManager(AbstractManager[Service]):
         else:
             self.docker_client = docker.from_env(environment=self.config)
 
-    def schedule_job(self, image, command, name, resources_dict, mountdir=None) -> Service:
+    def schedule_job(self, image, command, name, resources_dict, env, mountdir=None) -> \
+            Service:
         """
         Schedule a new job and return the job (swarm service) object.
         """
@@ -30,6 +31,7 @@ class SwarmManager(AbstractManager[Service]):
         try:
             job = self.docker_client.services.create(image, command,
                                                      name=name,
+                                                     env=env,
                                                      mounts=mounts,
                                                      restart_policy=restart_policy,
                                                      tty=True)
