@@ -85,7 +85,7 @@ class AbstractManager(ABC, Generic[J]):
 
     @abstractmethod
     def schedule_job(self, image: Image, command: List[str], name: JobName,
-                     resources_dict: Resources, mountdir: Optional[str] = None) -> J:
+                     resources_dict: Resources, env: List[str], mountdir: Optional[str] = None) -> J:
         """
         Schedule a new job and return the job object.
         """

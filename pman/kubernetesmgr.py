@@ -25,11 +25,13 @@ class KubernetesManager(AbstractManager[V1Job]):
         self.kube_client = k_client.CoreV1Api()
         self.kube_v1_batch_client = k_client.BatchV1Api()
 
-    def schedule_job(self, image, command, name, resources_dict, mountdir=None) -> V1Job:
+    def schedule_job(self, image, command, name, resources_dict, env, mountdir=None) -> \
+            V1Job:
         """
         Schedule a new job and return the job object.
         """
-        job_instance = self.create_job(image, command, name, resources_dict, mountdir)
+        job_instance = self.create_job(image, command, name, resources_dict, env,
+                                       mountdir)
         job = self.submit_job(job_instance)
         return job
 
@@ -58,7 +60,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             # and return immediately.
             term_reason = self.__get_termination_reason(pod_item)
             if term_reason is not None:
-                if term_reason is not 'Completed':
+                if term_reason != 'Completed':
                     logs += f'\n{term_reason}'
                 return logs
         return logs
@@ -117,7 +119,8 @@ class KubernetesManager(AbstractManager[V1Job]):
         self.kube_v1_batch_client.delete_namespaced_job(job.metadata.name, body=body,
                                                         namespace=job_namespace)
 
-    def create_job(self, image, command, name, resources_dict, mountdir=None) -> V1Job:
+    def create_job(self, image, command, name, resources_dict, env_l, mountdir=None) -> \
+            V1Job:
         """
         Create and return a new job instance.
         """
@@ -133,14 +136,19 @@ class KubernetesManager(AbstractManager[V1Job]):
         # > request, Kubernetes automatically assigns a memory request that matches the limit.
 
         limits = {'memory': memory_limit, 'cpu': cpu_limit}
+
         env = []
+        for s in env_l:
+            key, val = s.split('=', 1)
+            env.append(k_client.V1EnvVar(name=key, value=val))
+
         if gpu_limit > 0:
             # ref: https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
             limits['nvidia.com/gpu'] = gpu_limit
-            env = [k_client.V1EnvVar(name='NVIDIA_VISIBLE_DEVICES', value='all'),
-                   k_client.V1EnvVar(name='NVIDIA_DRIVER_CAPABILITIES',
-                                     value='compute,utility'),
-                   k_client.V1EnvVar(name='NVIDIA_REQUIRE_CUDA', value='cuda>=9.0')],
+            env.append(k_client.V1EnvVar(name='NVIDIA_VISIBLE_DEVICES', value='all'))
+            env.append(k_client.V1EnvVar(name='NVIDIA_DRIVER_CAPABILITIES',
+                                         value='compute,utility'))
+            env.append(k_client.V1EnvVar(name='NVIDIA_REQUIRE_CUDA', value='cuda>=9.0'))
 
         security_context = {
             'allow_privilege_escalation': False,
