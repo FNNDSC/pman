@@ -140,7 +140,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             env = [k_client.V1EnvVar(name='NVIDIA_VISIBLE_DEVICES', value='all'),
                    k_client.V1EnvVar(name='NVIDIA_DRIVER_CAPABILITIES',
                                      value='compute,utility'),
-                   k_client.V1EnvVar(name='NVIDIA_REQUIRE_CUDA', value='cuda>=9.0')],
+                   k_client.V1EnvVar(name='NVIDIA_REQUIRE_CUDA', value='cuda>=9.0')]
 
         security_context = {
             'allow_privilege_escalation': False,
