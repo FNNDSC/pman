@@ -33,6 +33,10 @@ spec:
   template:
     metadata:
       name: pman
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics'
+        prometheus.io/port: '9092'
       labels:
         app: pman
         env: production
