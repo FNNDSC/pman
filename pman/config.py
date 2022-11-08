@@ -87,13 +87,7 @@ class DevConfig(Config):
                     'level': 'DEBUG',
                     'formatter': 'simple',
                     'stream': 'ext://sys.stdout'
-                }
-                # 'file': {
-                #     'level': 'DEBUG',
-                #     'class': 'logging.FileHandler',
-                #     'filename': '/tmp/debug.log',
-                #     'formatter': 'simple'
-                # }
+                },
             },
             'loggers': {
                 '': {  # root logger
