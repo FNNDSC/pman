@@ -170,30 +170,26 @@ class KubernetesManager(AbstractManager[V1Job]):
             volume_mounts=[k_client.V1VolumeMount(mount_path='/share',
                                                   name='storebase')]
         )
+
         # configure pod template's spec
-        # storage_type = self.config.get('STORAGE_TYPE')
-        # if storage_type == 'host':
-        #     volume = k_client.V1Volume(
-        #         name='storebase',
-        #         host_path=k_client.V1HostPathVolumeSource(path=mountdir)
-        #     )
-        # # else:
-        # #     volume = k_client.V1Volume(
-        # #         name='storebase',
-        # #         nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
-        # #                                        path=mountdir)
-        # #     )
-        # elif storage_type == 'nfs':
-        #     volume = k_client.V1Volume(
-        #         name='storebase',
-        #         nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
-        #                                         path=mountdir)
-        #     )
-        # else:
-        volume = k_client.V1Volume(
-            name='storebase',
-            persistent_volume_claim=k_client.V1PersistentVolumeClaimVolumeSource(claim_name = 'storebase')
-        )
+        storage_type = self.config.get('STORAGE_TYPE')
+        if storage_type == 'host':
+            volume = k_client.V1Volume(
+                name='storebase',
+                host_path=k_client.V1HostPathVolumeSource(path=mountdir)
+            )
+        elif storage_type == 'nfs':
+            volume = k_client.V1Volume(
+                name='storebase',
+                nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
+                                               path=mountdir)
+            )
+        else:
+            # The claim_name must match the name of a PersistentVolumeClaim in the same namespace which is mounted in pfcon
+            volume = k_client.V1Volume(
+                name='storebase', 
+                persistent_volume_claim=k_client.V1PersistentVolumeClaimVolumeSource(claim_name = 'storebase')
+            )
         template = k_client.V1PodTemplateSpec(
             spec=k_client.V1PodSpec(restart_policy='Never',
                                     containers=[container],
