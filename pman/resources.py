@@ -80,10 +80,11 @@ class JobListResource(Resource):
                           }
         share_dir = None
         storage_type = app.config.get('STORAGE_TYPE')
-        if storage_type in ('host', 'nfs'):
-            storebase = app.config.get('STOREBASE')
-            share_dir = os.path.join(storebase, 'key-' + job_id)
-
+        # if storage_type in ('host', 'nfs'):
+        #     storebase = app.config.get('STOREBASE')
+        #     share_dir = os.path.join(storebase, 'key-' + job_id)
+        storebase = app.config.get('STOREBASE')
+        share_dir = os.path.join(storebase, 'key-' + job_id)
         logger.info(f'Scheduling job {job_id} on the {self.container_env} cluster')
 
         compute_mgr = get_compute_mgr(self.container_env)
