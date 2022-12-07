@@ -15,7 +15,7 @@ from .cromwellmgr import CromwellManager
 logger = logging.getLogger(__name__)
 
 parser = reqparse.RequestParser(bundle_errors=True)
-parser.add_argument('jid', dest='jid', required=True)
+parser.add_argument('jid', dest='jid', required=True,type = str)
 parser.add_argument('args', dest='args', type=list, location='json', required=True)
 parser.add_argument('args_path_flags', dest='args_path_flags', type=frozenset,
                     location='json', required=False, default=frozenset())
@@ -70,27 +70,24 @@ class JobListResource(Resource):
                 abort(400, message='"env" must be a list of "key=value" strings')
 
         job_id = args.jid.lstrip('/')
-
+        logger.info(f'Scheduling job {job_id} on the {self.container_env} cluster')
+        
         cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type, job_id)
-
+        logger.info(f'command: {cmd}')
         resources_dict = {'number_of_workers': args.number_of_workers,
                           'cpu_limit': args.cpu_limit,
                           'memory_limit': args.memory_limit,
                           'gpu_limit': args.gpu_limit,
                           }
-        share_dir = None
-        storage_type = app.config.get('STORAGE_TYPE')
         # if storage_type in ('host', 'nfs'):
         #     storebase = app.config.get('STOREBASE')
         #     share_dir = os.path.join(storebase, 'key-' + job_id)
-        storebase = app.config.get('STOREBASE')
-        share_dir = os.path.join(storebase, 'key-' + job_id)
-        logger.info(f'Scheduling job {job_id} on the {self.container_env} cluster')
+        
 
         compute_mgr = get_compute_mgr(self.container_env)
         try:
             job = compute_mgr.schedule_job(args.image, cmd, job_id, resources_dict,
-                                           args.env, share_dir)
+                                           args.env)
         except ManagerException as e:
             logger.error(f'Error from {self.container_env} while scheduling job '
                          f'{job_id}, detail: {str(e)}')

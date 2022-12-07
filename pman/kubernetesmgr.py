@@ -256,7 +256,7 @@ class KubernetesManager(AbstractManager[V1Job]):
     @staticmethod
     def __is_container_creating_error(e) -> bool:
         return (
-            isinstnace(e, dict)
+            isinstance(e, dict)
             and 'message' in e
             and 'ContainerCreating' in e['message']
         )
