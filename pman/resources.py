@@ -52,11 +52,6 @@ class JobListResource(Resource):
 
     def __init__(self):
         super(JobListResource, self).__init__()
-
-        # mounting points for the input and outputdir in the app's container!
-        self.str_app_container_inputdir = '/share/incoming'
-        self.str_app_container_outputdir = '/share/outgoing'
-
         self.container_env = app.config.get('CONTAINER_ENV')
 
     def get(self):
@@ -76,7 +71,7 @@ class JobListResource(Resource):
 
         job_id = args.jid.lstrip('/')
 
-        cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type)
+        cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type, job_id)
 
         resources_dict = {'number_of_workers': args.number_of_workers,
                           'cpu_limit': args.cpu_limit,
@@ -120,12 +115,15 @@ class JobListResource(Resource):
             args: List[str],
             args_path_flags: Collection[str],
             entrypoint: List[str],
-            plugin_type: Literal['ds', 'fs', 'ts']
+            plugin_type: Literal['ds', 'fs', 'ts'],
+            job_id: str
     ) -> List[str]:
-        cmd = entrypoint + localize_path_args(args, args_path_flags, self.str_app_container_inputdir)
+        input_dir = f'/share/key-{job_id}/incoming'
+        output_dir = f'/share/key-{job_id}/outgoing'
+        cmd = entrypoint + localize_path_args(args, args_path_flags, input_dir)
         if plugin_type == 'ds':
-            cmd.append(self.str_app_container_inputdir)
-        cmd.append(self.str_app_container_outputdir)
+            cmd.append(input_dir)
+        cmd.append(output_dir)
         return cmd
 
 
