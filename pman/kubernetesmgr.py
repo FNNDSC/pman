@@ -171,18 +171,29 @@ class KubernetesManager(AbstractManager[V1Job]):
                                                   name='storebase')]
         )
         # configure pod template's spec
-        storage_type = self.config.get('STORAGE_TYPE')
-        if storage_type == 'host':
-            volume = k_client.V1Volume(
-                name='storebase',
-                host_path=k_client.V1HostPathVolumeSource(path=mountdir)
-            )
-        else:
-            volume = k_client.V1Volume(
-                name='storebase',
-                nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
-                                               path=mountdir)
-            )
+        # storage_type = self.config.get('STORAGE_TYPE')
+        # if storage_type == 'host':
+        #     volume = k_client.V1Volume(
+        #         name='storebase',
+        #         host_path=k_client.V1HostPathVolumeSource(path=mountdir)
+        #     )
+        # # else:
+        # #     volume = k_client.V1Volume(
+        # #         name='storebase',
+        # #         nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
+        # #                                        path=mountdir)
+        # #     )
+        # elif storage_type == 'nfs':
+        #     volume = k_client.V1Volume(
+        #         name='storebase',
+        #         nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
+        #                                         path=mountdir)
+        #     )
+        # else:
+        volume = k_client.V1Volume(
+            name='storebase',
+            persistent_volume_claim=k_client.V1PersistentVolumeClaimVolumeSource(claim_name = 'storebase')
+        )
         template = k_client.V1PodTemplateSpec(
             spec=k_client.V1PodSpec(restart_policy='Never',
                                     containers=[container],
