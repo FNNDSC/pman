@@ -82,12 +82,12 @@ class DevConfig(Config):
                     'class': 'logging.StreamHandler',
                     'formatter': 'simple',
                 },
-                'file': {
+                'console_stdout': {
+                    'class': 'logging.StreamHandler',
                     'level': 'DEBUG',
-                    'class': 'logging.FileHandler',
-                    'filename': '/tmp/debug.log',
-                    'formatter': 'simple'
-                }
+                    'formatter': 'simple',
+                    'stream': 'ext://sys.stdout'
+                },
             },
             'loggers': {
                 '': {  # root logger
@@ -96,7 +96,7 @@ class DevConfig(Config):
                 },
                 'pman': {  # pman package logger
                     'level': 'DEBUG',
-                    'handlers': ['console_simple', 'file'],
+                    'handlers': ['console_simple', 'console_stdout'],
                     'propagate': False
                     # required to avoid double logging with root logger
                 },
