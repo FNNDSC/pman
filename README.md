@@ -48,7 +48,7 @@ for exactly how it works.
 |----------------------|-------------------------------------------------------|
 | `SECRET_KEY`         | [Flask secret key][flask docs]                        |
 | `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell"             |
-| `STORAGE_TYPE`       | one of: "host", "nfs"                                 |
+| `STORAGE_TYPE`       | one of: "host", "nfs", "manual"                       |
 | `STOREBASE`          | where job data is stored, [see below](#STOREBASE)     |
 | `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`  |
 | `JOB_LOGS_TAIL`      | (int) maximum size of job logs                        |
