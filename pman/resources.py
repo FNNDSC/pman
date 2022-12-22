@@ -85,7 +85,7 @@ class JobListResource(Resource):
             share_dir = os.path.join(storebase, 'key-' + job_id)
         
         cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type, job_id,storage_type)
-        logger.info(f'command: {cmd}')
+
         resources_dict = {'number_of_workers': args.number_of_workers,
                           'cpu_limit': args.cpu_limit,
                           'memory_limit': args.memory_limit,
@@ -96,7 +96,7 @@ class JobListResource(Resource):
         compute_mgr = get_compute_mgr(self.container_env)
         try:
             job = compute_mgr.schedule_job(args.image, cmd, job_id, resources_dict,
-                                           args.env,share_dir)
+                                           args.env, share_dir)
         except ManagerException as e:
             logger.error(f'Error from {self.container_env} while scheduling job '
                          f'{job_id}, detail: {str(e)}')
@@ -126,20 +126,15 @@ class JobListResource(Resource):
             job_id: str,
             storage_type: str
     ) -> List[str]:
-        if storage_type in ('host', 'nfs'):
-            cmd = entrypoint + localize_path_args(args, args_path_flags, self.str_app_container_inputdir)
-            if plugin_type == 'ds':
-                cmd.append(self.str_app_container_inputdir)
-            cmd.append(self.str_app_container_outputdir)
-            return cmd
-        else:
-            input_dir = f'/share/key-{job_id}/incoming'
-            output_dir = f'/share/key-{job_id}/outgoing'
-            cmd = entrypoint + localize_path_args(args, args_path_flags, input_dir)
-            if plugin_type == 'ds':
-                cmd.append(input_dir)
-            cmd.append(output_dir)
-            return cmd
+        if storage_type not in ('host', 'nfs'):
+            self.str_app_container_inputdir = f'/share/key-{job_id}/incoming'
+            self.str_app_container_outputdir = f'/share/key-{job_id}/outgoing'
+        cmd = entrypoint + localize_path_args(args, args_path_flags, self.str_app_container_inputdir)
+        if plugin_type == 'ds':
+            cmd.append(self.str_app_container_inputdir)
+        cmd.append(self.str_app_container_outputdir)
+        return cmd
+
 
 
 class JobResource(Resource):
