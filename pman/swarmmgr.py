@@ -75,18 +75,36 @@ class SwarmManager(AbstractManager[Service]):
             image=task['Spec']['ContainerSpec']['Image'],
             cmd=' '.join(task['Spec']['ContainerSpec']['Command']),
             timestamp=TimeStamp(task['Status']['Timestamp']),
-            message=task['Status']['Message'],
+            message=self.__get_message_from(task),
             status=self.__state2status(task['Status']['State'])
         )
 
+    @classmethod
+    def __get_message_from(cls, task: dict) -> str:
+        if cls.__was_oom_killed(task):
+            return 'shutdown by docker swarm (out of memory)'
+        return task['Status']['Message']
+
+    @staticmethod
+    def __was_oom_killed(task: dict) -> bool:
+        return task['Status']['State'] == 'shutdown' and task['Status']['ContainerStatus']['ExitCode'] == 137
+
     @staticmethod
     def __state2status(state: str) -> JobStatus:
-        if state in ('new', 'pending', 'assigned', 'accepted', 'preparing',
-                     'starting'):
+        """
+        Documentation: https://docs.docker.com/engine/api/v1.41/#tag/Task/operation/TaskList
+
+        State is one of:
+
+         Enum: "new" "allocated" "pending" "assigned" "accepted" "preparing" "ready" "starting"
+         "running" "complete" "shutdown" "failed" "rejected" "remove" "orphaned"
+        """
+        if state in ('new', 'allocated', 'pending', 'assigned', 'accepted', 'preparing',
+                     'ready', 'starting'):
             return JobStatus.notstarted
         elif state == 'running':
             return JobStatus.started
-        elif state == 'failed':
+        elif state in ('failed', 'shutdown'):
             return JobStatus.finishedWithError
         elif state == 'complete':
             return JobStatus.finishedSuccessfully
