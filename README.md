@@ -13,7 +13,13 @@ the various supported backends.
 
 _pman_ is tightly-coupled to
 [_pfcon_](https://github.com/FNNDSC/pfcon). _pman_ and _pfcon_
-are typially deployed as a pair, providing the _pfcon_ service.
+are typically deployed as a pair, providing the _pfcon_ service.
+
+## Running `pman`
+
+The easiest way to see it in action is to run
+[_miniChRIS-docker_](https://github.com/FNNDSC/miniChRIS-docker).
+The instructions that follow are for _pman_ hackers and developers.
 
 ## Development
 
@@ -38,21 +44,74 @@ run the test harness `test_swarm.sh`.
 ./test_swarm.sh
 ```
 
+### Using Podman
+
+Here, we will run _pman_ on the host (for convenience) having it talk to Podman in rootless mode.
+
+```shell
+# start podman socket
+podman system service -t 0 &
+
+# create storebase
+export VOLUME_NAME=pman-storebase
+podman volume create $VOLUME_NAME
+```
+
 ## Configuration
 
 _pman_ is configured by environment variables.
 Refer to the source code in [pman/config.py](pman/config.py)
 for exactly how it works.
 
-| Environment Variable | Description                                           |
-|----------------------|-------------------------------------------------------|
-| `SECRET_KEY`         | [Flask secret key][flask docs]                        |
-| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell"             |
-| `STORAGE_TYPE`       | one of: "host", "nfs"                                 |
-| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)     |
-| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`  |
-| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                        |
-| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug) |
+### Configuration Overview
+
+Before configuring pman for deployment, ask yourself two questions:
+
+1. What `CONTAINER_ENV` am I using? (one of: Kubernetes, Docker Swarm, Docker Engine or Podman, Cromwell + SLURM)
+2. How are data files shared across nodes in my compute cluster?
+
+Storage in particular is tricky and there is no one-size-fits-all solution.
+_pman_ and _pfcon_ are typically configured with an environment variable
+[`STOREBASE`](#storebase). The historical context here is that the first
+version of _pman_ was developed before Kubernetes was cool, so the best way
+to share data files within a cluster was NFS. 
+
+For multi-node clusters, the system administrator is expected to have an
+existing solution for having a "shared volume" visible on the same path to
+every node in the cluster (which is typically how NFS is used). The path on
+each host to this share  should be provided as the value for `STOREBASE`.
+
+For single-machine deployment using Podman or Docker Compose, the best solution
+is to use a local volume, since the volume can be managed by the container engine
+and is discoverable via the container engine's API. When `CONTAINER_ENV=docker`
+(which is default since pman v4.1) and/or `STORAGE_TYPE=docker_host_volume`,
+_pman_ will try to automatically discover what **existing** volume is the store base.
+
+#### `swarm` v.s. `docker`
+
+Originally, _pman_ interfaced with the Docker Swarm API for the sake of supporting multi-node clusters.
+However, more often than not, _pman_ is run on a single-machine. Such is the case for developer
+environments, "host" compute resources for our single-machine production deployments of CUBE,
+and production deployments of _CUBE_ on our Power9 supercomputers. Swarm mode is mostly an annoyance
+and its multi-node ability is poorly tested. Furthermore, multi-node functionality is
+better provided by `CONTAINER_ENV=kubernetes`.
+
+In _pman_ v4.1, `CONTAINER_ENV=docker` was introduced as a new feature and the default configuration.
+In this mode, _pman_ uses the Docker Engine API instead of the Swarm API, which is much more convenient
+for single-machine use cases. It is also compatible with Podman.
+
+### Environment Variables
+
+| Environment Variable | Description                                                            |
+|----------------------|------------------------------------------------------------------------|
+| `SECRET_KEY`         | [Flask secret key][flask docs]                                         |
+| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell"                              |
+| `STORAGE_TYPE`       | one of: "host", "nfs", "docker_local_volume"                           |
+| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)                      |
+| `VOLUME_NAME`        | name of local volume, required when `STORAGE_TYPE=docker_local_volume` |
+| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`                   |
+| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                                         |
+| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug)                  |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
 
@@ -72,6 +131,9 @@ Applicable when `CONTAINER_ENV=kubernetes`
 | `SECURITYCONTEXT_RUN_AS_USER`  | Job container UID (NFS permissions workaround)  |
 | `SECURITYCONTEXT_RUN_AS_GROUP` | Job container GID  (NFS permissions workaround) |
 
+Currently, only HostPath and NFS volumes are supported.
+_pfcon_ and _pman_ do not support (using nor creating) other kinds of PVCs.
+
 ### SLURM-Specific Options
 
 Applicable when `CONTAINER_ENV=cromwell`
@@ -82,16 +144,6 @@ Applicable when `CONTAINER_ENV=cromwell`
 | `TIMELIMIT_MINUTES`  | SLURM job time limit                                 |
 
 For how it works, see https://github.com/FNNDSC/pman/wiki/Cromwell
-
-## Limitations
-
-The system administrator is expected to have an existing solution for having
-a "shared volume" visible on the same path to every node in the cluster
-(which is typically how NFS is used). The path on each host to this share
-should be provided as the value for `STOREBASE`.
-
-Currently, only HostPath and NFS volumes are supported.
-_pfcon_ and _pman_ do not support (using nor creating) other kinds of PVCs.
 
 ## TODO
 

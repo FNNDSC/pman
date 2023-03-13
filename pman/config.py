@@ -1,8 +1,11 @@
 
 from logging.config import dictConfig
+
 from environs import Env
 
 from importlib.metadata import Distribution
+
+from pman._helpers import get_storebase_from_docker
 
 pkg = Distribution.from_name(__package__)
 
@@ -22,8 +25,9 @@ class Config:
 
         self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
 
-        self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
-        self.STORAGE_TYPE = env('STORAGE_TYPE', 'host')
+        self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
+        default_storage_type = 'docker_local_volume' if self.CONTAINER_ENV == 'docker' else None
+        self.STORAGE_TYPE = env('STORAGE_TYPE', default_storage_type)
 
         self.REMOVE_JOBS = env('REMOVE_JOBS', 'yes').lower() != 'no'
 
@@ -31,6 +35,11 @@ class Config:
             self.STOREBASE = env('STOREBASE')
             if self.STORAGE_TYPE == 'nfs':
                 self.NFS_SERVER = env('NFS_SERVER')
+
+        if self.STORAGE_TYPE == 'docker_local_volume':
+            pfcon_selector = env('PFCON_SELECTOR', 'org.chrisproject.role=pfcon')
+            volume_name = env('VOLUME_NAME', None)
+            self.STOREBASE = get_storebase_from_docker(pfcon_selector, volume_name)
 
         if self.CONTAINER_ENV == 'swarm':
             docker_host = env('DOCKER_HOST', '')
@@ -51,6 +60,12 @@ class Config:
         if self.CONTAINER_ENV == 'cromwell':
             self.CROMWELL_URL = env('CROMWELL_URL')
             self.TIMELIMIT_MINUTES = env.int('TIMELIMIT_MINUTES')
+
+        if self.CONTAINER_ENV == 'docker':
+            # nothing needs to be done!
+            # In the above config code for swarm, docker env variables are intercepted pointlessly.
+            # To configure Docker Engine/Podman, use the standard env variables for the Docker client.
+            pass
 
         self.env = env
 
