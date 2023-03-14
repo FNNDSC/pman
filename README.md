@@ -106,6 +106,8 @@ for single-machine use cases.
 
 **`CONTAINER_ENV=docker` is compatible with Podman.**
 
+Podman version 4 or above is required.
+
 ### Environment Variables
 
 | Environment Variable | Description                                                             |
