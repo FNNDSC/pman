@@ -40,7 +40,14 @@ jobs:
           - podman
     steps:
       - uses: actions/checkout@v3
-      - run: ./test_docker.sh '${{ matrix.engine }}'
+      - name: Test
+        run: |
+          # podman is not configured to allow the Github Actions user to set CPU limits, so we need to ignore them.
+          # https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+          if [ '${{ matrix.engine }}' = 'podman' ]; then
+            export IGNORE_LIMITS=yes
+          fi
+          ./test_docker.sh '${{ matrix.engine }}'
 
   test-swarm:
     name: tests (swarm)

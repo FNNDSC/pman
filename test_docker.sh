@@ -70,8 +70,13 @@ podman run --rm \
 mock_pfcon=$(podman run --rm -d -v "$volume:/var/local/storeBase" -l org.chrisproject.role=pfcon alpine sleep 60)
 
 # run pman in the background
+
+# IGNORE_LIMITS is forwarded to the container as a workaround for a Github Actions bug,
+# see .github/workflows/ci.yml
+
 pman=$(
   podman run --rm -d --userns host -p 5010:5010 \
+    -e IGNORE_LIMITS \
     -v $socket:/var/run/docker.sock:rw \
     -e SECRET_KEY=secret -e CONTAINER_ENV=$CONTAINER_RUNTIME \
     $pman_image

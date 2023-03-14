@@ -15,6 +15,12 @@ class DockerManager(AbstractManager[Container]):
     """
     def __init__(self, config_dict=None, docker_client: DockerClient = None):
         super().__init__(config_dict)
+
+        # these should be part of the AbstractManager.schedule_job signature,
+        # but I'm putting it here to keep the PR diff small
+        self.job_labels = config_dict.get('JOB_LABELS')
+        self.ignore_limits = config_dict.get('IGNORE_LIMITS')
+
         if docker_client is not None:
             self.__docker = docker_client
         else:
@@ -31,20 +37,25 @@ class DockerManager(AbstractManager[Container]):
         if resources_dict['gpu_limit'] != 0:
             raise ManagerException('Compute environment does not support GPUs yet.')
 
-        kwargs = {}
+        volumes = {}
         if mountdir is not None:
-            kwargs['volumes'] = {mountdir: {'bind': '/share', 'mode': 'rw'}}
+            volumes['volumes'] = {mountdir: {'bind': '/share', 'mode': 'rw'}}
+
+        limits = {}
+        if not self.ignore_limits:
+            limits['nano_cpus'] = int(resources_dict['cpu_limit'] * 1e6)
+            limits['mem_reservation'] = resources_dict['memory_limit'] * 1024 * 1024
 
         return self.__docker.containers.run(
             image=image,
             command=command,
             name=name,
-            nano_cpus=int(resources_dict['cpu_limit'] * 1e6),
-            mem_reservation=(resources_dict['memory_limit'] * 1024 * 1024),
             environment=env,
             restart_policy = {'Name': 'no', 'MaximumRetryCount': 0},
             detach=True,
-            **kwargs
+            labels=self.job_labels,
+            **limits,
+            **volumes
         )
 
     def get_job(self, name: JobName) -> Container:

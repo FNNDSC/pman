@@ -116,17 +116,19 @@ https://github.com/containers/podman/blob/main/troubleshooting.md#symptom-23
 
 ### Environment Variables
 
-| Environment Variable | Description                                                             |
-|----------------------|-------------------------------------------------------------------------|
-| `SECRET_KEY`         | [Flask secret key][flask docs]                                          |
-| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell", "docker"                     |
-| `STORAGE_TYPE`       | one of: "host", "nfs", "docker_local_volume"                            |
-| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)                       |
-| `VOLUME_NAME`        | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`     |
-| `PFCON_SELECTOR`     | label on the pfcon container (default: `org.chrisproject.role=pfcon`)   |
-| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`                    |
-| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                                          |
-| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug)                   |
+| Environment Variable | Description                                                            |
+|----------------------|------------------------------------------------------------------------|
+| `SECRET_KEY`         | [Flask secret key][flask docs]                                         |
+| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell", "docker"                    |
+| `STORAGE_TYPE`       | one of: "host", "nfs", "docker_local_volume"                           |
+| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)                      |
+| `VOLUME_NAME`        | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`    |
+| `PFCON_SELECTOR`     | label on the pfcon container (default: `org.chrisproject.role=pfcon`)  |
+| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`                   |
+| `JOB_LABELS`         | CSV list of key=value pairs, labels to apply to container jobs         |
+| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                                         |
+| `IGNORE_LIMITS`      | If set to "yes" then do not set resource limits on container jobs      |
+| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug)                  |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
 
@@ -171,6 +173,12 @@ Applicable when `CONTAINER_ENV=cromwell`
 | `TIMELIMIT_MINUTES`  | SLURM job time limit                                 |
 
 For how it works, see https://github.com/FNNDSC/pman/wiki/Cromwell
+
+## Missing Features
+
+- `IGNORE_LIMITS=yes` only works with `CONTAINER_ENV=docker` (or podman).
+- `JOB_LABELS=...` only works with `CONTAINER_ENV=docker` (or podman).
+- `CONTAINER_ENV=cromwell` does not forward environment variables.
 
 ## TODO
 

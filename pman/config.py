@@ -24,7 +24,8 @@ class Config:
         env.read_env()  # also read .env file, if it exists
 
         self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
-
+        self.JOB_LABELS = env.dict('JOB_LABELS', {})
+        self.IGNORE_LIMITS = env.bool('IGNORE_LIMITS', False)
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
         if self.CONTAINER_ENV == 'podman':  # podman is just an alias for docker
             self.CONTAINER_ENV = 'docker'
@@ -32,7 +33,7 @@ class Config:
         default_storage_type = 'docker_local_volume' if self.CONTAINER_ENV == 'docker' else None
         self.STORAGE_TYPE = env('STORAGE_TYPE', default_storage_type)
 
-        self.REMOVE_JOBS = env('REMOVE_JOBS', 'yes').lower() != 'no'
+        self.REMOVE_JOBS = env.bool('REMOVE_JOBS', True)
 
         if self.STORAGE_TYPE == 'host' or self.STORAGE_TYPE == 'nfs':
             self.STOREBASE = env('STOREBASE')
