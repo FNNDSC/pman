@@ -115,7 +115,7 @@ EOF
 )"
 
 curl -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  --data "$body" -q http://localhost:5010/api/v1/
+  --data "$body" -s http://localhost:5010/api/v1/
 
 podman logs $pman  # debug output
 
@@ -138,7 +138,7 @@ podman run --rm -v "$storeBase/key-$jid:/share:ro" alpine diff -rq \
   "/share/outgoing/hello_test_README.md"
 
 # assert pman reports simpledsapp finishedSuccessfully
-status="$(curl -H 'Accept: application/json' http://localhost:5010/api/v1/$jid/ | jq -r '.status')"
+status="$(curl -sH 'Accept: application/json' http://localhost:5010/api/v1/$jid/ | jq -r '.status')"
 
 if [ "$status" != "finishedSuccessfully" ]; then
   echo "failed assertion: pman reports $jid has status \"$status\""
@@ -147,7 +147,7 @@ fi
 
 # delete job
 set +e
-curl -qX DELETE http://localhost:5010/api/v1/$jid/
+curl -sX DELETE http://localhost:5010/api/v1/$jid/
 set +o pipefail
 podman container inspect $jid 2>&1 | grep -Fqm 1 "no such container" \
   || (echo "assertion failed: container $jid not deleted"; exit 1)
