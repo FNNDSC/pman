@@ -106,7 +106,13 @@ for single-machine use cases.
 
 **`CONTAINER_ENV=docker` is compatible with Podman.**
 
-Podman version 4 or above is required.
+Podman version 3 or 4 are known to work.
+
+#### Rootless Podman
+
+Configure the user to be able to set resource limits.
+
+https://github.com/containers/podman/blob/main/troubleshooting.md#symptom-23
 
 ### Environment Variables
 
