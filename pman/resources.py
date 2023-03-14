@@ -7,6 +7,7 @@ from flask import current_app as app
 from flask_restful import reqparse, abort, Resource
 
 from .abstractmgr import ManagerException
+from .dockermgr import DockerManager
 from .openshiftmgr import OpenShiftManager
 from .kubernetesmgr import KubernetesManager
 from .swarmmgr import SwarmManager
@@ -34,7 +35,9 @@ parser.add_argument('env', dest='env', type=list, location='json', default=[])
 
 def get_compute_mgr(container_env):
     compute_mgr = None
-    if container_env == 'swarm':
+    if container_env == 'docker' or container_env == 'podman':
+        compute_mgr = DockerManager(app.config)
+    elif container_env == 'swarm':
         compute_mgr = SwarmManager(app.config)
     elif container_env == 'kubernetes':
         compute_mgr = KubernetesManager(app.config)
@@ -84,8 +87,11 @@ class JobListResource(Resource):
                           'gpu_limit': args.gpu_limit,
                           }
         share_dir = None
+        # hmm, probably unnecessarily relying on invariant that
+        # STORAGETYPE matches enum value -> STOREBASE is valid and should be used
+        # Perhaps we should instead simply check STOREBASE only?
         storage_type = app.config.get('STORAGE_TYPE')
-        if storage_type in ('host', 'nfs'):
+        if storage_type in ('host', 'nfs', 'docker_local_volume'):
             storebase = app.config.get('STOREBASE')
             share_dir = os.path.join(storebase, 'key-' + job_id)
 

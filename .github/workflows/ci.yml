@@ -15,7 +15,19 @@ on:
 
 
 jobs:
-  test-pman:
+  test-docker:
+    name: tests (docker, podman)
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        engine:
+          - docker
+          - podman
+    steps:
+      - uses: actions/checkout@v3
+      - run: ./test_docker.sh '${{ matrix.engine }}'
+
+  test-swarm:
     name: tests (swarm)
     runs-on: ubuntu-22.04
     steps:
@@ -31,7 +43,7 @@ jobs:
       - uses: FNNDSC/cube-integration-action@v6
 
   build:
-    needs: [test-pman, test-cube]
+    needs: [test-docker, test-swarm, test-cube]
     if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     steps:

@@ -7,7 +7,7 @@
 _pman_, which once stood for **p**rocess **man**ager,
 is a [Flask](https://flask-restful.readthedocs.io/) application
 providing an API for creating jobs with various schedulers e.g.
-Kubernetes, Docker Swarm, and SLURM.
+Kubernetes, Podman, Docker Swarm, and SLURM.
 It basically translates its own JSON interface to requests for
 the various supported backends.
 
@@ -46,15 +46,17 @@ run the test harness `test_swarm.sh`.
 
 ### Using Podman
 
-Here, we will run _pman_ on the host (for convenience) having it talk to Podman in rootless mode.
+_pman_ must be able to schedule containers via Podman by communicating to the Podman socket.
 
 ```shell
-# start podman socket
-podman system service -t 0 &
+systemctl --user start podman.service
+export DOCKER_HOST="$(podman info --format '{{ .Host.RemoteSocket.Path }}')"
+```
 
-# create storebase
-export VOLUME_NAME=pman-storebase
-podman volume create $VOLUME_NAME
+### _pman_ On-the-Metal
+
+```shell
+
 ```
 
 ## Configuration
@@ -98,20 +100,25 @@ better provided by `CONTAINER_ENV=kubernetes`.
 
 In _pman_ v4.1, `CONTAINER_ENV=docker` was introduced as a new feature and the default configuration.
 In this mode, _pman_ uses the Docker Engine API instead of the Swarm API, which is much more convenient
-for single-machine use cases. It is also compatible with Podman.
+for single-machine use cases.
+
+### Podman Support
+
+**`CONTAINER_ENV=docker` is compatible with Podman.**
 
 ### Environment Variables
 
-| Environment Variable | Description                                                            |
-|----------------------|------------------------------------------------------------------------|
-| `SECRET_KEY`         | [Flask secret key][flask docs]                                         |
-| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell"                              |
-| `STORAGE_TYPE`       | one of: "host", "nfs", "docker_local_volume"                           |
-| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)                      |
-| `VOLUME_NAME`        | name of local volume, required when `STORAGE_TYPE=docker_local_volume` |
-| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`                   |
-| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                                         |
-| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug)                  |
+| Environment Variable | Description                                                             |
+|----------------------|-------------------------------------------------------------------------|
+| `SECRET_KEY`         | [Flask secret key][flask docs]                                          |
+| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell", "docker"                     |
+| `STORAGE_TYPE`       | one of: "host", "nfs", "docker_local_volume"                            |
+| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)                       |
+| `VOLUME_NAME`        | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`     |
+| `PFCON_SELECTOR`     | label on the pfcon container (default: `org.chrisproject.role=pfcon`)   |
+| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`                    |
+| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                                          |
+| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug)                   |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
 
@@ -120,6 +127,18 @@ for single-machine use cases. It is also compatible with Podman.
 - If `STORAGE_TYPE=host`, then `STOREBASE` represents the path on the
 container host.
 - If `STORAGE_TYPE=nfs`, then `STOREBASE` should be an exported NFS share
+- If `STOREAGE_TYPE=docker_local_volume`,
+  then _pman_ will try to figure it out for you
+
+### `STOREAGE_TYPE=docker_local_volume`
+
+For single-machine instances, use a Docker/Podman local volume as the "storeBase."
+The volume should exist prior to the start of _pman_. It can be identified one of
+two ways:
+
+- Manually, by passing the volume name to the variable `VOLUME_NAME`
+- Automatically: _pman_ inspects a container with the label `org.chrisproject.role=pfcon`
+  and selects the mountpoint of the bind to `/var/local/storeBase`
 
 ### Kubernetes-Specific Options
 
@@ -147,5 +166,4 @@ For how it works, see https://github.com/FNNDSC/pman/wiki/Cromwell
 
 ## TODO
 
-- [ ] Example for how to interact with _pman_ directly (w/o _pfcon_)
 - [ ] Dev environment and testing for Kubernetes and SLURM.

@@ -10,4 +10,5 @@ venv/
 
 docker-test-entrypoint.sh
 docker-compose.yml
-
+test_swarm.sh
+test_docker.sh

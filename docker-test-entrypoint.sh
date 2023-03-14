@@ -19,7 +19,7 @@ print(storebase)
 export STOREBASE="$(python -c "$py")"
 >&2 echo "Detected host path of STOREBASE=$STOREBASE"
 
-export APPLICATION_MODE=development CONTAINER_ENV=swarm PYTHONDONTWRITEBYTECODE=1
+export STORAGE_TYPE=host APPLICATION_MODE=development CONTAINER_ENV=swarm PYTHONDONTWRITEBYTECODE=1
 
 if [ "$#" -eq 0 ]; then
   set -x
