@@ -26,6 +26,9 @@ class Config:
         self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
+        if self.CONTAINER_ENV == 'podman':  # podman is just an alias for docker
+            self.CONTAINER_ENV = 'docker'
+
         default_storage_type = 'docker_local_volume' if self.CONTAINER_ENV == 'docker' else None
         self.STORAGE_TYPE = env('STORAGE_TYPE', default_storage_type)
 
