@@ -110,8 +110,9 @@ EOF
 )"
 
 curl -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  --data "$body" http://localhost:5010/api/v1/
+  --data "$body" -q http://localhost:5010/api/v1/
 
+podman logs $pman  # debug output
 
 # assert pman created container, and that STOREBASE was mounted
 podman container inspect --format '{{ range .Mounts }}{{ .Source }}{{end}}' $jid \
@@ -123,6 +124,8 @@ if [ "$rc" != "0" ]; then
   echo "failed assertion: $jid exited with code $rc"
   exit $rc
 fi
+
+podman logs $jid  # debug output
 
 # assert simpledsapp worked
 podman run --rm -v "$storeBase/key-$jid:/share:ro" alpine diff -rq \
