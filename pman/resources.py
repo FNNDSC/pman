@@ -77,6 +77,9 @@ class JobListResource(Resource):
             if len(s.split('=', 1)) != 2:
                 abort(400, message='"env" must be a list of "key=value" strings')
 
+        if app.config.get('ENABLE_HOME_WORKAROUND'):
+            args.env.append('HOME=/tmp')
+
         job_id = args.jid.lstrip('/')
 
         cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type)

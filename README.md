@@ -27,8 +27,8 @@ This section describes how to set up a local instance of *pman* working against 
 
 ### Using Docker Compose
 
-The easiest way to run a code hot-reloading server for
-development is using docker-compose.
+These instructions run _pman_ inside a container using Docker and Docker Swarm for scheduling jobs.
+Hot-reloading of changes to the code is enabled.
 
 ```shell
 docker swarm init --advertise-addr 127.0.0.1
@@ -44,7 +44,7 @@ run the test harness `test_swarm.sh`.
 ./test_swarm.sh
 ```
 
-### Using Podman
+### Using Podman for Development
 
 _pman_ must be able to schedule containers via Podman by communicating to the Podman socket.
 
@@ -53,10 +53,19 @@ systemctl --user start podman.service
 export DOCKER_HOST="$(podman info --format '{{ .Host.RemoteSocket.Path }}')"
 ```
 
-### _pman_ On-the-Metal
+#### Install _pman_ using Python
 
 ```shell
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements/local.txt
+pip install -e .
+```
 
+#### Run _pman_ using Python in Development Mode
+
+```shell
+python -m pman
 ```
 
 ## Configuration
@@ -116,19 +125,21 @@ https://github.com/containers/podman/blob/main/troubleshooting.md#symptom-23
 
 ### Environment Variables
 
-| Environment Variable | Description                                                            |
-|----------------------|------------------------------------------------------------------------|
-| `SECRET_KEY`         | [Flask secret key][flask docs]                                         |
-| `CONTAINER_ENV`      | one of: "swarm", "kubernetes", "cromwell", "docker"                    |
-| `STORAGE_TYPE`       | one of: "host", "nfs", "docker_local_volume"                           |
-| `STOREBASE`          | where job data is stored, [see below](#STOREBASE)                      |
-| `VOLUME_NAME`        | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`    |
-| `PFCON_SELECTOR`     | label on the pfcon container (default: `org.chrisproject.role=pfcon`)  |
-| `NFS_SERVER`         | NFS server address, required when `STORAGE_TYPE=nfs`                   |
-| `JOB_LABELS`         | CSV list of key=value pairs, labels to apply to container jobs         |
-| `JOB_LOGS_TAIL`      | (int) maximum size of job logs                                         |
-| `IGNORE_LIMITS`      | If set to "yes" then do not set resource limits on container jobs      |
-| `REMOVE_JOBS`        | If set to "no" then pman will not delete jobs (debug)                  |
+| Environment Variable     | Description                                                                |
+|--------------------------|----------------------------------------------------------------------------|
+| `SECRET_KEY`             | [Flask secret key][flask docs]                                             |
+| `CONTAINER_ENV`          | one of: "swarm", "kubernetes", "cromwell", "docker"                        |
+| `STORAGE_TYPE`           | one of: "host", "nfs", "docker_local_volume"                               |
+| `STOREBASE`              | where job data is stored, [see below](#STOREBASE)                          |
+| `VOLUME_NAME`            | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`        |
+| `PFCON_SELECTOR`         | label on the pfcon container (default: `org.chrisproject.role=pfcon`)      |
+| `NFS_SERVER`             | NFS server address, required when `STORAGE_TYPE=nfs`                       |
+| `ENABLE_RANDOM_USER`     | If set to "yes" then set job container users to have arbitrary UID and GID |
+| `ENABLE_HOME_WORKAROUND` | If set to "yes" then set job environment variable `HOME=/tmp`              |
+| `JOB_LABELS`             | CSV list of key=value pairs, labels to apply to container jobs             |
+| `JOB_LOGS_TAIL`          | (int) maximum size of job logs                                             |
+| `IGNORE_LIMITS`          | If set to "yes" then do not set resource limits on container jobs          |
+| `REMOVE_JOBS`            | If set to "no" then pman will not delete jobs (debug)                      |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
 
@@ -174,10 +185,18 @@ Applicable when `CONTAINER_ENV=cromwell`
 
 For how it works, see https://github.com/FNNDSC/pman/wiki/Cromwell
 
+### Container User Security
+
+`ENABLE_RANDOM_USER=yes` increases security but will cause (unsafely written)
+_ChRIS_ plugins to fail.
+In some cases, `ENABLE_HOME_WORKAROUND=yes` can get the plugin to work
+without having to change its code.
+
 ## Missing Features
 
 - `IGNORE_LIMITS=yes` only works with `CONTAINER_ENV=docker` (or podman).
 - `JOB_LABELS=...` only works with `CONTAINER_ENV=docker` (or podman).
+- `ENABLE_RANDOM_USER` only works with `CONTAINER_ENV=docker` (or podman)
 - `CONTAINER_ENV=cromwell` does not forward environment variables.
 
 ## TODO

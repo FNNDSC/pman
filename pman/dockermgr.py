@@ -1,5 +1,4 @@
 import shlex
-from collections import defaultdict
 from typing import List, Optional, AnyStr
 
 from docker import DockerClient

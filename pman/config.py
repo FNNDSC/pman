@@ -26,6 +26,9 @@ class Config:
         self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
         self.JOB_LABELS = env.dict('JOB_LABELS', {})
         self.IGNORE_LIMITS = env.bool('IGNORE_LIMITS', False)
+        self.ENABLE_RANDOM_USER = env.bool('ENABLE_RANDOM_USER', False)
+        self.ENABLE_HOME_WORKAROUND = env.bool('ENABLE_HOME_WORKAROUND', False)
+
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
         if self.CONTAINER_ENV == 'podman':  # podman is just an alias for docker
             self.CONTAINER_ENV = 'docker'

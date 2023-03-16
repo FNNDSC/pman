@@ -145,6 +145,10 @@ if [ "$status" != "finishedSuccessfully" ]; then
   exit 1
 fi
 
+## pause for manual inspection
+#echo "press any key to continue..."
+#read -n 1 _whatever
+
 # delete job
 set +e
 curl -sX DELETE http://localhost:5010/api/v1/$jid/
@@ -165,7 +169,8 @@ cat << EOF
 EOF
 
 # clean up
-set -ex
+set +e
+set -x
 podman kill $pman $mock_pfcon
 podman rm $pman $mock_pfcon
 podman volume rm $volume
