@@ -77,7 +77,7 @@ jobs:
       run: |
         desc="$(git describe --tags)"
         echo "Version=$desc"
-        echo "::set-output name=desc::$desc"
+        echo "desc=$desc" >> $GITHUB_OUTPUT
     - name: Get build tags
       id: info
       shell: python
@@ -100,7 +100,8 @@ jobs:
             [repo],
             (':' + t for t in tags)
         ))
-        print(f'::set-output name=tags::{names}')
+        with open(os.getenv('GITHUB_OUTPUT'), 'a') as f:
+            f.write(f'tags={names}\n')
     - uses: docker/setup-qemu-action@v2
     - uses: docker/setup-buildx-action@v2
       id: buildx
