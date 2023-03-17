@@ -26,7 +26,7 @@ class Config:
         self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
         self.JOB_LABELS = env.dict('JOB_LABELS', {})
         self.IGNORE_LIMITS = env.bool('IGNORE_LIMITS', False)
-        self.CONTAINER_USER = env.bool('CONTAINER_USER', False)
+        self.CONTAINER_USER = env('CONTAINER_USER', None)
         self.ENABLE_HOME_WORKAROUND = env.bool('ENABLE_HOME_WORKAROUND', False)
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
