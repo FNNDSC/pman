@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: docker build -t fnndsc/pman .
-      - uses: FNNDSC/cube-integration-action@v6
+      - uses: FNNDSC/cube-integration-action@master
 
   build:
     needs: [test-python, test-docker, test-swarm, test-cube]
