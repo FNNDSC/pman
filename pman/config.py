@@ -26,7 +26,7 @@ class Config:
         self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
         self.JOB_LABELS = env.dict('JOB_LABELS', {})
         self.IGNORE_LIMITS = env.bool('IGNORE_LIMITS', False)
-        self.ENABLE_RANDOM_USER = env.bool('ENABLE_RANDOM_USER', False)
+        self.CONTAINER_USER = env.bool('CONTAINER_USER', False)
         self.ENABLE_HOME_WORKAROUND = env.bool('ENABLE_HOME_WORKAROUND', False)
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
@@ -61,8 +61,6 @@ class Config:
 
         if self.CONTAINER_ENV == 'kubernetes':
             self.JOB_NAMESPACE = env('JOB_NAMESPACE', 'default')
-            self.SECURITYCONTEXT_RUN_AS_USER = env.int('SECURITYCONTEXT_RUN_AS_USER', None)
-            self.SECURITYCONTEXT_RUN_AS_GROUP = env.int('SECURITYCONTEXT_RUN_AS_GROUP', None)
 
         if self.CONTAINER_ENV == 'cromwell':
             self.CROMWELL_URL = env('CROMWELL_URL')

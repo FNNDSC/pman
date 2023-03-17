@@ -7,6 +7,7 @@ from flask import current_app as app
 from flask_restful import reqparse, abort, Resource
 
 from .abstractmgr import ManagerException
+from .container_user import ContainerUser
 from .dockermgr import DockerManager
 from .openshiftmgr import OpenShiftManager
 from .kubernetesmgr import KubernetesManager
@@ -62,6 +63,8 @@ class JobListResource(Resource):
 
         self.container_env = app.config.get('CONTAINER_ENV')
 
+        self.user = ContainerUser.parse(app.config.get('CONTAINER_USER'))
+
     def get(self):
         return {
             'server_version': app.config.get('SERVER_VERSION')
@@ -103,7 +106,7 @@ class JobListResource(Resource):
         compute_mgr = get_compute_mgr(self.container_env)
         try:
             job = compute_mgr.schedule_job(args.image, cmd, job_id, resources_dict,
-                                           args.env, share_dir)
+                                           args.env, self.user.get_uid(), self.user.get_gid(), share_dir)
         except ManagerException as e:
             logger.error(f'Error from {self.container_env} while scheduling job '
                          f'{job_id}, detail: {str(e)}')

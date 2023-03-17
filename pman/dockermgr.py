@@ -26,6 +26,7 @@ class DockerManager(AbstractManager[Container]):
             self.__docker = docker.from_env()
 
     def schedule_job(self, image: Image, command: List[str], name: JobName, resources_dict: Resources, env: List[str],
+                     uid: Optional[int], gid: Optional[int],
                      mountdir: Optional[str] = None) -> Container:
         if resources_dict['number_of_workers'] != 1:
             raise ManagerException(
@@ -45,6 +46,12 @@ class DockerManager(AbstractManager[Container]):
             limits['nano_cpus'] = int(resources_dict['cpu_limit'] * 1e6)
             limits['mem_reservation'] = resources_dict['memory_limit'] * 1024 * 1024
 
+        user_spec = {}
+        if uid is not None:
+            user_spec['user'] = uid
+        if gid is not None:
+            user_spec['group_add'] = [gid]
+
         return self.__docker.containers.run(
             image=image,
             command=command,
@@ -54,6 +61,7 @@ class DockerManager(AbstractManager[Container]):
             detach=True,
             labels=self.job_labels,
             **limits,
+            **user_spec,
             **volumes
         )
 

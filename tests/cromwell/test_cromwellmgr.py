@@ -50,6 +50,7 @@ class CromwellTestCase(unittest.TestCase):
             Image('fnndsc/pl-simpledsapp'), 'simpledsapp /in /out',
             JobName('example-jid-4567'),
             self.example_resources,
+            [], None, None,
             '/storeBase/whatever'
         )
 
@@ -84,6 +85,7 @@ class CromwellTestCase(unittest.TestCase):
             self.manager.schedule_job(
                 Image('fnndsc/pl-simpledsapp'), 'simpledsapp /in /out',
                 JobName('example-jid-4567'), self.example_resources,
+                [], None, None,
                 '/storeBase/whatever'
             )
 

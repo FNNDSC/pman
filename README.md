@@ -125,21 +125,21 @@ https://github.com/containers/podman/blob/main/troubleshooting.md#symptom-23
 
 ### Environment Variables
 
-| Environment Variable     | Description                                                                |
-|--------------------------|----------------------------------------------------------------------------|
-| `SECRET_KEY`             | [Flask secret key][flask docs]                                             |
-| `CONTAINER_ENV`          | one of: "swarm", "kubernetes", "cromwell", "docker"                        |
-| `STORAGE_TYPE`           | one of: "host", "nfs", "docker_local_volume"                               |
-| `STOREBASE`              | where job data is stored, [see below](#STOREBASE)                          |
-| `VOLUME_NAME`            | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`        |
-| `PFCON_SELECTOR`         | label on the pfcon container (default: `org.chrisproject.role=pfcon`)      |
-| `NFS_SERVER`             | NFS server address, required when `STORAGE_TYPE=nfs`                       |
-| `ENABLE_RANDOM_USER`     | If set to "yes" then set job container users to have arbitrary UID and GID |
-| `ENABLE_HOME_WORKAROUND` | If set to "yes" then set job environment variable `HOME=/tmp`              |
-| `JOB_LABELS`             | CSV list of key=value pairs, labels to apply to container jobs             |
-| `JOB_LOGS_TAIL`          | (int) maximum size of job logs                                             |
-| `IGNORE_LIMITS`          | If set to "yes" then do not set resource limits on container jobs          |
-| `REMOVE_JOBS`            | If set to "no" then pman will not delete jobs (debug)                      |
+| Environment Variable     | Description                                                                    |
+|--------------------------|--------------------------------------------------------------------------------|
+| `SECRET_KEY`             | [Flask secret key][flask docs]                                                 |
+| `CONTAINER_ENV`          | one of: "swarm", "kubernetes", "cromwell", "docker"                            |
+| `STORAGE_TYPE`           | one of: "host", "nfs", "docker_local_volume"                                   |
+| `STOREBASE`              | where job data is stored, [see below](#STOREBASE)                              |
+| `VOLUME_NAME`            | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`            |
+| `PFCON_SELECTOR`         | label on the pfcon container (default: `org.chrisproject.role=pfcon`)          |
+| `NFS_SERVER`             | NFS server address, required when `STORAGE_TYPE=nfs`                           |
+| `CONTAINER_USER`         | Set job container user in the form `UID:GID`, may be a range for random values | 
+| `ENABLE_HOME_WORKAROUND` | If set to "yes" then set job environment variable `HOME=/tmp`                  |
+| `JOB_LABELS`             | CSV list of key=value pairs, labels to apply to container jobs                 |
+| `JOB_LOGS_TAIL`          | (int) maximum size of job logs                                                 |
+| `IGNORE_LIMITS`          | If set to "yes" then do not set resource limits on container jobs              |
+| `REMOVE_JOBS`            | If set to "no" then pman will not delete jobs (debug)                          |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
 
@@ -168,11 +168,12 @@ Applicable when `CONTAINER_ENV=kubernetes`
 | Environment Variable           | Description                                     |
 |--------------------------------|-------------------------------------------------|
 | `JOB_NAMESPACE`                | Kubernetes namespace for created jobs           |
-| `SECURITYCONTEXT_RUN_AS_USER`  | Job container UID (NFS permissions workaround)  |
-| `SECURITYCONTEXT_RUN_AS_GROUP` | Job container GID  (NFS permissions workaround) |
 
 Currently, only HostPath and NFS volumes are supported.
 _pfcon_ and _pman_ do not support (using nor creating) other kinds of PVCs.
+
+`CONTAINER_USER` can be used as a workaround for NFS if the share is only writable to
+a specific UNIX user.
 
 ### SLURM-Specific Options
 
@@ -187,16 +188,19 @@ For how it works, see https://github.com/FNNDSC/pman/wiki/Cromwell
 
 ### Container User Security
 
-`ENABLE_RANDOM_USER=yes` increases security but will cause (unsafely written)
-_ChRIS_ plugins to fail.
+Setting an arbitrary container user, e.g. with `CONTAINER_USER=123456:123456`,
+increases security but will cause (unsafely written) _ChRIS_ plugins to fail.
 In some cases, `ENABLE_HOME_WORKAROUND=yes` can get the plugin to work
 without having to change its code.
+
+It is possible to use a random container user with `CONTAINER_USER=1000000000-2147483647:1000000000-2147483647`
+however considering that *pfcon*'s UID never changes, this will cause everything to break.
 
 ## Missing Features
 
 - `IGNORE_LIMITS=yes` only works with `CONTAINER_ENV=docker` (or podman).
 - `JOB_LABELS=...` only works with `CONTAINER_ENV=docker` (or podman).
-- `ENABLE_RANDOM_USER` only works with `CONTAINER_ENV=docker` (or podman)
+- `CONTAINER_USER` does not work with `CONTAINER_ENV=cromwell`
 - `CONTAINER_ENV=cromwell` does not forward environment variables.
 
 ## TODO

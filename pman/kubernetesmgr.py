@@ -25,12 +25,12 @@ class KubernetesManager(AbstractManager[V1Job]):
         self.kube_client = k_client.CoreV1Api()
         self.kube_v1_batch_client = k_client.BatchV1Api()
 
-    def schedule_job(self, image, command, name, resources_dict, env, mountdir=None) -> \
+    def schedule_job(self, image, command, name, resources_dict, env, uid, gid, mountdir=None) -> \
             V1Job:
         """
         Schedule a new job and return the job object.
         """
-        job_instance = self.create_job(image, command, name, resources_dict, env,
+        job_instance = self.create_job(image, command, name, resources_dict, env, uid, gid,
                                        mountdir)
         job = self.submit_job(job_instance)
         return job
@@ -119,7 +119,7 @@ class KubernetesManager(AbstractManager[V1Job]):
         self.kube_v1_batch_client.delete_namespaced_job(job.metadata.name, body=body,
                                                         namespace=job_namespace)
 
-    def create_job(self, image, command, name, resources_dict, env_l, mountdir=None) -> \
+    def create_job(self, image, command, name, resources_dict, env_l, uid, gid, mountdir=None) -> \
             V1Job:
         """
         Create and return a new job instance.
@@ -155,10 +155,10 @@ class KubernetesManager(AbstractManager[V1Job]):
             'capabilities': k_client.V1Capabilities(drop=['ALL'])
         }
 
-        if self.config['SECURITYCONTEXT_RUN_AS_USER']:
-            security_context['run_as_user'] = self.config['SECURITYCONTEXT_RUN_AS_USER']
-        if self.config['SECURITYCONTEXT_RUN_AS_GROUP']:
-            security_context['run_as_group'] = self.config['SECURITYCONTEXT_RUN_AS_GROUP']
+        if uid is not None:
+            security_context['run_as_user'] = uid
+        if gid is not None:
+            security_context['run_as_group'] = gid
 
         container = k_client.V1Container(
             name=name,
