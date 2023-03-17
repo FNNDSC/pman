@@ -7,6 +7,8 @@ from flask import current_app as app
 from flask_restful import reqparse, abort, Resource
 
 from .abstractmgr import ManagerException
+from .container_user import ContainerUser
+from .dockermgr import DockerManager
 from .openshiftmgr import OpenShiftManager
 from .kubernetesmgr import KubernetesManager
 from .swarmmgr import SwarmManager
@@ -34,7 +36,9 @@ parser.add_argument('env', dest='env', type=list, location='json', default=[])
 
 def get_compute_mgr(container_env):
     compute_mgr = None
-    if container_env == 'swarm':
+    if container_env == 'docker' or container_env == 'podman':
+        compute_mgr = DockerManager(app.config)
+    elif container_env == 'swarm':
         compute_mgr = SwarmManager(app.config)
     elif container_env == 'kubernetes':
         compute_mgr = KubernetesManager(app.config)
@@ -59,6 +63,8 @@ class JobListResource(Resource):
 
         self.container_env = app.config.get('CONTAINER_ENV')
 
+        self.user = ContainerUser.parse(app.config.get('CONTAINER_USER'))
+
     def get(self):
         return {
             'server_version': app.config.get('SERVER_VERSION')
@@ -74,6 +80,9 @@ class JobListResource(Resource):
             if len(s.split('=', 1)) != 2:
                 abort(400, message='"env" must be a list of "key=value" strings')
 
+        if app.config.get('ENABLE_HOME_WORKAROUND'):
+            args.env.append('HOME=/tmp')
+
         job_id = args.jid.lstrip('/')
 
         cmd = self.build_app_cmd(args.args, args.args_path_flags, args.entrypoint, args.type)
@@ -84,8 +93,11 @@ class JobListResource(Resource):
                           'gpu_limit': args.gpu_limit,
                           }
         share_dir = None
+        # hmm, probably unnecessarily relying on invariant that
+        # STORAGETYPE matches enum value -> STOREBASE is valid and should be used
+        # Perhaps we should instead simply check STOREBASE only?
         storage_type = app.config.get('STORAGE_TYPE')
-        if storage_type in ('host', 'nfs'):
+        if storage_type in ('host', 'nfs', 'docker_local_volume'):
             storebase = app.config.get('STOREBASE')
             share_dir = os.path.join(storebase, 'key-' + job_id)
 
@@ -94,7 +106,7 @@ class JobListResource(Resource):
         compute_mgr = get_compute_mgr(self.container_env)
         try:
             job = compute_mgr.schedule_job(args.image, cmd, job_id, resources_dict,
-                                           args.env, share_dir)
+                                           args.env, self.user.get_uid(), self.user.get_gid(), share_dir)
         except ManagerException as e:
             logger.error(f'Error from {self.container_env} while scheduling job '
                          f'{job_id}, detail: {str(e)}')

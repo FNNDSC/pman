@@ -1,11 +1,11 @@
 
 import logging
+import unittest
 from pathlib import Path
 import shutil
 import os
 import time
 from unittest import TestCase
-from unittest import mock, skip
 
 from flask import url_for
 
@@ -30,6 +30,8 @@ class ResourceTests(TestCase):
         logging.disable(logging.NOTSET)
 
 
+@unittest.skipIf('STOREBASE' not in os.environ,
+                 'Cannot start pman without STOREBASE')
 class TestJobListResource(ResourceTests):
     """
     Test the JobListResource resource.

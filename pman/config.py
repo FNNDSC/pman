@@ -1,8 +1,11 @@
 
 from logging.config import dictConfig
+
 from environs import Env
 
 from importlib.metadata import Distribution
+
+from pman._helpers import get_storebase_from_docker
 
 pkg = Distribution.from_name(__package__)
 
@@ -21,16 +24,29 @@ class Config:
         env.read_env()  # also read .env file, if it exists
 
         self.JOB_LOGS_TAIL = env.int('JOB_LOGS_TAIL', 1000)
+        self.JOB_LABELS = env.dict('JOB_LABELS', {})
+        self.IGNORE_LIMITS = env.bool('IGNORE_LIMITS', False)
+        self.CONTAINER_USER = env.bool('CONTAINER_USER', False)
+        self.ENABLE_HOME_WORKAROUND = env.bool('ENABLE_HOME_WORKAROUND', False)
 
-        self.CONTAINER_ENV = env('CONTAINER_ENV', 'swarm')
-        self.STORAGE_TYPE = env('STORAGE_TYPE', 'host')
+        self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
+        if self.CONTAINER_ENV == 'podman':  # podman is just an alias for docker
+            self.CONTAINER_ENV = 'docker'
 
-        self.REMOVE_JOBS = env('REMOVE_JOBS', 'yes').lower() != 'no'
+        default_storage_type = 'docker_local_volume' if self.CONTAINER_ENV == 'docker' else None
+        self.STORAGE_TYPE = env('STORAGE_TYPE', default_storage_type)
+
+        self.REMOVE_JOBS = env.bool('REMOVE_JOBS', True)
 
         if self.STORAGE_TYPE == 'host' or self.STORAGE_TYPE == 'nfs':
             self.STOREBASE = env('STOREBASE')
             if self.STORAGE_TYPE == 'nfs':
                 self.NFS_SERVER = env('NFS_SERVER')
+
+        if self.STORAGE_TYPE == 'docker_local_volume':
+            pfcon_selector = env('PFCON_SELECTOR', 'org.chrisproject.role=pfcon')
+            volume_name = env('VOLUME_NAME', None)
+            self.STOREBASE = get_storebase_from_docker(pfcon_selector, volume_name)
 
         if self.CONTAINER_ENV == 'swarm':
             docker_host = env('DOCKER_HOST', '')
@@ -45,12 +61,16 @@ class Config:
 
         if self.CONTAINER_ENV == 'kubernetes':
             self.JOB_NAMESPACE = env('JOB_NAMESPACE', 'default')
-            self.SECURITYCONTEXT_RUN_AS_USER = env.int('SECURITYCONTEXT_RUN_AS_USER', None)
-            self.SECURITYCONTEXT_RUN_AS_GROUP = env.int('SECURITYCONTEXT_RUN_AS_GROUP', None)
 
         if self.CONTAINER_ENV == 'cromwell':
             self.CROMWELL_URL = env('CROMWELL_URL')
             self.TIMELIMIT_MINUTES = env.int('TIMELIMIT_MINUTES')
+
+        if self.CONTAINER_ENV == 'docker':
+            # nothing needs to be done!
+            # In the above config code for swarm, docker env variables are intercepted pointlessly.
+            # To configure Docker Engine/Podman, use the standard env variables for the Docker client.
+            pass
 
         self.env = env
 
@@ -129,12 +149,6 @@ class ProdConfig(Config):
                     'class': 'logging.StreamHandler',
                     'formatter': 'simple',
                 },
-                'file': {
-                    'level': 'DEBUG',
-                    'class': 'logging.FileHandler',
-                    'filename': '/tmp/debug.log',
-                    'formatter': 'simple'
-                }
             },
             'loggers': {
                 '': {  # root logger
@@ -143,7 +157,7 @@ class ProdConfig(Config):
                 },
                 'pman': {  # pman package logger
                     'level': 'INFO',
-                    'handlers': ['file'],
+                    'handlers': ['console_simple'],
                     'propagate': False
                 },
             }

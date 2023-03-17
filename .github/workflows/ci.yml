@@ -15,7 +15,41 @@ on:
 
 
 jobs:
-  test-pman:
+  test-python:
+    name: unit tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install
+        run: |
+          pip install -r requirements/local.txt
+          pip install -e .
+      - name: Pytest
+        run: pytest --color=yes
+
+  test-docker:
+    name: tests (docker, podman)
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        engine:
+          - docker
+          - podman
+    steps:
+      - uses: actions/checkout@v3
+      - name: Test
+        run: |
+          # podman is not configured to allow the Github Actions user to set CPU limits, so we need to ignore them.
+          # https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+          if [ '${{ matrix.engine }}' = 'podman' ]; then
+            export IGNORE_LIMITS=yes
+          fi
+          ./test_docker.sh '${{ matrix.engine }}'
+
+  test-swarm:
     name: tests (swarm)
     runs-on: ubuntu-22.04
     steps:
@@ -31,7 +65,7 @@ jobs:
       - uses: FNNDSC/cube-integration-action@v6
 
   build:
-    needs: [test-pman, test-cube]
+    needs: [test-python, test-docker, test-swarm, test-cube]
     if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     steps:
