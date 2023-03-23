@@ -2,7 +2,7 @@
 Kubernetes cluster manager module that provides functionality to schedule jobs as well
 as manage their state in the cluster.
 """
-
+import json
 from typing import AnyStr, Optional
 import logging
 
@@ -244,18 +244,18 @@ class KubernetesManager(AbstractManager[V1Job]):
             )
         except ApiException as e:
             if self.__is_container_creating_error(e):
-                log = 'Container is being created, please wait...'
+                log = json.loads(e.body)['message']
             else:
                 log = 'Error: check pman logs.'
                 logger.error('Exception getting logs for pod="%s": %s', pod_name, str(e))
         return log
 
     @staticmethod
-    def __is_container_creating_error(e) -> bool:
+    def __is_container_creating_error(e: ApiException) -> bool:
         return (
-            isinstance(e, dict)
-            and 'message' in e
-            and 'ContainerCreating' in e['message']
+            e.body is not None
+            and 'message' in str(e.body)
+            and 'ContainerCreating' in str(e.body)
         )
 
     def get_pod_status(self, name):
