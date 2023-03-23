@@ -98,7 +98,7 @@ class KubernetesManager(AbstractManager[V1Job]):
                 message = 'running'
                 status = JobStatus.started
             else:
-                if job.status.active is None and failed is None and succeeded is None and job.status.start_time is None:
+                if job.status.active is None and failed is None and succeeded is None:
                     # job status is being polled while pod is finishing up, or idk. just a strange bug.
                     # https://github.com/FNNDSC/pman/issues/225
                     logger.warning(f'job status is all None: {job.to_dict()}')
