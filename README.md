@@ -199,7 +199,7 @@ however considering that *pfcon*'s UID never changes, this will cause everything
 ## Missing Features
 
 - `IGNORE_LIMITS=yes` only works with `CONTAINER_ENV=docker` (or podman).
-- `JOB_LABELS=...` only works with `CONTAINER_ENV=docker` (or podman).
+- `JOB_LABELS=...` only works with `CONTAINER_ENV=docker` (or podman) and `CONTAINER_ENV=kubernetes`.
 - `CONTAINER_USER` does not work with `CONTAINER_ENV=cromwell`
 - `CONTAINER_ENV=cromwell` does not forward environment variables.
 

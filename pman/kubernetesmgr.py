@@ -191,7 +191,14 @@ class KubernetesManager(AbstractManager[V1Job]):
                 nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
                                                path=mountdir)
             )
+
+        pod_template_metadata = None
+        labels_config = self.config.get('JOB_LABELS')
+        if labels_config:
+            pod_template_metadata = k_client.V1ObjectMeta(labels=labels_config)
+
         template = k_client.V1PodTemplateSpec(
+            metadata=pod_template_metadata,
             spec=k_client.V1PodSpec(restart_policy='Never',
                                     containers=[container],
                                     volumes=[volume])
