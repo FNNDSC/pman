@@ -197,11 +197,15 @@ class KubernetesManager(AbstractManager[V1Job]):
         if labels_config:
             pod_template_metadata = k_client.V1ObjectMeta(labels=labels_config)
 
+        node_selector = self.config.get('NODE_SELECTOR')
+
         template = k_client.V1PodTemplateSpec(
             metadata=pod_template_metadata,
             spec=k_client.V1PodSpec(restart_policy='Never',
                                     containers=[container],
-                                    volumes=[volume])
+                                    volumes=[volume],
+                                    node_selector=node_selector),
+
         )
         # configure job's spec
         spec = k_client.V1JobSpec(

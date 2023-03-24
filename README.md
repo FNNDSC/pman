@@ -168,6 +168,7 @@ Applicable when `CONTAINER_ENV=kubernetes`
 | Environment Variable           | Description                                     |
 |--------------------------------|-------------------------------------------------|
 | `JOB_NAMESPACE`                | Kubernetes namespace for created jobs           |
+| `NODE_SELECTOR`                | Pod `nodeSelector`                              |
 
 Currently, only HostPath and NFS volumes are supported.
 _pfcon_ and _pman_ do not support (using nor creating) other kinds of PVCs.
