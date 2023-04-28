@@ -67,6 +67,8 @@ class KubernetesManager(AbstractManager[V1Job]):
 
     @staticmethod
     def __get_termination_reason(pod: V1Pod) -> Optional[str]:
+        if not pod.status.container_statuses:
+            return None
         termination = pod.status.container_statuses[0].state.terminated
         if termination is None:
             return None
