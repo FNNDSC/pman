@@ -170,6 +170,20 @@ class KubernetesManager(AbstractManager[V1Job]):
         if gid is not None:
             security_context['run_as_group'] = gid
 
+        pvc = k_client.V1PersistentVolumeClaimVolumeSource(
+            claim_name=self.config.get('VOLUME_NAME')
+        )
+        volume = k_client.V1Volume(
+            name='storebase',
+            persistent_volume_claim=pvc,
+
+        )
+        volume_mount = k_client.V1VolumeMount(
+            mount_path='/share',  # hard-coded
+            name='storebase',
+            sub_path=mountdir.rsplit('/', maxsplit=1)[-1]
+        )
+
         container = k_client.V1Container(
             name=name,
             image=image,
@@ -177,22 +191,8 @@ class KubernetesManager(AbstractManager[V1Job]):
             command=command,
             security_context=k_client.V1SecurityContext(**security_context),
             resources=k_client.V1ResourceRequirements(limits=limits),
-            volume_mounts=[k_client.V1VolumeMount(mount_path='/share',
-                                                  name='storebase')]
+            volume_mounts=[volume_mount]
         )
-        # configure pod template's spec
-        storage_type = self.config.get('STORAGE_TYPE')
-        if storage_type == 'host':
-            volume = k_client.V1Volume(
-                name='storebase',
-                host_path=k_client.V1HostPathVolumeSource(path=mountdir)
-            )
-        else:
-            volume = k_client.V1Volume(
-                name='storebase',
-                nfs=k_client.V1NFSVolumeSource(server=self.config.get('NFS_SERVER'),
-                                               path=mountdir)
-            )
 
         pod_template_metadata = None
         labels_config = self.config.get('JOB_LABELS')

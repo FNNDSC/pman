@@ -97,9 +97,11 @@ class JobListResource(Resource):
         # STORAGETYPE matches enum value -> STOREBASE is valid and should be used
         # Perhaps we should instead simply check STOREBASE only?
         storage_type = app.config.get('STORAGE_TYPE')
-        if storage_type in ('host', 'nfs', 'docker_local_volume'):
+        if storage_type in ('host', 'docker_local_volume'):
             storebase = app.config.get('STOREBASE')
             share_dir = os.path.join(storebase, 'key-' + job_id)
+        elif storage_type == 'kubernetes_pvc':
+            share_dir = 'key-' + job_id
 
         logger.info(f'Scheduling job {job_id} on the {self.container_env} cluster')
 

@@ -23,7 +23,7 @@ The instructions that follow are for _pman_ hackers and developers.
 
 ## Development
 
-This section describes how to set up a local instance of *pman* working against swarm.
+This section describes how to set up a local instance of *pman* for development.
 
 ### Using Docker Compose
 
@@ -68,35 +68,32 @@ pip install -e .
 python -m pman
 ```
 
+### Using Kubernetes via Kind
+
+https://github.com/FNNDSC/pman/wiki/Development-Environment:-Kubernetes
+
 ## Configuration
 
 _pman_ is configured by environment variables.
 Refer to the source code in [pman/config.py](pman/config.py)
 for exactly how it works.
 
-### Configuration Overview
+### How Storage Works
 
-Before configuring pman for deployment, ask yourself two questions:
+_pman_ relies on _pfcon_ to manage data in a directory known as "storeBase."
+The "storeBase" is a storage space visible to every node in your cluster.
 
-1. What `CONTAINER_ENV` am I using? (one of: Kubernetes, Docker Swarm, Docker Engine or Podman, Cromwell + SLURM)
-2. How are data files shared across nodes in my compute cluster?
+For single-machine deployments using Docker and Podman, the best solution
+is to use a local volume mounted by _pfcon_ at `/var/local/storeBase`.
+_pman_ should be configured with `STORAGE_TYPE=docker_local_volume` `VOLUME_NAME=...`.
 
-Storage in particular is tricky and there is no one-size-fits-all solution.
-_pman_ and _pfcon_ are typically configured with an environment variable
-[`STOREBASE`](#storebase). The historical context here is that the first
-version of _pman_ was developed before Kubernetes was cool, so the best way
-to share data files within a cluster was NFS. 
+On Kubernetes, a single PersistentVolumeClaim should be used. It is mounted
+by _pfcon_ at `/var/local/storeBase`.
+_pman_ should be configured with `STORAGE_TYPE=kubernetes_pvc` `VOLUME_NAME=...`.
 
-For multi-node clusters, the system administrator is expected to have an
-existing solution for having a "shared volume" visible on the same path to
-every node in the cluster (which is typically how NFS is used). The path on
-each host to this share  should be provided as the value for `STOREBASE`.
-
-For single-machine deployment using Podman or Docker Compose, the best solution
-is to use a local volume, since the volume can be managed by the container engine
-and is discoverable via the container engine's API. When `CONTAINER_ENV=docker`
-(which is default since pman v4.1) and/or `STORAGE_TYPE=docker_host_volume`,
-_pman_ will try to automatically discover what **existing** volume is the store base.
+SLURM has no concept of volumes, though SLURM clusters typically use a NFS share
+mounted to the same path on every node. _pman_ should be configured with
+`STORAGE_TYPE=host` `STOREBASE=...`, specify the share mount point as `STOREBASE`.
 
 #### `swarm` v.s. `docker`
 
@@ -125,31 +122,26 @@ https://github.com/containers/podman/blob/main/troubleshooting.md#symptom-23
 
 ### Environment Variables
 
-| Environment Variable     | Description                                                                    |
-|--------------------------|--------------------------------------------------------------------------------|
-| `SECRET_KEY`             | [Flask secret key][flask docs]                                                 |
-| `CONTAINER_ENV`          | one of: "swarm", "kubernetes", "cromwell", "docker"                            |
-| `STORAGE_TYPE`           | one of: "host", "nfs", "docker_local_volume"                                   |
-| `STOREBASE`              | where job data is stored, [see below](#STOREBASE)                              |
-| `VOLUME_NAME`            | name of local volume, valid when `STORAGE_TYPE=docker_local_volume`            |
-| `PFCON_SELECTOR`         | label on the pfcon container (default: `org.chrisproject.role=pfcon`)          |
-| `NFS_SERVER`             | NFS server address, required when `STORAGE_TYPE=nfs`                           |
-| `CONTAINER_USER`         | Set job container user in the form `UID:GID`, may be a range for random values | 
-| `ENABLE_HOME_WORKAROUND` | If set to "yes" then set job environment variable `HOME=/tmp`                  |
-| `JOB_LABELS`             | CSV list of key=value pairs, labels to apply to container jobs                 |
-| `JOB_LOGS_TAIL`          | (int) maximum size of job logs                                                 |
-| `IGNORE_LIMITS`          | If set to "yes" then do not set resource limits on container jobs              |
-| `REMOVE_JOBS`            | If set to "no" then pman will not delete jobs (debug)                          |
+| Environment Variable     | Description                                                                                                                     |
+|--------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| `SECRET_KEY`             | [Flask secret key][flask docs]                                                                                                  |
+| `CONTAINER_ENV`          | one of: "swarm", "kubernetes", "cromwell", "docker"                                                                             |
+| `STORAGE_TYPE`           | one of: "host", "docker_local_volume", "kubernetes_pvc"                                                                         |
+| `STOREBASE`              | where job data is stored, valid when `STORAGE_TYPE=host`, conflicts with `VOLUME_NAME`                                          |
+| `VOLUME_NAME`            | name of data volume, valid when `STORAGE_TYPE=docker_local_volume` or `STORAGE_TYPE=kubernetes_pvc`                             |
+| `PFCON_SELECTOR`         | label on the pfcon container, may be specified for pman to self-discover `VOLUME_NAME` (default: `org.chrisproject.role=pfcon`) |
+| `CONTAINER_USER`         | Set job container user in the form `UID:GID`, may be a range for random values                                                  | 
+| `ENABLE_HOME_WORKAROUND` | If set to "yes" then set job environment variable `HOME=/tmp`                                                                   |
+| `JOB_LABELS`             | CSV list of key=value pairs, labels to apply to container jobs                                                                  |
+| `JOB_LOGS_TAIL`          | (int) maximum size of job logs                                                                                                  |
+| `IGNORE_LIMITS`          | If set to "yes" then do not set resource limits on container jobs (for making things work without effort)                       |
+| `REMOVE_JOBS`            | If set to "no" then pman will not delete jobs (for debugging)                                                                   |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
 
-### `STOREBASE`
+### `STOREAGE_TYPE=host`
 
-- If `STORAGE_TYPE=host`, then `STOREBASE` represents the path on the
-container host.
-- If `STORAGE_TYPE=nfs`, then `STOREBASE` should be an exported NFS share
-- If `STOREAGE_TYPE=docker_local_volume`,
-  then _pman_ will try to figure it out for you
+When `STORAGE_TYPE=host`, then specify `STOREBASE` as a mount point path on the host(s).
 
 ### `STOREAGE_TYPE=docker_local_volume`
 
@@ -161,20 +153,22 @@ two ways:
 - Automatically: _pman_ inspects a container with the label `org.chrisproject.role=pfcon`
   and selects the mountpoint of the bind to `/var/local/storeBase`
 
+#### `STORAGE_TYPE=kubernetes_pvc`
+
+When `STORAGE_TYPE=kubernetes_pvc`, then `VOLUME_NAME` must be the name of a
+PersistentVolumeClaim configured as ReadWriteMany.
+
+In cases where the volume is only writable to a specific UNIX user,
+such as a NFS-backed volume, `CONTAINER_USER` can be used as a workaround.
+
 ### Kubernetes-Specific Options
 
 Applicable when `CONTAINER_ENV=kubernetes`
 
-| Environment Variable           | Description                                     |
-|--------------------------------|-------------------------------------------------|
-| `JOB_NAMESPACE`                | Kubernetes namespace for created jobs           |
-| `NODE_SELECTOR`                | Pod `nodeSelector`                              |
-
-Currently, only HostPath and NFS volumes are supported.
-_pfcon_ and _pman_ do not support (using nor creating) other kinds of PVCs.
-
-`CONTAINER_USER` can be used as a workaround for NFS if the share is only writable to
-a specific UNIX user.
+| Environment Variable      | Description                                     |
+|---------------------------|-------------------------------------------------|
+| `JOB_NAMESPACE`           | Kubernetes namespace for created jobs           |
+| `NODE_SELECTOR`           | Pod `nodeSelector`                              |
 
 ### SLURM-Specific Options
 
@@ -199,10 +193,14 @@ however considering that *pfcon*'s UID never changes, this will cause everything
 
 ## Missing Features
 
+_pman_'s configuration has gotten messy over the years because it attempts to provide an interface
+across vastly different systems. Some mixing-and-matching of options are unsupported:
+
 - `IGNORE_LIMITS=yes` only works with `CONTAINER_ENV=docker` (or podman).
 - `JOB_LABELS=...` only works with `CONTAINER_ENV=docker` (or podman) and `CONTAINER_ENV=kubernetes`.
 - `CONTAINER_USER` does not work with `CONTAINER_ENV=cromwell`
 - `CONTAINER_ENV=cromwell` does not forward environment variables.
+- `STORAGE_TYPE=host` is not supported for Kubernetes
 
 ## TODO
 

@@ -35,18 +35,20 @@ class Config:
 
         default_storage_type = 'docker_local_volume' if self.CONTAINER_ENV == 'docker' else None
         self.STORAGE_TYPE = env('STORAGE_TYPE', default_storage_type)
+        self.VOLUME_NAME = env('VOLUME_NAME', None)
 
         self.REMOVE_JOBS = env.bool('REMOVE_JOBS', True)
 
-        if self.STORAGE_TYPE == 'host' or self.STORAGE_TYPE == 'nfs':
+        if self.STORAGE_TYPE == 'host':
             self.STOREBASE = env('STOREBASE')
-            if self.STORAGE_TYPE == 'nfs':
-                self.NFS_SERVER = env('NFS_SERVER')
 
         if self.STORAGE_TYPE == 'docker_local_volume':
             pfcon_selector = env('PFCON_SELECTOR', 'org.chrisproject.role=pfcon')
-            volume_name = env('VOLUME_NAME', None)
-            self.STOREBASE = get_storebase_from_docker(pfcon_selector, volume_name)
+            self.STOREBASE = get_storebase_from_docker(pfcon_selector, self.VOLUME_NAME)
+
+        if self.STORAGE_TYPE == 'kubernetes_pvc':
+            if not self.VOLUME_NAME:
+                raise ValueError('VOLUME_NAME must be given because STORAGE_TYPE=kubernetes_pvc')
 
         if self.CONTAINER_ENV == 'swarm':
             docker_host = env('DOCKER_HOST', '')

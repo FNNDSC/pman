@@ -11,9 +11,9 @@ spec:
     app: pman
     env: development
   ports:
-    - port: 30010
-      targetPort: 30010
-      nodePort: 30010
+    - port: 5005
+      targetPort: 5005
+      nodePort: 30005
 
 ---
 
@@ -37,48 +37,54 @@ spec:
         app: pman
         env: development
     spec:
-      # During dev pman needs access to the pfcon storeBase folder (and hence the volume)
-      # mapping from the HOST file system space to be able to run the tests. This is not
-      # necessary for a production pman.
-      #
-      # Since pman spins off containers of its own it needs to mount storeBase dir (where
-      # pfcon shares the data) into the spawned container. This directory is passed in the
-      # STOREBASE env variable.
+      serviceAccountName: job-creator
       containers:
-        - image: fnndsc/pman:dev
-          name: pman
-          stdin: true
-          tty: true
+        - name: pfcon
+          image: ghcr.io/fnndsc/pfcon:5.0.0
           ports:
-            - containerPort: 30010
+            - name: pfcon
+              containerPort: 5005
           env:
-            - name: APPLICATION_MODE
-              value: development
-            - name: STOREBASE
-              value: ${STOREBASE}
+            - name: COMPUTE_SERVICE_URL
+              value: http://localhost:5010/api/v1/
+            - name: SECRET_KEY
+              value: secret
+            - name: PFCON_USER
+              value: pfcon
+            - name: PFCON_PASSWORD
+              value: pfcon1234
+          volumeMounts:
+            - mountPath: /var/local/storeBase
+              name: storebase
+
+        - name: pman
+          image: localhost:5001/fnndsc/pman:latest
+          imagePullPolicy: Always
+          env:
+            - name: SECRET_KEY
+              value: secret
             - name: CONTAINER_ENV
               value: kubernetes
-          command: ["pman"]
-          args: ["--ip", "0.0.0.0", "--port", "30010", "--verbosity", "1"]
-          volumeMounts:
-            - mountPath: "/home/localuser/storeBase"
-              name: "storebase"
-            - mountPath: "/home/localuser/pman/pman"
-              name: "pman-source"
-            - mountPath: "/home/localuser/pman/bin"
-              name: "pman-bin"
-            - mountPath: "/home/localuser/pman/tests"
-              name: "pman-tests"
+            - name: STORAGE_TYPE
+              value: kubernetes_pvc
+            - name: VOLUME_NAME
+              value: storebase
+
       volumes:
-        - name: "storebase"
-          hostPath:
-            path: ${STOREBASE}
-        - name: "pman-source"
-          hostPath:
-            path: ${SOURCEDIR}/pman
-        - name: "pman-bin"
-          hostPath:
-            path: ${SOURCEDIR}/bin
-        - name: "pman-tests"
-          hostPath:
-            path: ${SOURCEDIR}/tests
+        - name: storebase
+          persistentVolumeClaim:
+            claimName: storebase
+
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: storebase
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard  # CHANGE ME if not using kind
+  resources:
+    requests:
+      storage: 20Gi
