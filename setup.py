@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name             =   'pman',
-    version          =   os.getenv('BUILD_VERSION', 'unknown'),
+    version          =   os.getenv('BUILD_VERSION', '0+unknown'),
     description      =   'Process Manager',
     author           =   'FNNDSC Developers',
     author_email     =   'dev@babymri.org',
