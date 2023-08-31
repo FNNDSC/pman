@@ -170,6 +170,13 @@ if (( ! b_skipIntro )) ; then
     windowBottom
 fi
 
+title -d 1 "Building :dev"
+    cd $HERE
+    CMD="docker compose -f docker-compose.yml build"
+    echo "$CMD"                                                    | ./boxes.sh
+    echo $CMD | sh                                                 | ./boxes.sh -c
+windowBottom
+
 title -d 1 "Changing permissions to 755 on" "$HERE"
     cd $HERE
     echo "chmod -R 755 $HERE"                                      | ./boxes.sh
@@ -206,8 +213,8 @@ windowBottom
 
 title -d 1 "Starting pman containerized dev environment on $ORCHESTRATOR"
     if [[ $ORCHESTRATOR == swarm ]]; then
-        echo "docker stack deploy -c swarm/docker-compose_dev.yml pman_dev_stack" | ./boxes.sh ${LightCyan}
-        docker stack deploy -c swarm/docker-compose_dev.yml pman_dev_stack
+        echo "docker stack deploy -c docker-compose.yml pman_dev_stack" | ./boxes.sh ${LightCyan}
+        docker stack deploy -c docker-compose.yml pman_dev_stack
     elif [[ $ORCHESTRATOR == kubernetes ]]; then
         echo "envsubst < kubernetes/pman_dev.yaml | kubectl apply -f -"           | ./boxes.sh ${LightCyan}
         envsubst < kubernetes/pman_dev.yaml | kubectl apply -f -
@@ -219,7 +226,7 @@ title -d 1 "Waiting until pman container is running on $ORCHESTRATOR"
     for i in {1..30}; do
         sleep 5
         if [[ $ORCHESTRATOR == swarm ]]; then
-            pman_dev=$(docker ps -f label=org.chrisproject.role=pman -q | head -n 1)
+            pman_dev=$(docker ps -f label=org.opencontainers.image.title=pman -q | head -n 1)
         elif [[ $ORCHESTRATOR == kubernetes ]]; then
             pman_dev=$(kubectl get pods --selector="app=pman,env=development" --field-selector=status.phase=Running --output=jsonpath='{.items[*].metadata.name}')
         fi
@@ -238,9 +245,9 @@ if (( ! b_skipUnitTests )) ; then
     title -d 1 "Running pman tests..."
     sleep 5
     if [[ $ORCHESTRATOR == swarm ]]; then
-        docker exec $pman_dev nosetests --exe tests
+        docker exec $pman_dev pytest tests --color=yes
     elif [[ $ORCHESTRATOR == kubernetes ]]; then
-        kubectl exec $pman_dev -- nosetests --exe tests
+        kubectl exec $pman_dev -- pytest tests --color=yes
     fi
     status=$?
     title -d 1 "pman test results"

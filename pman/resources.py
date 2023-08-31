@@ -14,6 +14,7 @@ from .kubernetesmgr import KubernetesManager
 from .swarmmgr import SwarmManager
 from .cromwellmgr import CromwellManager
 
+
 logger = logging.getLogger(__name__)
 
 parser = reqparse.RequestParser(bundle_errors=True)
@@ -32,6 +33,8 @@ parser.add_argument('entrypoint', dest='entrypoint', type=list, location='json',
                     required=True)
 parser.add_argument('type', dest='type', choices=('ds', 'fs', 'ts'), required=True)
 parser.add_argument('env', dest='env', type=list, location='json', default=[])
+parser.add_argument('input_dir', dest='input_dir', required=True)
+parser.add_argument('output_dir', dest='output_dir', required=True)
 
 
 def get_compute_mgr(container_env):
@@ -67,7 +70,9 @@ class JobListResource(Resource):
 
     def get(self):
         return {
-            'server_version': app.config.get('SERVER_VERSION')
+            'server_version': app.config.get('SERVER_VERSION'),
+            'container_env': app.config.get('CONTAINER_ENV'),
+            'storage_type': app.config.get('STORAGE_TYPE')
         }
 
     def post(self):
@@ -92,23 +97,33 @@ class JobListResource(Resource):
                           'memory_limit': args.memory_limit,
                           'gpu_limit': args.gpu_limit,
                           }
-        share_dir = None
+        mounts_dict = {'inputdir_source': '',
+                       'inputdir_target': self.str_app_container_inputdir,
+                       'outputdir_source': '',
+                       'outputdir_target': self.str_app_container_outputdir
+                       }
+        input_dir = args.input_dir.strip('/')
+        output_dir = args.output_dir.strip('/')
+
         # hmm, probably unnecessarily relying on invariant that
         # STORAGETYPE matches enum value -> STOREBASE is valid and should be used
         # Perhaps we should instead simply check STOREBASE only?
         storage_type = app.config.get('STORAGE_TYPE')
         if storage_type in ('host', 'docker_local_volume'):
             storebase = app.config.get('STOREBASE')
-            share_dir = os.path.join(storebase, 'key-' + job_id)
+            mounts_dict['inputdir_source'] = os.path.join(storebase, input_dir)
+            mounts_dict['outputdir_source'] = os.path.join(storebase, output_dir)
         elif storage_type == 'kubernetes_pvc':
-            share_dir = 'key-' + job_id
+            mounts_dict['inputdir_source'] = input_dir
+            mounts_dict['outputdir_source'] = output_dir
 
         logger.info(f'Scheduling job {job_id} on the {self.container_env} cluster')
 
         compute_mgr = get_compute_mgr(self.container_env)
         try:
             job = compute_mgr.schedule_job(args.image, cmd, job_id, resources_dict,
-                                           args.env, self.user.get_uid(), self.user.get_gid(), share_dir)
+                                           args.env, self.user.get_uid(),
+                                           self.user.get_gid(), mounts_dict)
         except ManagerException as e:
             logger.error(f'Error from {self.container_env} while scheduling job '
                          f'{job_id}, detail: {str(e)}')

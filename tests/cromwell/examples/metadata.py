@@ -1,5 +1,5 @@
 from pman.cromwell.models import WorkflowId, WorkflowStatus
-from pman.abstractmgr import JobInfo, JobStatus, Image, TimeStamp, JobName, Resources
+from pman.abstractmgr import JobInfo, JobStatus, Image, TimeStamp, JobName, ResourcesDict
 from pman.cromwell.slurm.wdl import SlurmJob
 
 workflow_uuid = WorkflowId('4165ed81-c121-4a8d-b284-a6dda9ef0aa8')
@@ -10,7 +10,7 @@ job_running = SlurmJob(
     sharedir='/mounted/storebase/example-jid-1234',
     timelimit=5,
     partition='my-slurm-partition',
-    resources_dict=Resources(
+    resources_dict=ResourcesDict(
         number_of_workers=1,
         cpu_limit=2000,
         memory_limit=4000,
@@ -355,7 +355,7 @@ expected_notstarted = SlurmJob(
     command=['/usr/local/bin/python', '/usr/local/bin/whatsgood', '--day', 'sunny', '/share/incoming', '/share/outgoing'],
     sharedir='/storebase/key-vitamin-d',
     timelimit=50,
-    resources_dict=Resources(
+    resources_dict=ResourcesDict(
         number_of_workers=1,
         cpu_limit=2000,
         memory_limit=5678,
@@ -391,7 +391,7 @@ expected_queued = SlurmJob(
     command=['/usr/local/bin/python', '/usr/local/bin/fruit_machine', '--salad', 'orange', '/share/incoming', '/share/outgoing'],
     sharedir='/storebase/key-fruity-fruit',
     timelimit=70,
-    resources_dict=Resources(
+    resources_dict=ResourcesDict(
         number_of_workers=3,
         cpu_limit=1000,
         memory_limit=789,

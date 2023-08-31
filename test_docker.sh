@@ -109,7 +109,9 @@ body="$(cat << EOF
   "gpu_limit": "0",
   "image": "$SIMPLEDSAPP",
   "entrypoint": ["simpledsapp"],
-  "type": "ds"
+  "type": "ds",
+  "input_dir": "key-$jid/incoming",
+  "output_dir": "key-$jid/outgoing"
 }
 EOF
 )"

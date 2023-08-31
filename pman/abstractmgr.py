@@ -46,7 +46,7 @@ class JobInfo:
     status: JobStatus
 
 
-class Resources(TypedDict):
+class ResourcesDict(TypedDict):
     number_of_workers: int
     """
     Number of workers for multi-node parallelism.
@@ -71,6 +71,25 @@ class Resources(TypedDict):
     """
 
 
+class MountsDict(TypedDict):
+    inputdir_source: str
+    """
+    Absolute path to the source input directory or otherwise a volume name.
+    """
+    inputdir_target: str
+    """
+    Absolute path to the target input directory (within the container).
+    """
+    outputdir_source: str
+    """
+    Absolute path to the source output directory or otherwise a volume name.
+    """
+    outputdir_target: str
+    """
+    Absolute path to the target output directory (within the container).
+    """
+
+
 class AbstractManager(ABC, Generic[J]):
     """
     An ``AbstractManager`` is an API to a service which can schedule
@@ -85,9 +104,9 @@ class AbstractManager(ABC, Generic[J]):
 
     @abstractmethod
     def schedule_job(self, image: Image, command: List[str], name: JobName,
-                     resources_dict: Resources, env: List[str],
+                     resources_dict: ResourcesDict, env: List[str],
                      uid: Optional[int], gid: Optional[int],
-                     mountdir: Optional[str] = None) -> J:
+                     mounts_dict: MountsDict) -> J:
         """
         Schedule a new job and return the job object.
         """

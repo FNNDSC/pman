@@ -42,10 +42,13 @@ class TestJobListResource(ResourceTests):
             self.url = url_for('api.joblist')
 
         self.job_id = 'chris-jid-1'
+        self.input_dir = os.path.join('key-' + self.job_id, 'incoming')
+        self.output_dir = os.path.join('key-' + self.job_id, 'outgoing')
 
-        self.share_dir = os.path.join('/var/local/storeBase', 'key-' + self.job_id)
-        incoming = os.path.join(self.share_dir, 'incoming')
-        outgoing = os.path.join(self.share_dir, 'outgoing')
+
+        self.job_dir = os.path.join('/var/local/storeBase', 'key-' + self.job_id)
+        incoming = os.path.join(self.job_dir, 'incoming')
+        outgoing = os.path.join(self.job_dir, 'outgoing')
         Path(incoming).mkdir(parents=True, exist_ok=True)
         Path(outgoing).mkdir(parents=True, exist_ok=True)
         with open(os.path.join(incoming, 'test.txt'), 'w') as f:
@@ -53,7 +56,7 @@ class TestJobListResource(ResourceTests):
 
     def tearDown(self):
         super().tearDown()
-        shutil.rmtree(self.share_dir)
+        shutil.rmtree(self.job_dir)
 
     def test_get(self):
         response = self.client.get(self.url)
@@ -73,6 +76,9 @@ class TestJobListResource(ResourceTests):
             'image': 'fnndsc/pl-simplefsapp',
             'entrypoint': ['simplefsapp'],
             'type': 'fs',
+            'input_dir': self.input_dir,
+            'output_dir': self.output_dir
+
         }
         # make the POST request
         response = self.client.post(self.url, json=data)
