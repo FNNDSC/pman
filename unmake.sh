@@ -88,6 +88,9 @@ title -d 1 "Destroying pman containerized dev environment on $ORCHESTRATOR"
     if [[ $ORCHESTRATOR == swarm ]]; then
         echo "docker stack rm pman_dev_stack"                       | ./boxes.sh ${LightCyan}
         docker stack rm pman_dev_stack
+        echo "docker volume rm -f pman_dev_stack_storebase"         | ./boxes.sh ${LightCyan}
+        sleep 15
+        docker volume rm -f pman_dev_stack_storebase
     elif [[ $ORCHESTRATOR == kubernetes ]]; then
         echo "kubectl delete -f kubernetes/pman_dev.yaml"           | ./boxes.sh ${LightCyan}
         kubectl delete -f kubernetes/pman_dev.yaml

@@ -1,5 +1,5 @@
 from collections import namedtuple
-from pman.abstractmgr import Resources
+from pman.abstractmgr import ResourcesDict
 from pman.cromwell.slurm.wdl import SlurmJob, Image, StrWdl
 
 # Since conversion to WDL is lossy, we need to define the
@@ -35,7 +35,7 @@ workflow ChRISJob {
         sharedir='/location/of/bribe',
         partition=None,
         timelimit=12,
-        resources_dict=Resources(
+        resources_dict=ResourcesDict(
             cpu_limit=1234,
             memory_limit=5678,
             number_of_workers=9,
@@ -48,7 +48,7 @@ workflow ChRISJob {
         sharedir='/location/of/bribe',
         partition=None,
         timelimit=12,
-        resources_dict=Resources(
+        resources_dict=ResourcesDict(
             cpu_limit=2000,
             memory_limit=5678,
             number_of_workers=9,
@@ -87,7 +87,7 @@ workflow ChRISJob {
         sharedir='/neuroimaging/data',
         partition='has-gpu',
         timelimit=300,
-        resources_dict=Resources(
+        resources_dict=ResourcesDict(
             number_of_workers=5,
             cpu_limit=7000,
             memory_limit=9876,
@@ -100,7 +100,7 @@ workflow ChRISJob {
         sharedir='/neuroimaging/data',
         partition='has-gpu',
         timelimit=300,
-        resources_dict=Resources(
+        resources_dict=ResourcesDict(
             number_of_workers=5,
             cpu_limit=7000,
             memory_limit=9876,

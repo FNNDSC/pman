@@ -10,7 +10,7 @@ from typing import Optional, Tuple, List
 
 from serde import from_dict, deserialize
 from jinja2 import Environment
-from pman.abstractmgr import Image, Resources
+from pman.abstractmgr import Image, ResourcesDict
 from pman.cromwell.models import StrWdl, RuntimeAttributes
 from dataclasses import dataclass
 
@@ -56,7 +56,7 @@ class SlurmJob:
     image: Image
     command: List[str]
     sharedir: str
-    resources_dict: Resources
+    resources_dict: ResourcesDict
     timelimit: int
     partition: Optional[str] = None
     """https://slurm.schedmd.com/sbatch.html#OPT_partition"""
@@ -91,7 +91,7 @@ class SlurmJob:
         number_of_workers, end = cls._get_resource(wdl, 'number_of_workers', end)
         timelimit, end = cls._get_resource(wdl, 'timelimit', end)
         partition, _ = cls._find_between(wdl, "slurm_partition: '", "'\n", end)
-        r = Resources(
+        r = ResourcesDict(
             number_of_workers=int(number_of_workers),
             cpu_limit=cls.__serialize_cpu(cpu),
             memory_limit=cls.__serialize_mem(memory),

@@ -4,7 +4,8 @@ from typing import List, Optional, AnyStr
 from docker import DockerClient
 from docker.models.containers import Container
 
-from pman.abstractmgr import AbstractManager, Image, JobName, Resources, JobInfo, TimeStamp, ManagerException, JobStatus
+from pman.abstractmgr import (AbstractManager, Image, JobName, ResourcesDict,
+                              MountsDict, JobInfo, TimeStamp, ManagerException, JobStatus)
 import docker
 
 
@@ -25,9 +26,10 @@ class DockerManager(AbstractManager[Container]):
         else:
             self.__docker = docker.from_env()
 
-    def schedule_job(self, image: Image, command: List[str], name: JobName, resources_dict: Resources, env: List[str],
-                     uid: Optional[int], gid: Optional[int],
-                     mountdir: Optional[str] = None) -> Container:
+    def schedule_job(self, image: Image, command: List[str], name: JobName,
+                     resources_dict: ResourcesDict, env: List[str], uid: Optional[int],
+                     gid: Optional[int], mounts_dict: MountsDict) -> Container:
+
         if resources_dict['number_of_workers'] != 1:
             raise ManagerException(
                 'Compute environment only supports number_of_workers=1, '
@@ -37,9 +39,14 @@ class DockerManager(AbstractManager[Container]):
         if resources_dict['gpu_limit'] != 0:
             raise ManagerException('Compute environment does not support GPUs yet.')
 
-        volumes = {}
-        if mountdir is not None:
-            volumes['volumes'] = {mountdir: {'bind': '/share', 'mode': 'rw'}}
+        volumes = {
+            'volumes': {
+                mounts_dict['inputdir_source']: {'bind': mounts_dict['inputdir_target'],
+                                                 'mode': 'ro'},
+                mounts_dict['outputdir_source']: {'bind': mounts_dict['outputdir_target'],
+                                                  'mode': 'rw'},
+            }
+        }
 
         limits = {}
         if not self.ignore_limits:

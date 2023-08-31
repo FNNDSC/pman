@@ -6,7 +6,8 @@ from typing import AnyStr, Sequence, Iterable
 
 import docker
 from docker.models.services import Service
-from .abstractmgr import AbstractManager, ManagerException, JobStatus, JobInfo, Image, TimeStamp, JobName
+from .abstractmgr import (AbstractManager, ManagerException, JobStatus, JobInfo, Image,
+                          TimeStamp, JobName)
 
 
 class SwarmManager(AbstractManager[Service]):
@@ -19,15 +20,14 @@ class SwarmManager(AbstractManager[Service]):
         else:
             self.docker_client = docker.from_env(environment=self.config)
 
-    def schedule_job(self, image, command, name, resources_dict, env, uid, gid, mountdir=None) -> \
-            Service:
+    def schedule_job(self, image, command, name, resources_dict, env, uid, gid,
+                     mounts_dict) -> Service:
         """
         Schedule a new job and return the job (swarm service) object.
         """
         restart_policy = docker.types.RestartPolicy(condition='none')
-        mounts = []
-        if mountdir is not None:
-            mounts.append('%s:/share:rw' % mountdir)
+        mounts = [f'{mounts_dict["inputdir_source"]}:{mounts_dict["inputdir_target"]}:ro',
+                  f'{mounts_dict["outputdir_source"]}:{mounts_dict["outputdir_target"]}:rw']
         try:
             job = self.docker_client.services.create(image, command,
                                                      name=name,

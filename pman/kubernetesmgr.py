@@ -11,7 +11,8 @@ from kubernetes import config as k_config
 from kubernetes.client import V1Pod
 from kubernetes.client.models.v1_job import V1Job
 from kubernetes.client.rest import ApiException
-from .abstractmgr import AbstractManager, ManagerException, JobInfo, JobStatus, TimeStamp, JobName
+from .abstractmgr import (AbstractManager, ManagerException, JobInfo, JobStatus,
+                          TimeStamp, JobName)
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +26,13 @@ class KubernetesManager(AbstractManager[V1Job]):
         self.kube_client = k_client.CoreV1Api()
         self.kube_v1_batch_client = k_client.BatchV1Api()
 
-    def schedule_job(self, image, command, name, resources_dict, env, uid, gid, mountdir=None) -> \
-            V1Job:
+    def schedule_job(self, image, command, name, resources_dict, env, uid, gid,
+                     mounts_dict) -> V1Job:
         """
         Schedule a new job and return the job object.
         """
-        job_instance = self.create_job(image, command, name, resources_dict, env, uid, gid,
-                                       mountdir)
+        job_instance = self.create_job(image, command, name, resources_dict, env, uid,
+                                       gid, mounts_dict)
         job = self.submit_job(job_instance)
         return job
 
@@ -129,8 +130,8 @@ class KubernetesManager(AbstractManager[V1Job]):
         self.kube_v1_batch_client.delete_namespaced_job(job.metadata.name, body=body,
                                                         namespace=job_namespace)
 
-    def create_job(self, image, command, name, resources_dict, env_l, uid, gid, mountdir=None) -> \
-            V1Job:
+    def create_job(self, image, command, name, resources_dict, env_l, uid, gid,
+                   mounts_dict) -> V1Job:
         """
         Create and return a new job instance.
         """
@@ -178,10 +179,17 @@ class KubernetesManager(AbstractManager[V1Job]):
             persistent_volume_claim=pvc,
 
         )
-        volume_mount = k_client.V1VolumeMount(
-            mount_path='/share',  # hard-coded
+        volume_mount_inputdir = k_client.V1VolumeMount(
+            mount_path=mounts_dict['inputdir_target'],
             name='storebase',
-            sub_path=mountdir.rsplit('/', maxsplit=1)[-1]
+            sub_path=mounts_dict['inputdir_source'],
+            read_only=True
+        )
+        volume_mount_outputdir = k_client.V1VolumeMount(
+            mount_path=mounts_dict['outputdir_target'],
+            name='storebase',
+            sub_path=mounts_dict['outputdir_source'],
+            read_only=False
         )
 
         container = k_client.V1Container(
@@ -191,7 +199,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             command=command,
             security_context=k_client.V1SecurityContext(**security_context),
             resources=k_client.V1ResourceRequirements(limits=limits),
-            volume_mounts=[volume_mount]
+            volume_mounts=[volume_mount_inputdir, volume_mount_outputdir]
         )
 
         pod_template_metadata = None

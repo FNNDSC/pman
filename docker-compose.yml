@@ -9,6 +9,8 @@ services:
       context: .
       args:
         ENVIRONMENT: local
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
     command: /usr/local/src/pman/docker-test-entrypoint.sh
     ports:
       - "5010:5010"
