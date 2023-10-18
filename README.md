@@ -165,10 +165,33 @@ such as a NFS-backed volume, `CONTAINER_USER` can be used as a workaround.
 
 Applicable when `CONTAINER_ENV=kubernetes`
 
-| Environment Variable      | Description                                     |
-|---------------------------|-------------------------------------------------|
-| `JOB_NAMESPACE`           | Kubernetes namespace for created jobs           |
-| `NODE_SELECTOR`           | Pod `nodeSelector`                              |
+| Environment Variable      | Description                           |
+|---------------------------|---------------------------------------|
+| `JOB_NAMESPACE`           | Kubernetes namespace for created jobs |
+| `NODE_SELECTOR`           | Pod `nodeSelector`                    |
+| `POD_AFFINITY`            | Pod affinity, see below.              |
+
+#### Pod Affinity RWO Volume Workaround
+
+If pfcon is using a ReadWriteOnly volume, then it is necessary to use podAffinity
+to force all pods to run on the same node. For example, the setting
+`POD_AFFINITY=app.kubernetes.io/name=pfcon,app.kubernetes.io/instance=my-chris`
+will create pods with the following pod affinity rules:
+
+```yaml
+affinity:
+  podAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app.kubernetes.io/instance
+          operator: In
+          values: [ "my-chris" ]
+        - key: app.kubernetes.io/name
+          operator: In
+          values: [ "pfcon" ]
+      topologyKey: kubernetes.io/hostname
+```
 
 ### SLURM-Specific Options
 
