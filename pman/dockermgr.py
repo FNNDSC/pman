@@ -2,6 +2,7 @@ import shlex
 from typing import List, Optional, AnyStr
 
 from docker import DockerClient
+from docker.types import DeviceRequest
 from docker.models.containers import Container
 
 from pman.abstractmgr import (AbstractManager, Image, JobName, ResourcesDict,
@@ -36,8 +37,6 @@ class DockerManager(AbstractManager[Container]):
                 'got number_of_workers=' + str(resources_dict['number_of_workers']),
                 status_code=400
             )
-        if resources_dict['gpu_limit'] != 0:
-            raise ManagerException('Compute environment does not support GPUs yet.')
 
         volumes = {
             'volumes': {
@@ -52,6 +51,11 @@ class DockerManager(AbstractManager[Container]):
         if not self.ignore_limits:
             limits['nano_cpus'] = int(resources_dict['cpu_limit'] * 1e6)
             limits['mem_reservation'] = resources_dict['memory_limit'] * 1024 * 1024
+
+        if resources_dict['gpu_limit'] > 0:
+            limits['device_requests'] = [
+                DeviceRequest(count=resources_dict['gpu_limit'], capabilities=[['gpu']])
+            ]
 
         user_spec = {}
         if uid is not None:
