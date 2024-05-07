@@ -192,6 +192,21 @@ class KubernetesManager(AbstractManager[V1Job]):
             read_only=False
         )
 
+        dshm_volume = []
+        dshm_mount = []
+        if (s := self.config.get('SHM_SIZE')) is not None:
+            dshm_volume.append(k_client.V1Volume(
+                name='dshm',
+                empty_dir=k_client.V1EmptyDirVolumeSource(
+                    medium='Memory',
+                    size_limit=s.as_mib()
+                )
+            ))
+            dshm_mount.append(k_client.V1VolumeMount(
+                mount_path='/dev/shm',
+                name='dshm',
+            ))
+
         container = k_client.V1Container(
             name=name,
             image=image,
@@ -199,7 +214,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             command=command,
             security_context=k_client.V1SecurityContext(**security_context),
             resources=k_client.V1ResourceRequirements(limits=limits),
-            volume_mounts=[volume_mount_inputdir, volume_mount_outputdir]
+            volume_mounts=[volume_mount_inputdir, volume_mount_outputdir, *dshm_mount]
         )
 
         pod_template_metadata = None
@@ -213,7 +228,7 @@ class KubernetesManager(AbstractManager[V1Job]):
             metadata=pod_template_metadata,
             spec=k_client.V1PodSpec(restart_policy='Never',
                                     containers=[container],
-                                    volumes=[volume],
+                                    volumes=[volume, *dshm_volume],
                                     node_selector=node_selector),
 
         )

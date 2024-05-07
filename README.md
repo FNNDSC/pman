@@ -132,6 +132,7 @@ https://github.com/containers/podman/blob/main/troubleshooting.md#symptom-23
 | `PFCON_SELECTOR`         | label on the pfcon container, may be specified for pman to self-discover `VOLUME_NAME` (default: `org.chrisproject.role=pfcon`) |
 | `CONTAINER_USER`         | Set job container user in the form `UID:GID`, may be a range for random values                                                  | 
 | `ENABLE_HOME_WORKAROUND` | If set to "yes" then set job environment variable `HOME=/tmp`                                                                   |
+| `SHM_SIZE`               | Size of `/dev/shm` in mebibytes. (Supported only in Docker, Podman, and Kubernetes.)                                            |
 | `JOB_LABELS`             | CSV list of key=value pairs, labels to apply to container jobs                                                                  |
 | `JOB_LOGS_TAIL`          | (int) maximum size of job logs                                                                                                  |
 | `IGNORE_LIMITS`          | If set to "yes" then do not set resource limits on container jobs (for making things work without effort)                       |

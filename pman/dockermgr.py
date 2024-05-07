@@ -59,6 +59,10 @@ class DockerManager(AbstractManager[Container]):
         if gid is not None:
             user_spec['group_add'] = [gid]
 
+        shm_size = {}
+        if (s := self.config.get('SHM_SIZE')) is not None:
+            shm_size['shm_size'] = s.as_mb()
+
         return self.__docker.containers.run(
             image=image,
             command=command,
@@ -69,6 +73,7 @@ class DockerManager(AbstractManager[Container]):
             labels=self.job_labels,
             **limits,
             **user_spec,
+            **shm_size,
             **volumes
         )
 
