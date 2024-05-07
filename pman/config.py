@@ -5,6 +5,7 @@ from environs import Env
 
 from importlib.metadata import Distribution
 
+from pman.memsize import Memsize
 from pman._helpers import get_storebase_from_docker
 
 pkg = Distribution.from_name(__package__)
@@ -28,6 +29,8 @@ class Config:
         self.IGNORE_LIMITS = env.bool('IGNORE_LIMITS', False)
         self.CONTAINER_USER = env('CONTAINER_USER', None)
         self.ENABLE_HOME_WORKAROUND = env.bool('ENABLE_HOME_WORKAROUND', False)
+        shm_size = env.int('SHM_SIZE', None)
+        self.SHM_SIZE = None if shm_size is None else Memsize(shm_size)
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
         if self.CONTAINER_ENV == 'podman':  # podman is just an alias for docker
