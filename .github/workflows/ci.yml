@@ -58,7 +58,7 @@ jobs:
   #     - uses: FNNDSC/cube-integration-action@master
 
   build:
-    needs: [test-python, test-docker, test-swarm, test-cube]
+    needs: [test-python, test-docker]
     if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     steps:
