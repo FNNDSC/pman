@@ -1,9 +1,9 @@
 Flask==2.3.3
 Flask-RESTful==0.3.10
-docker==7.0.0
+docker==7.1.0
 openshift==0.13.2
 kubernetes==27.2.0
 python-keystoneclient==4.2.0
-environs==9.5.0
+environs==14.2.0
 cromwell-tools==2.4.1
 pyserde==0.6.0
