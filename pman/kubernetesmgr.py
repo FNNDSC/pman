@@ -10,11 +10,16 @@ from kubernetes import client as k_client
 from kubernetes import config as k_config
 from kubernetes.client import V1Pod
 from kubernetes.client.models.v1_job import V1Job
+from kubernetes.client.models.v1_local_object_reference import V1LocalObjectReference
 from kubernetes.client.rest import ApiException
 from .abstractmgr import (AbstractManager, ManagerException, JobInfo, JobStatus,
                           TimeStamp, JobName)
 
 logger = logging.getLogger(__name__)
+
+
+def str_to_v1_local_object_reference(image_pull_secret: str):
+    return V1LocalObjectReference(name=image_pull_secret)
 
 
 class KubernetesManager(AbstractManager[V1Job]):
@@ -235,7 +240,8 @@ class KubernetesManager(AbstractManager[V1Job]):
 
         image_pull_secrets = self.config.get('IMAGE_PULL_SECRETS')
         if image_pull_secrets:
-            pod_spec_args['image_pull_secrets'] = image_pull_secrets
+            image_pull_secrets_obj = list(map(str_to_v1_local_object_reference, image_pull_secrets))
+            pod_spec_args['image_pull_secrets'] = image_pull_secrets_obj
 
         template = k_client.V1PodTemplateSpec(
             metadata=pod_template_metadata,
