@@ -67,6 +67,8 @@ class Config:
         if self.CONTAINER_ENV == 'kubernetes':
             self.JOB_NAMESPACE = env('JOB_NAMESPACE', 'default')
             self.NODE_SELECTOR = env.dict('NODE_SELECTOR', {})
+            image_pull_secrets = env('IMAGE_PULL_SECRETS', '')
+            self.IMAGE_PULL_SECRETS = None if not image_pull_secrets else image_pull_secrets.split(',')
 
         if self.CONTAINER_ENV == 'cromwell':
             self.CROMWELL_URL = env('CROMWELL_URL')
