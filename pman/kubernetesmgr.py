@@ -224,13 +224,22 @@ class KubernetesManager(AbstractManager[V1Job]):
 
         node_selector = self.config.get('NODE_SELECTOR')
 
+        pod_spec_args = {
+            'restart_policy': 'Never',
+            'containers': [container],
+            'volumes': [volume, *dshm_volume],
+        }
+
+        if node_selector:
+            pod_spec_args['node_selector'] = node_selector
+
+        image_pull_secrets = self.config.get('IMAGE_PULL_SECRETS')
+        if image_pull_secrets:
+            pod_spec_args['image_pull_secrets'] = image_pull_secrets
+
         template = k_client.V1PodTemplateSpec(
             metadata=pod_template_metadata,
-            spec=k_client.V1PodSpec(restart_policy='Never',
-                                    containers=[container],
-                                    volumes=[volume, *dshm_volume],
-                                    node_selector=node_selector),
-
+            spec=k_client.V1PodSpec(**pod_spec_args),
         )
         # configure job's spec
         spec = k_client.V1JobSpec(
