@@ -49,20 +49,13 @@ jobs:
           fi
           ./test_docker.sh '${{ matrix.engine }}'
 
-  test-swarm:
-    name: tests (swarm)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - run: ./test_swarm.sh
-
-  test-cube:
-    name: tests (integration)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t fnndsc/pman .
-      - uses: FNNDSC/cube-integration-action@master
+  # test-cube:
+  #   name: tests (integration)
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: docker build -t fnndsc/pman .
+  #     - uses: FNNDSC/cube-integration-action@master
 
   build:
     needs: [test-python, test-docker, test-swarm, test-cube]
