@@ -1,12 +1,11 @@
 
+from importlib.metadata import Distribution
 from logging.config import dictConfig
 
 from environs import Env
 
-from importlib.metadata import Distribution
-
-from pman.memsize import Memsize
 from pman._helpers import get_storebase_from_docker
+from pman.memsize import Memsize
 
 pkg = Distribution.from_name(__package__)
 
@@ -31,6 +30,10 @@ class Config:
         self.ENABLE_HOME_WORKAROUND = env.bool('ENABLE_HOME_WORKAROUND', False)
         shm_size = env.int('SHM_SIZE', None)
         self.SHM_SIZE = None if shm_size is None else Memsize(shm_size)
+
+        # Docker networks configuration
+        docker_networks = env('DOCKER_NETWORKS', '')
+        self.DOCKER_NETWORKS = None if not docker_networks else docker_networks.split(',')
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
         if self.CONTAINER_ENV == 'podman':  # podman is just an alias for docker
