@@ -130,12 +130,13 @@ https://github.com/containers/podman/blob/main/troubleshooting.md#symptom-23
 | `STOREBASE`              | where job data is stored, valid when `STORAGE_TYPE=host`, conflicts with `VOLUME_NAME`                                          |
 | `VOLUME_NAME`            | name of data volume, valid when `STORAGE_TYPE=docker_local_volume` or `STORAGE_TYPE=kubernetes_pvc`                             |
 | `PFCON_SELECTOR`         | label on the pfcon container, may be specified for pman to self-discover `VOLUME_NAME` (default: `org.chrisproject.role=pfcon`) |
-| `CONTAINER_USER`         | Set job container user in the form `UID:GID`, may be a range for random values                                                  | 
+| `CONTAINER_USER`         | Set job container user in the form `UID:GID`, may be a range for random values                                                  |
 | `ENABLE_HOME_WORKAROUND` | If set to "yes" then set job environment variable `HOME=/tmp`                                                                   |
 | `SHM_SIZE`               | Size of `/dev/shm` in mebibytes. (Supported only in Docker, Podman, and Kubernetes.)                                            |
 | `JOB_LABELS`             | CSV list of key=value pairs, labels to apply to container jobs                                                                  |
 | `JOB_LOGS_TAIL`          | (int) maximum size of job logs                                                                                                  |
 | `IGNORE_LIMITS`          | If set to "yes" then do not set resource limits on container jobs (for making things work without effort)                       |
+| `DOCKER_NETWORKS`        | Comma-separated list of Docker networks to connect containers to (e.g., "network1,network2")                                    |
 | `REMOVE_JOBS`            | If set to "no" then pman will not delete jobs (for debugging)                                                                   |
 
 [flask docs]: https://flask.palletsprojects.com/en/2.1.x/config/#SECRET_KEY
@@ -161,6 +162,14 @@ PersistentVolumeClaim configured as ReadWriteMany.
 
 In cases where the volume is only writable to a specific UNIX user,
 such as a NFS-backed volume, `CONTAINER_USER` can be used as a workaround.
+
+### Docker-Specific Options
+
+Applicable when `CONTAINER_ENV=docker`
+
+| Environment Variable      | Description                                     |
+|---------------------------|-------------------------------------------------|
+| `DOCKER_NETWORKS`         | Comma-separated list of Docker networks to connect containers to (e.g., "network1,network2") |
 
 ### Kubernetes-Specific Options
 

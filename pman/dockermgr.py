@@ -1,13 +1,18 @@
 import shlex
-from typing import List, Optional, AnyStr
+import logging
+from typing import AnyStr, List, Optional
 
-from docker import DockerClient
-from docker.types import DeviceRequest
-from docker.models.containers import Container
-
-from pman.abstractmgr import (AbstractManager, Image, JobName, ResourcesDict,
-                              MountsDict, JobInfo, TimeStamp, ManagerException, JobStatus)
 import docker
+from docker import DockerClient
+from docker.models.containers import Container
+from docker.types import DeviceRequest
+
+from pman.abstractmgr import (AbstractManager, Image, JobInfo, JobName,
+                              JobStatus, ManagerException, MountsDict,
+                              ResourcesDict, TimeStamp)
+
+
+logger = logging.getLogger(__name__)
 
 
 class DockerManager(AbstractManager[Container]):
@@ -67,7 +72,15 @@ class DockerManager(AbstractManager[Container]):
         if (s := self.config.get('SHM_SIZE')) is not None:
             shm_size['shm_size'] = s.as_mb()
 
-        return self.__docker.containers.run(
+        # Docker networks configuration
+        networks = {}
+        if (docker_networks := self.config.get('DOCKER_NETWORKS')) and len(docker_networks) > 0:
+            # Only use the first network for container creation
+            networks['network'] = docker_networks[0]
+
+        logger.info(f"networks: {networks}")
+
+        container = self.__docker.containers.run(
             image=image,
             command=command,
             name=name,
@@ -78,8 +91,23 @@ class DockerManager(AbstractManager[Container]):
             **limits,
             **user_spec,
             **shm_size,
-            **volumes
+            **volumes,
+            **networks
         )
+
+        # Connect to additional networks if multiple networks are specified
+        if (docker_networks := self.config.get('DOCKER_NETWORKS')) and len(docker_networks) > 1:
+            for network_name in docker_networks[1:]:
+                try:
+                    network = self.__docker.networks.get(network_name)
+                    network.connect(container)
+                    logger.info(f"Connected container {name} to additional network: {network_name}")
+                except docker.errors.NotFound:
+                    logger.warning(f"Network {network_name} not found, skipping connection")
+                except docker.errors.APIError as e:
+                    logger.error(f"Failed to connect container {name} to network {network_name}: {e}")
+
+        return container
 
     def get_job(self, name: JobName) -> Container:
         try:
