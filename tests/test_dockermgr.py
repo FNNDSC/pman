@@ -1,7 +1,5 @@
 from unittest.mock import Mock, patch
 
-import pytest
-
 from pman.dockermgr import DockerManager
 
 
@@ -56,6 +54,10 @@ class TestDockerManager:
         mock_container = Mock()
         mock_docker_client.containers.run.return_value = mock_container
 
+        # Mock the networks.get method and network.connect method for additional networks
+        mock_network = Mock()
+        mock_docker_client.networks.get.return_value = mock_network
+
         # Test parameters
         image = 'test-image'
         command = ['test', 'command']
@@ -74,10 +76,15 @@ class TestDockerManager:
         # Call schedule_job
         result = manager.schedule_job(image, command, name, resources_dict, env, uid, gid, mounts_dict)
 
-        # Verify that containers.run was called with the correct network parameter
+        # Verify that containers.run was called with only the first network
         mock_docker_client.containers.run.assert_called_once()
         call_args = mock_docker_client.containers.run.call_args
-        assert call_args[1]['network'] == ['network1', 'network2']
+        assert call_args[1]['network'] == 'network1'
+
+        # Verify that the second network was connected separately
+        mock_docker_client.networks.get.assert_called_once_with('network2')
+        mock_network.connect.assert_called_once_with(mock_container)
+
         assert result == mock_container
 
     def test_docker_networks_none(self):

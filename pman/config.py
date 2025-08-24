@@ -32,8 +32,7 @@ class Config:
         self.SHM_SIZE = None if shm_size is None else Memsize(shm_size)
 
         # Docker networks configuration
-        docker_networks = env('DOCKER_NETWORKS', '')
-        self.DOCKER_NETWORKS = None if not docker_networks else docker_networks.split(',')
+        self.DOCKER_NETWORKS = env.list('DOCKER_NETWORKS', [])
 
         self.CONTAINER_ENV = env('CONTAINER_ENV', 'docker')
         if self.CONTAINER_ENV == 'podman':  # podman is just an alias for docker
