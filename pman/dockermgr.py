@@ -1,5 +1,4 @@
 import shlex
-import logging
 from typing import AnyStr, List, Optional
 
 import docker
@@ -10,9 +9,6 @@ from docker.types import DeviceRequest
 from pman.abstractmgr import (AbstractManager, Image, JobInfo, JobName,
                               JobStatus, ManagerException, MountsDict,
                               ResourcesDict, TimeStamp)
-
-
-logger = logging.getLogger(__name__)
 
 
 class DockerManager(AbstractManager[Container]):
@@ -76,8 +72,6 @@ class DockerManager(AbstractManager[Container]):
         networks = {}
         if docker_network := self.config.get('DOCKER_NETWORKS'):
             networks['network'] = docker_network
-
-        logger.debug(f"networks: {networks}")
 
         container = self.__docker.containers.run(
             image=image,
