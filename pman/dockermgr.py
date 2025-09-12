@@ -74,11 +74,10 @@ class DockerManager(AbstractManager[Container]):
 
         # Docker networks configuration
         networks = {}
-        if (docker_networks := self.config.get('DOCKER_NETWORKS')) and len(docker_networks) > 0:
-            # Only use the first network for container creation
-            networks['network'] = docker_networks[0]
+        if docker_network := self.config.get('DOCKER_NETWORKS'):
+            networks['network'] = docker_network
 
-        logger.info(f"networks: {networks}")
+        logger.debug(f"networks: {networks}")
 
         container = self.__docker.containers.run(
             image=image,
@@ -94,18 +93,6 @@ class DockerManager(AbstractManager[Container]):
             **volumes,
             **networks
         )
-
-        # Connect to additional networks if multiple networks are specified
-        if (docker_networks := self.config.get('DOCKER_NETWORKS')) and len(docker_networks) > 1:
-            for network_name in docker_networks[1:]:
-                try:
-                    network = self.__docker.networks.get(network_name)
-                    network.connect(container)
-                    logger.info(f"Connected container {name} to additional network: {network_name}")
-                except docker.errors.NotFound:
-                    logger.warning(f"Network {network_name} not found, skipping connection")
-                except docker.errors.APIError as e:
-                    logger.error(f"Failed to connect container {name} to network {network_name}: {e}")
 
         return container
 
