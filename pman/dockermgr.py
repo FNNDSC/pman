@@ -1,13 +1,14 @@
 import shlex
-from typing import List, Optional, AnyStr
+from typing import AnyStr, List, Optional
 
-from docker import DockerClient
-from docker.types import DeviceRequest
-from docker.models.containers import Container
-
-from pman.abstractmgr import (AbstractManager, Image, JobName, ResourcesDict,
-                              MountsDict, JobInfo, TimeStamp, ManagerException, JobStatus)
 import docker
+from docker import DockerClient
+from docker.models.containers import Container
+from docker.types import DeviceRequest
+
+from pman.abstractmgr import (AbstractManager, Image, JobInfo, JobName,
+                              JobStatus, ManagerException, MountsDict,
+                              ResourcesDict, TimeStamp)
 
 
 class DockerManager(AbstractManager[Container]):
@@ -67,7 +68,12 @@ class DockerManager(AbstractManager[Container]):
         if (s := self.config.get('SHM_SIZE')) is not None:
             shm_size['shm_size'] = s.as_mb()
 
-        return self.__docker.containers.run(
+        # Docker networks configuration
+        networks = {}
+        if docker_network := self.config.get('DOCKER_NETWORKS'):
+            networks['network'] = docker_network
+
+        container = self.__docker.containers.run(
             image=image,
             command=command,
             name=name,
@@ -78,8 +84,11 @@ class DockerManager(AbstractManager[Container]):
             **limits,
             **user_spec,
             **shm_size,
-            **volumes
+            **volumes,
+            **networks
         )
+
+        return container
 
     def get_job(self, name: JobName) -> Container:
         try:
