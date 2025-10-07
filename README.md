@@ -4,6 +4,9 @@
 [![MIT License](https://img.shields.io/github/license/fnndsc/pman)](LICENSE)
 [![ci](https://github.com/FNNDSC/pman/actions/workflows/ci.yml/badge.svg)](https://github.com/FNNDSC/pman/actions/workflows/ci.yml)
 
+> [!CAUTION]
+> _pman_ has been deprecated and integrated into [_pfcon_](https://github.com/FNNDSC/pfcon).
+
 _pman_, which once stood for **p**rocess **man**ager,
 is a [Flask](https://flask-restful.readthedocs.io/) application
 providing an API for creating jobs with various schedulers e.g.
